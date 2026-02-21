@@ -625,6 +625,7 @@ button {
 }
 
 .admin-btn {
+  position: relative;
   padding: 8px 16px;
   background: linear-gradient(135deg, #4a9eff, #6366f1);
   color: #fff;
@@ -638,6 +639,29 @@ button {
 .admin-btn:hover {
   opacity: 0.9;
   transform: translateY(-1px);
+}
+
+.admin-notif {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: #f87171;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 50px;
+  box-shadow: 0 2px 8px rgba(248, 113, 113, 0.5);
+  animation: notifPulse 2s ease infinite;
+}
+
+@keyframes notifPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
 }
 
 .auth-btn {

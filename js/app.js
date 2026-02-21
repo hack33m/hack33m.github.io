@@ -168,7 +168,23 @@ function authenticateUser(username, password) {
   const users = getUsers();
   const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
   if (!user) return { ok: false, error: 'Användaren finns inte' };
-  if (user.banned) return { ok: false, error: 'Detta konto är bannat' };
+  if (user.banned) {
+    // Check if ban has expired
+    if (user.bannedUntil) {
+      if (new Date() >= new Date(user.bannedUntil)) {
+        // Ban expired - auto unban
+        const idx = users.findIndex(u => u.username === user.username);
+        users[idx].banned = false;
+        users[idx].bannedUntil = null;
+        saveUsers(users);
+      } else {
+        const until = new Date(user.bannedUntil).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return { ok: false, error: `Kontot är bannat till ${until}` };
+      }
+    } else {
+      return { ok: false, error: 'Detta konto är permanent bannat' };
+    }
+  }
   if (user.password !== password) return { ok: false, error: 'Fel lösenord' };
   loginUser(user.username);
   return { ok: true };
@@ -303,7 +319,13 @@ function renderHeaderAuth() {
     if (idx !== -1) { Object.assign(users[idx], user); saveUsers(users); }
   }
 
-  const adminBtn = isAdmin() ? '<a href="admin.html" class="admin-btn">🛡️ Admin</a>' : '';
+  let adminBtn = '';
+  if (isAdmin()) {
+    let fbCount = 0;
+    try { fbCount = (JSON.parse(localStorage.getItem(FEEDBACK_STORAGE_KEY)) || []).length; } catch {}
+    const notif = fbCount > 0 ? `<span class="admin-notif">${fbCount}</span>` : '';
+    adminBtn = `<a href="admin.html" class="admin-btn">🛡️ Admin${notif}</a>`;
+  }
   const coinsDisplay = `<a href="shop.html" class="coins-display" title="Öppna shop">🪙 ${user.coins || 0}</a>`;
 
   container.innerHTML = `

@@ -76,6 +76,10 @@
     .coins-input { width: 80px; padding: 4px 8px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px; font-family: inherit; text-align: center; outline: none; }
     .coins-input:focus { border-color: var(--accent-yellow); }
 
+    .ban-duration-select { padding: 5px 10px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 12px; font-family: inherit; cursor: pointer; outline: none; }
+    .ban-duration-select:focus { border-color: var(--accent-red); }
+    .ban-until { font-size: 11px; color: var(--accent-red); font-weight: 600; }
+
     .user-avatar { font-size: 28px; line-height: 1; }
     .user-stats { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: var(--text-muted); flex-wrap: wrap; }
     .user-stats span strong { color: var(--text-secondary); }
@@ -222,9 +226,24 @@
         if (!isOwnerUser) {
           // Ban/unban — owner can always, admins can only ban regular users
           if (curIsOwner || (!isAdminUser)) {
-            actions += u.banned
-              ? `<button class="btn-sm btn-unban" data-user="${esc(u.username)}" data-action="unban">Avbanna</button>`
-              : `<button class="btn-sm btn-ban" data-user="${esc(u.username)}" data-action="ban">Banna</button>`;
+            if (u.banned) {
+              let banInfo = '';
+              if (u.bannedUntil) {
+                banInfo = `<span class="ban-until">Till ${fmtDate(u.bannedUntil)}</span>`;
+              } else {
+                banInfo = '<span class="ban-until">Permanent</span>';
+              }
+              actions += `${banInfo} <button class="btn-sm btn-unban" data-user="${esc(u.username)}" data-action="unban">Avbanna</button>`;
+            } else {
+              actions += `<select class="ban-duration-select" data-user="${esc(u.username)}">
+                <option value="1h">1 timme</option>
+                <option value="24h">24 timmar</option>
+                <option value="7d">7 dagar</option>
+                <option value="30d">30 dagar</option>
+                <option value="perm">Permanent</option>
+              </select>
+              <button class="btn-sm btn-ban" data-user="${esc(u.username)}" data-action="ban">Banna</button>`;
+            }
           }
 
           // Promote/demote — only owner
@@ -281,8 +300,26 @@
         const idx = users.findIndex(u => u.username === username);
         if (idx === -1) return;
 
-        if (action === 'ban') { if (confirm(`Banna ${username}?`)) { users[idx].banned = true; saveUsers(users); } }
-        else if (action === 'unban') { users[idx].banned = false; saveUsers(users); }
+        if (action === 'ban') {
+          const durSelect = panel.querySelector(`select.ban-duration-select[data-user="${username}"]`);
+          const dur = durSelect ? durSelect.value : 'perm';
+          const durLabels = { '1h': '1 timme', '24h': '24 timmar', '7d': '7 dagar', '30d': '30 dagar', 'perm': 'permanent' };
+          if (confirm(`Banna ${username} i ${durLabels[dur]}?`)) {
+            users[idx].banned = true;
+            if (dur === 'perm') {
+              users[idx].bannedUntil = null;
+            } else {
+              const now = new Date();
+              if (dur === '1h') now.setHours(now.getHours() + 1);
+              else if (dur === '24h') now.setHours(now.getHours() + 24);
+              else if (dur === '7d') now.setDate(now.getDate() + 7);
+              else if (dur === '30d') now.setDate(now.getDate() + 30);
+              users[idx].bannedUntil = now.toISOString();
+            }
+            saveUsers(users);
+          }
+        }
+        else if (action === 'unban') { users[idx].banned = false; users[idx].bannedUntil = null; saveUsers(users); }
         else if (action === 'delete') { if (confirm(`Ta bort ${username}?`)) { users.splice(idx, 1); saveUsers(users); } }
         else if (action === 'promote') { users[idx].role = 'admin'; saveUsers(users); }
         else if (action === 'demote') { users[idx].role = 'user'; saveUsers(users); }
