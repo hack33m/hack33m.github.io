@@ -3,24 +3,1233 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Space Runner</title>
+  <title>Neon Dash</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0f0c29; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; }
-    .container { padding: 40px; }
-    h1 { font-size: 48px; margin-bottom: 16px; }
-    p { font-size: 18px; color: #a78bfa; margin-bottom: 24px; }
-    .emoji { font-size: 96px; margin-bottom: 24px; display: block; animation: float 2s ease-in-out infinite; }
-    .hint { font-size: 14px; color: #64748b; }
-    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; outline: none; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <span class="emoji">🚀</span>
-    <h1>Space Runner</h1>
-    <p>Undvik hinder och samla stjärnor i rymden!</p>
-    <p class="hint">Platshållare — ersätt med ditt riktiga spel!</p>
-  </div>
+<canvas id="game" tabindex="0"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  canvas.focus();
+  window.addEventListener('load', () => canvas.focus());
+
+  // --- Hi-DPI ---
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
+  // --- Colors ---
+  const NEON_BLUE = '#00d4ff';
+  const NEON_PURPLE = '#a855f7';
+  const NEON_PINK = '#ff2d95';
+  const NEON_GREEN = '#39ff14';
+  const NEON_ORANGE = '#ff6a00';
+  const BG_DARK = '#0a0a1a';
+
+  // --- Skin System ---
+  const SKIN_DATA = {
+    default:  { primary: '#00d4ff', secondary: '#ffffff', trail: '#00d4ff', glow: '#00d4ff', glowStyle: 'normal' },
+    crimson:  { primary: '#ff2d55', secondary: '#ffaacc', trail: '#ff2d55', glow: '#ff2d55', glowStyle: 'normal' },
+    emerald:  { primary: '#39ff14', secondary: '#ccffcc', trail: '#39ff14', glow: '#39ff14', glowStyle: 'normal' },
+    sunset:   { primary: '#ff6a00', secondary: '#ffdd44', trail: '#ff8c00', glow: '#ff6a00', glowStyle: 'normal' },
+    phantom:  { primary: '#a855f7', secondary: '#e0ccff', trail: '#a855f7', glow: '#a855f7', glowStyle: 'pulse' },
+    arctic:   { primary: '#88eeff', secondary: '#ffffff', trail: '#aaeeff', glow: '#88eeff', glowStyle: 'frost' },
+    golden:   { primary: '#fbbf24', secondary: '#fff8e0', trail: '#fbbf24', glow: '#fbbf24', glowStyle: 'normal' },
+    inferno:  { primary: '#ff4400', secondary: '#ff8800', trail: '#ff2200', glow: '#ff4400', glowStyle: 'flicker' },
+    void:     { primary: '#1a0033', secondary: '#6600cc', trail: '#3300aa', glow: '#6600cc', glowStyle: 'reverse' },
+    rainbow:  { primary: 'rainbow', secondary: '#ffffff', trail: 'rainbow', glow: 'rainbow', glowStyle: 'rainbow' },
+  };
+
+  let skinPrimary = NEON_BLUE;
+  let skinSecondary = '#ffffff';
+  let skinTrail = NEON_BLUE;
+  let skinGlow = NEON_BLUE;
+  let skinGlowStyle = 'normal';
+
+  function getEquippedSkinId() {
+    try {
+      const session = JSON.parse(localStorage.getItem('elias-spelportal-session'));
+      if (!session) return 'default';
+      const users = JSON.parse(localStorage.getItem('elias-spelportal-users')) || [];
+      const user = users.find(u => u.username === session.username);
+      if (!user || !user.arrowSkin) return 'default';
+      return user.arrowSkin;
+    } catch { return 'default'; }
+  }
+
+  function loadSkin() {
+    const id = getEquippedSkinId();
+    const skin = SKIN_DATA[id] || SKIN_DATA.default;
+    skinGlowStyle = skin.glowStyle;
+    if (skin.primary === 'rainbow') {
+      const hue = (Date.now() / 15) % 360;
+      skinPrimary = `hsl(${hue}, 100%, 55%)`;
+      skinSecondary = '#ffffff';
+      skinTrail = `hsl(${(hue + 60) % 360}, 100%, 55%)`;
+      skinGlow = `hsl(${hue}, 100%, 55%)`;
+    } else {
+      skinPrimary = skin.primary;
+      skinSecondary = skin.secondary;
+      skinTrail = skin.trail;
+      skinGlow = skin.glow;
+    }
+  }
+
+  // ========== GAME STATES ==========
+  const STATE = { MENU: 0, MODE_SELECT: 1, PLAYING: 2, DEAD: 3, LEVEL_COMPLETE: 4 };
+  let state = STATE.MENU;
+
+  // ========== GAME MODES ==========
+  const MODE = { ENDLESS: 'endless', LEVEL: 'level' };
+  let gameMode = MODE.ENDLESS;
+  let currentLevel = 0;
+  let selectedModeIndex = 0;
+
+  // Level definitions
+  const LEVELS = [
+    {
+      name: 'Neon Corridor',
+      color: NEON_GREEN,
+      speed: 3.2,
+      obstacles: [
+        { type: 'gap', offset: 0.4 },
+        { type: 'spikes_top', height: 0.25 },
+        { type: 'gap', offset: 0.6 },
+        { type: 'spikes_bottom', height: 0.25 },
+        { type: 'gap', offset: 0.35 },
+        { type: 'gap', offset: 0.65 },
+        { type: 'spikes_top', height: 0.3 },
+        { type: 'spikes_bottom', height: 0.2 },
+        { type: 'gap', offset: 0.5 },
+        { type: 'spikes_both', topH: 0.2, botH: 0.2 },
+        { type: 'gap', offset: 0.4 },
+        { type: 'gap', offset: 0.6 },
+        { type: 'spikes_top', height: 0.35 },
+        { type: 'gap', offset: 0.5 },
+        { type: 'spikes_bottom', height: 0.3 },
+      ]
+    },
+    {
+      name: 'Void Tunnel',
+      color: NEON_PURPLE,
+      speed: 3.8,
+      obstacles: [
+        { type: 'gap', offset: 0.5 },
+        { type: 'spikes_both', topH: 0.2, botH: 0.2 },
+        { type: 'gap', offset: 0.35 },
+        { type: 'pillar', pos: 0.4 },
+        { type: 'spikes_top', height: 0.35 },
+        { type: 'gap', offset: 0.65 },
+        { type: 'spikes_bottom', height: 0.35 },
+        { type: 'pillar', pos: 0.6 },
+        { type: 'gap', offset: 0.4 },
+        { type: 'spikes_both', topH: 0.25, botH: 0.25 },
+        { type: 'pillar', pos: 0.3 },
+        { type: 'gap', offset: 0.6 },
+        { type: 'spikes_top', height: 0.4 },
+        { type: 'spikes_bottom', height: 0.3 },
+        { type: 'gap', offset: 0.35 },
+        { type: 'spikes_both', topH: 0.3, botH: 0.25 },
+        { type: 'pillar', pos: 0.5 },
+        { type: 'gap', offset: 0.55 },
+        { type: 'spikes_both', topH: 0.25, botH: 0.3 },
+        { type: 'gap', offset: 0.45 },
+      ]
+    }
+  ];
+
+  // Menu items for mode select
+  function getModeItems() {
+    return [
+      { label: 'Endless', desc: 'Hur långt kan du nå?', icon: '∞' },
+      ...LEVELS.map((l, i) => ({ label: l.name, desc: `Level ${i + 1}`, icon: `${i + 1}`, color: l.color }))
+    ];
+  }
+
+  // ========== GAME VARIABLES ==========
+  let score = 0;
+  let highScore = parseInt(localStorage.getItem('neondash-highscore') || '0');
+  let holding = false;
+  let gameSpeed = 3.5;
+  let baseSpeed = 3.5;
+  let distance = 0;
+  let shakeTimer = 0;
+  let flashTimer = 0;
+  let deathParticles = [];
+  let menuPulse = 0;
+  let levelProgress = 0;
+  let levelLength = 0;
+  let levelComplete = false;
+
+  // Player
+  const player = {
+    x: 0, y: 0, vy: 0,
+    size: 14,
+    trail: [],  // {x, y} positions
+    alive: true
+  };
+
+  // World
+  let obstacles = [];
+  let stars = [];
+  let bgParticles = [];
+
+  // Tunnel
+  const TUNNEL_MARGIN = 65;
+  const tunnelTop = () => TUNNEL_MARGIN;
+  const tunnelBottom = () => H() - TUNNEL_MARGIN;
+  const tunnelHeight = () => tunnelBottom() - tunnelTop();
+
+  // ========== HELPERS ==========
+  function hexToRgba(hex, a) {
+    if (hex.startsWith('hsl')) return hex.replace(')', `, ${a})`).replace('hsl(', 'hsla(');
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function drawGlow(x, y, radius, color, alpha) {
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    grad.addColorStop(0, hexToRgba(color, alpha));
+    grad.addColorStop(1, hexToRgba(color, 0));
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ========== INIT ==========
+  function initPlayer() {
+    player.x = W() * 0.18;
+    player.y = H() / 2;
+    player.vy = 0;
+    player.trail = [];
+    player.alive = true;
+  }
+
+  function initStars() {
+    stars = [];
+    for (let i = 0; i < 120; i++) {
+      stars.push({
+        x: Math.random() * W(), y: Math.random() * H(),
+        size: Math.random() * 2 + 0.3, speed: Math.random() * 1.5 + 0.5,
+        brightness: Math.random()
+      });
+    }
+  }
+
+  function initBgParticles() {
+    bgParticles = [];
+    for (let i = 0; i < 25; i++) {
+      bgParticles.push({
+        x: Math.random() * W(), y: Math.random() * H(),
+        size: Math.random() * 3 + 1, speed: Math.random() * 0.8 + 0.2,
+        hue: Math.random() * 60 + 220, alpha: Math.random() * 0.2 + 0.05
+      });
+    }
+  }
+
+  // ========== OBSTACLE GENERATION ==========
+  const GAP_SIZE_ENDLESS = 140;
+
+  function buildLevelObstacles(levelIdx) {
+    const level = LEVELS[levelIdx];
+    const obs = [];
+    const spacing = 220;
+    const startX = W() * 0.6;
+    const tH = tunnelHeight();
+    const gapSize = GAP_SIZE_ENDLESS;
+
+    level.obstacles.forEach((def, i) => {
+      const x = startX + i * spacing;
+      switch (def.type) {
+        case 'gap': {
+          const gapY = tunnelTop() + gapSize / 2 + def.offset * (tH - gapSize);
+          obs.push({ type: 'gap', x, width: 30, gapY, gapSize, color: NEON_PURPLE });
+          break;
+        }
+        case 'spikes_top': {
+          const h = def.height * tH;
+          obs.push({ type: 'spikes_top', x, width: 50, spikeHeight: h, color: NEON_PINK });
+          break;
+        }
+        case 'spikes_bottom': {
+          const h = def.height * tH;
+          obs.push({ type: 'spikes_bottom', x, width: 50, spikeHeight: h, color: NEON_PINK });
+          break;
+        }
+        case 'spikes_both': {
+          obs.push({ type: 'spikes_both', x, width: 50, topHeight: def.topH * tH, bottomHeight: def.botH * tH, color: NEON_ORANGE });
+          break;
+        }
+        case 'pillar': {
+          const py = tunnelTop() + def.pos * tH - 25;
+          obs.push({ type: 'pillars', x, width: 25, pillars: [{ offsetX: 0, y: py, height: 50, width: 25 }], color: NEON_BLUE });
+          break;
+        }
+      }
+    });
+
+    // Finish line
+    const finishX = startX + level.obstacles.length * spacing + 100;
+    obs.push({ type: 'finish', x: finishX, width: 10 });
+    levelLength = finishX - startX;
+
+    return obs;
+  }
+
+  // Track the last safe zone so next obstacle is always reachable
+  let lastSafeY = 0;      // center of last safe passage
+  let lastObstacleX = 0;  // x position of last obstacle
+
+  function generateEndlessObstacle(x) {
+    const difficulty = Math.min(distance / 3500, 1);
+    const tH = tunnelHeight();
+    const tTop = tunnelTop();
+    const tBot = tunnelBottom();
+    const ps = player.size;
+
+    // Minimum safe gap the player can fit through (generous)
+    const MIN_GAP = ps * 6;
+
+    // How far can the player move vertically between obstacles?
+    // Player moves at gameSpeed vertically, obstacles scroll at gameSpeed horizontally
+    // So vertical reach = horizontal distance between obstacles
+    const horizDist = x - lastObstacleX;
+    const verticalReach = horizDist > 0 ? horizDist : tH;
+
+    const types = ['gap', 'spikes_top', 'spikes_bottom', 'spikes_both', 'pillars'];
+    let type;
+    const roll = Math.random();
+
+    if (difficulty < 0.2) {
+      type = roll < 0.55 ? 'gap' : (roll < 0.8 ? 'spikes_top' : 'spikes_bottom');
+    } else if (difficulty < 0.5) {
+      type = roll < 0.3 ? 'gap' : (roll < 0.5 ? 'spikes_top' : (roll < 0.7 ? 'spikes_bottom' : (roll < 0.85 ? 'spikes_both' : 'pillars')));
+    } else {
+      type = types[Math.floor(Math.random() * types.length)];
+    }
+
+    // Calculate reachable Y range from last safe position
+    const reachMin = Math.max(tTop + ps, lastSafeY - verticalReach);
+    const reachMax = Math.min(tBot - ps, lastSafeY + verticalReach);
+
+    let ob;
+
+    switch (type) {
+      case 'gap': {
+        const gapSize = Math.max(MIN_GAP, 160 - 45 * difficulty);
+        // Place gap center within reachable range
+        const gapMin = Math.max(tTop + gapSize / 2, reachMin);
+        const gapMax = Math.min(tBot - gapSize / 2, reachMax);
+        const gapY = gapMin + Math.random() * Math.max(0, gapMax - gapMin);
+        ob = { type: 'gap', x, width: 28 + Math.random() * 18, gapY, gapSize, color: NEON_PURPLE };
+        lastSafeY = gapY;
+        break;
+      }
+      case 'spikes_top': {
+        // Max spike height so there's still room to pass underneath
+        const maxH = Math.min((0.15 + Math.random() * 0.2 * (1 + difficulty * 0.5)) * tH, tH - MIN_GAP);
+        const h = Math.max(20, maxH);
+        ob = { type: 'spikes_top', x, width: 45 + Math.random() * 25, spikeHeight: h, color: NEON_PINK };
+        // Safe zone is below the spikes
+        const safeCenter = tTop + h + (tBot - tTop - h) / 2;
+        // Clamp to reachable
+        lastSafeY = Math.max(reachMin, Math.min(reachMax, safeCenter));
+        break;
+      }
+      case 'spikes_bottom': {
+        const maxH = Math.min((0.15 + Math.random() * 0.2 * (1 + difficulty * 0.5)) * tH, tH - MIN_GAP);
+        const h = Math.max(20, maxH);
+        ob = { type: 'spikes_bottom', x, width: 45 + Math.random() * 25, spikeHeight: h, color: NEON_PINK };
+        // Safe zone is above the spikes
+        const safeCenter = tTop + (tBot - h - tTop) / 2;
+        lastSafeY = Math.max(reachMin, Math.min(reachMax, safeCenter));
+        break;
+      }
+      case 'spikes_both': {
+        // Ensure remaining gap is always passable
+        const maxEach = (tH - MIN_GAP) / 2;
+        const topH = Math.min((0.1 + Math.random() * 0.12 * (1 + difficulty * 0.3)) * tH, maxEach);
+        const botH = Math.min((0.1 + Math.random() * 0.12 * (1 + difficulty * 0.3)) * tH, maxEach);
+        // Double check: remaining gap
+        const remaining = tH - topH - botH;
+        if (remaining < MIN_GAP) {
+          // Shrink both proportionally
+          const scale = (tH - MIN_GAP) / (topH + botH);
+          ob = { type: 'spikes_both', x, width: 45 + Math.random() * 20,
+            topHeight: topH * scale, bottomHeight: botH * scale, color: NEON_ORANGE };
+        } else {
+          ob = { type: 'spikes_both', x, width: 45 + Math.random() * 20,
+            topHeight: topH, bottomHeight: botH, color: NEON_ORANGE };
+        }
+        // Safe zone is the middle of the gap
+        const gapCenter = tTop + (ob.topHeight) + (tH - ob.topHeight - ob.bottomHeight) / 2;
+        lastSafeY = Math.max(reachMin, Math.min(reachMax, gapCenter));
+        break;
+      }
+      case 'pillars': {
+        // Single pillar that doesn't block the full tunnel
+        // Place it so there's a clear path above OR below within reach
+        const pillarH = 35 + Math.random() * 30;
+        const pillarW = 22 + Math.random() * 10;
+
+        // Decide: place pillar in upper or lower half based on where player is
+        let py;
+        if (lastSafeY < tTop + tH / 2) {
+          // Player is in upper half — place pillar in upper area, safe zone below
+          py = tTop + 10 + Math.random() * (tH / 2 - pillarH - 10);
+          lastSafeY = Math.max(reachMin, Math.min(reachMax, py + pillarH + MIN_GAP / 2));
+        } else {
+          // Player is in lower half — place pillar in lower area, safe zone above
+          py = tTop + tH / 2 + Math.random() * (tH / 2 - pillarH - 10);
+          lastSafeY = Math.max(reachMin, Math.min(reachMax, py - MIN_GAP / 2));
+        }
+
+        ob = { type: 'pillars', x, width: pillarW, pillars: [{ offsetX: 0, y: py, height: pillarH, width: pillarW }], color: NEON_BLUE };
+        break;
+      }
+    }
+
+    lastObstacleX = x;
+    return ob;
+  }
+
+  function generateInitialEndless() {
+    lastSafeY = H() / 2;
+    lastObstacleX = W() * 0.2;
+    let x = W() * 0.7;
+    while (x < W() * 3) {
+      obstacles.push(generateEndlessObstacle(x));
+      x += 200 + Math.random() * 150;
+    }
+  }
+
+  // ========== RESET ==========
+  function startGame(mode, levelIdx) {
+    gameMode = mode;
+    currentLevel = levelIdx || 0;
+    score = 0;
+    distance = 0;
+    levelProgress = 0;
+    levelComplete = false;
+    deathParticles = [];
+    shakeTimer = 0;
+    flashTimer = 0;
+    obstacles = [];
+
+    if (mode === MODE.LEVEL) {
+      baseSpeed = LEVELS[currentLevel].speed;
+      gameSpeed = baseSpeed;
+      obstacles = buildLevelObstacles(currentLevel);
+    } else {
+      baseSpeed = 3.5;
+      gameSpeed = baseSpeed;
+      generateInitialEndless();
+    }
+
+    initPlayer();
+    loadSkin();
+    state = STATE.PLAYING;
+  }
+
+  // ========== INPUT ==========
+  let lastScreenChange = 0;
+  const SCREEN_DELAY = 400; // ms — ignore clicks for 400ms after screen change
+
+  function screenReady() {
+    return Date.now() - lastScreenChange > SCREEN_DELAY;
+  }
+
+  function goToModeSelect() {
+    state = STATE.MODE_SELECT;
+    selectedModeIndex = 0;
+    lastScreenChange = Date.now();
+  }
+
+  function selectMode(idx) {
+    selectedModeIndex = idx;
+    if (idx === 0) startGame(MODE.ENDLESS);
+    else startGame(MODE.LEVEL, idx - 1);
+  }
+
+  // Gameplay hold/release — mousedown/touchstart
+  function onDown(e) {
+    if (e) e.preventDefault();
+    canvas.focus();
+    holding = true;
+  }
+
+  function onUp(e) {
+    if (e) e.preventDefault();
+    holding = false;
+  }
+
+  canvas.addEventListener('mousedown', onDown);
+  canvas.addEventListener('mouseup', onUp);
+  canvas.addEventListener('touchstart', onDown, { passive: false });
+  canvas.addEventListener('touchend', onUp, { passive: false });
+
+  // All screen transitions happen on click (not mousedown) to avoid double-fire
+  canvas.addEventListener('click', (e) => {
+    if (!screenReady()) return;
+
+    if (state === STATE.MENU) {
+      goToModeSelect();
+      return;
+    }
+
+    if (state === STATE.DEAD && shakeTimer <= 0) {
+      goToModeSelect();
+      return;
+    }
+
+    if (state === STATE.LEVEL_COMPLETE) {
+      goToModeSelect();
+      return;
+    }
+
+    if (state === STATE.MODE_SELECT) {
+      // Hit-test the mode cards
+      const items = getModeItems();
+      const cardW = 150;
+      const cardGap = 20;
+      const totalW = items.length * cardW + (items.length - 1) * cardGap;
+      const sx = W() / 2 - totalW / 2;
+      const cy = H() / 2 + 10;
+      const clickX = e.clientX;
+      const clickY = e.clientY;
+
+      for (let i = 0; i < items.length; i++) {
+        const bx = sx + i * (cardW + cardGap);
+        if (clickX >= bx && clickX <= bx + cardW && clickY >= cy - 50 && clickY <= cy + 50) {
+          selectMode(i);
+          return;
+        }
+      }
+    }
+  });
+
+  // Keyboard
+  function handleKeyDown(e) {
+    // Gameplay hold
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+      e.preventDefault();
+      if (!e.repeat) holding = true;
+    }
+
+    if (!screenReady()) return;
+
+    // Screen transitions on Space/Enter
+    if (e.code === 'Space' || e.code === 'Enter') {
+      if (state === STATE.MENU) { goToModeSelect(); return; }
+      if (state === STATE.DEAD && shakeTimer <= 0) { goToModeSelect(); return; }
+      if (state === STATE.LEVEL_COMPLETE) { goToModeSelect(); return; }
+    }
+
+    // Mode select navigation
+    if (state === STATE.MODE_SELECT) {
+      const items = getModeItems();
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        e.preventDefault();
+        selectedModeIndex = (selectedModeIndex - 1 + items.length) % items.length;
+      }
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        e.preventDefault();
+        selectedModeIndex = (selectedModeIndex + 1) % items.length;
+      }
+      if (e.code === 'Enter') {
+        e.preventDefault();
+        selectMode(selectedModeIndex);
+      }
+    }
+  }
+
+  function handleKeyUp(e) {
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+      e.preventDefault();
+      holding = false;
+    }
+  }
+
+  canvas.addEventListener('keydown', handleKeyDown);
+  canvas.addEventListener('keyup', handleKeyUp);
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
+
+  // ========== COLLISION ==========
+  function checkCollision() {
+    const px = player.x, py = player.y, ps = player.size * 0.6;
+
+    // NO wall death — walls just clamp
+    for (const ob of obstacles) {
+      if (ob.type === 'finish') continue;
+      switch (ob.type) {
+        case 'gap':
+          if (px + ps > ob.x && px - ps < ob.x + ob.width) {
+            if (py - ps < ob.gapY - ob.gapSize / 2 || py + ps > ob.gapY + ob.gapSize / 2) return true;
+          }
+          break;
+        case 'spikes_top':
+          if (px + ps > ob.x && px - ps < ob.x + ob.width) {
+            if (py - ps < tunnelTop() + ob.spikeHeight) return true;
+          }
+          break;
+        case 'spikes_bottom':
+          if (px + ps > ob.x && px - ps < ob.x + ob.width) {
+            if (py + ps > tunnelBottom() - ob.spikeHeight) return true;
+          }
+          break;
+        case 'spikes_both':
+          if (px + ps > ob.x && px - ps < ob.x + ob.width) {
+            if (py - ps < tunnelTop() + ob.topHeight || py + ps > tunnelBottom() - ob.bottomHeight) return true;
+          }
+          break;
+        case 'pillars':
+          for (const pil of ob.pillars) {
+            const pilX = ob.x + pil.offsetX;
+            if (px + ps > pilX && px - ps < pilX + pil.width) {
+              if (py + ps > pil.y && py - ps < pil.y + pil.height) return true;
+            }
+          }
+          break;
+      }
+    }
+    return false;
+  }
+
+  // ========== DEATH ==========
+  function die() {
+    player.alive = false;
+    state = STATE.DEAD;
+    shakeTimer = 20;
+    flashTimer = 8;
+    if (gameMode === MODE.ENDLESS && score > highScore) {
+      highScore = score;
+      localStorage.setItem('neondash-highscore', highScore.toString());
+    }
+    for (let i = 0; i < 40; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 7 + 2;
+      deathParticles.push({
+        x: player.x, y: player.y,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        size: Math.random() * 4 + 2, life: 1,
+        decay: Math.random() * 0.03 + 0.01, color: skinPrimary
+      });
+    }
+  }
+
+  // ========== DRAWING ==========
+
+  function drawBackground() {
+    ctx.fillStyle = BG_DARK;
+    ctx.fillRect(0, 0, W(), H());
+
+    // Grid inside tunnel
+    ctx.strokeStyle = 'rgba(30,30,80,0.15)';
+    ctx.lineWidth = 0.5;
+    const gridSize = 50;
+    const offsetX = (distance * 0.5) % gridSize;
+    for (let x = -offsetX; x < W(); x += gridSize) {
+      ctx.beginPath(); ctx.moveTo(x, tunnelTop()); ctx.lineTo(x, tunnelBottom()); ctx.stroke();
+    }
+    for (let y = tunnelTop(); y <= tunnelBottom(); y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W(), y); ctx.stroke();
+    }
+
+    // Stars everywhere
+    for (const star of stars) {
+      star.x -= star.speed * (gameSpeed / baseSpeed);
+      if (star.x < 0) { star.x = W(); star.y = Math.random() * H(); }
+      const tw = 0.3 + 0.4 * Math.sin(Date.now() * 0.003 + star.brightness * 10);
+      ctx.fillStyle = `rgba(255,255,255,${tw})`;
+      ctx.beginPath(); ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // BG particles
+    for (const p of bgParticles) {
+      p.x -= p.speed * (gameSpeed / baseSpeed);
+      if (p.x < -10) { p.x = W() + 10; p.y = Math.random() * H(); }
+      ctx.fillStyle = `hsla(${p.hue}, 80%, 60%, ${p.alpha})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Dark outside tunnel
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, 0, W(), tunnelTop());
+    ctx.fillRect(0, tunnelBottom(), W(), H() - tunnelBottom());
+
+    // Tunnel borders
+    const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.002);
+
+    ctx.shadowColor = NEON_BLUE;
+    ctx.shadowBlur = 15;
+    ctx.strokeStyle = hexToRgba(NEON_BLUE, pulse);
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, tunnelTop()); ctx.lineTo(W(), tunnelTop()); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, tunnelBottom()); ctx.lineTo(W(), tunnelBottom()); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Thin secondary lines
+    ctx.strokeStyle = hexToRgba(NEON_BLUE, pulse * 0.2);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, tunnelTop() + 4); ctx.lineTo(W(), tunnelTop() + 4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, tunnelBottom() - 4); ctx.lineTo(W(), tunnelBottom() - 4); ctx.stroke();
+  }
+
+  // --- Obstacles ---
+  function drawSpikesTop(x, width, height, color) {
+    const spikeW = width / 3;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x + i * spikeW, tunnelTop());
+      ctx.lineTo(x + i * spikeW + spikeW / 2, tunnelTop() + height);
+      ctx.lineTo(x + (i + 1) * spikeW, tunnelTop());
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillRect(x, tunnelTop(), width, 3);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawSpikesBottom(x, width, height, color) {
+    const spikeW = width / 3;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x + i * spikeW, tunnelBottom());
+      ctx.lineTo(x + i * spikeW + spikeW / 2, tunnelBottom() - height);
+      ctx.lineTo(x + (i + 1) * spikeW, tunnelBottom());
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillRect(x, tunnelBottom() - 3, width, 3);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawObstacles() {
+    for (const ob of obstacles) {
+      if (ob.type === 'finish') {
+        // Finish line
+        const pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.004);
+        ctx.strokeStyle = hexToRgba(NEON_GREEN, pulse);
+        ctx.shadowColor = NEON_GREEN;
+        ctx.shadowBlur = 15;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 8]);
+        ctx.beginPath(); ctx.moveTo(ob.x, tunnelTop()); ctx.lineTo(ob.x, tunnelBottom()); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.shadowBlur = 0;
+
+        // "FINISH" text
+        ctx.fillStyle = hexToRgba(NEON_GREEN, pulse);
+        ctx.font = 'bold 14px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('MÅL', ob.x, tunnelTop() - 10);
+        continue;
+      }
+
+      ctx.shadowColor = ob.color;
+      ctx.shadowBlur = 10;
+
+      switch (ob.type) {
+        case 'gap': {
+          ctx.fillStyle = ob.color;
+          const topH = ob.gapY - ob.gapSize / 2 - tunnelTop();
+          if (topH > 0) ctx.fillRect(ob.x, tunnelTop(), ob.width, topH);
+          const botY = ob.gapY + ob.gapSize / 2;
+          const botH = tunnelBottom() - botY;
+          if (botH > 0) ctx.fillRect(ob.x, botY, ob.width, botH);
+          break;
+        }
+        case 'spikes_top':
+          drawSpikesTop(ob.x, ob.width, ob.spikeHeight, ob.color);
+          break;
+        case 'spikes_bottom':
+          drawSpikesBottom(ob.x, ob.width, ob.spikeHeight, ob.color);
+          break;
+        case 'spikes_both':
+          drawSpikesTop(ob.x, ob.width, ob.topHeight, ob.color);
+          drawSpikesBottom(ob.x, ob.width, ob.bottomHeight, ob.color);
+          break;
+        case 'pillars': {
+          for (const pil of ob.pillars) {
+            const px = ob.x + pil.offsetX;
+            ctx.fillStyle = ob.color;
+            ctx.fillRect(px, pil.y, pil.width, pil.height);
+            drawGlow(px + pil.width / 2, pil.y + pil.height / 2, 25, ob.color, 0.15);
+          }
+          break;
+        }
+      }
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // --- Player ---
+  function drawPlayer() {
+    if (!player.alive) return;
+    if (skinGlowStyle === 'rainbow') loadSkin();
+
+    // Trail — line that follows the arrow path
+    if (player.trail.length > 1) {
+      for (let i = 1; i < player.trail.length; i++) {
+        const pct = i / player.trail.length;
+        const alpha = pct * 0.5;
+        const width = pct * player.size * 0.7;
+        ctx.strokeStyle = hexToRgba(skinTrail, alpha);
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(player.trail[i - 1].x, player.trail[i - 1].y);
+        ctx.lineTo(player.trail[i].x, player.trail[i].y);
+        ctx.stroke();
+      }
+      // Trail glow
+      const last6 = player.trail.slice(-6);
+      if (last6.length > 1) {
+        ctx.shadowColor = skinTrail;
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = hexToRgba(skinTrail, 0.15);
+        ctx.lineWidth = player.size * 1.2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(last6[0].x, last6[0].y);
+        for (let i = 1; i < last6.length; i++) ctx.lineTo(last6[i].x, last6[i].y);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Glow around player
+    let glowAlpha = 0.3;
+    let glowRadius = player.size * 3;
+    switch (skinGlowStyle) {
+      case 'pulse': glowAlpha = 0.2 + 0.2 * Math.sin(Date.now() * 0.005); break;
+      case 'frost': glowRadius = player.size * 5; glowAlpha = 0.15; break;
+      case 'flicker': glowAlpha = 0.15 + Math.random() * 0.25; break;
+      case 'reverse': glowRadius = player.size * 4; glowAlpha = 0.4; break;
+    }
+    drawGlow(player.x, player.y, glowRadius, skinGlow, glowAlpha);
+
+    // Arrow shape — always pointing right, NO rotation
+    ctx.save();
+    ctx.translate(player.x, player.y);
+
+    ctx.shadowColor = skinGlow;
+    ctx.shadowBlur = 20;
+
+    const s = player.size;
+
+    // Outer chevron
+    ctx.fillStyle = skinPrimary;
+    ctx.beginPath();
+    ctx.moveTo(s * 1.3, 0);
+    ctx.lineTo(-s, -s);
+    ctx.lineTo(-s * 0.3, 0);
+    ctx.lineTo(-s, s);
+    ctx.closePath();
+    ctx.fill();
+
+    // Outline
+    ctx.strokeStyle = hexToRgba(skinGlow, 0.6);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Inner chevron
+    ctx.fillStyle = skinSecondary;
+    const r = 0.45;
+    ctx.beginPath();
+    ctx.moveTo(s * 1.3 * r, 0);
+    ctx.lineTo(-s * r, -s * r);
+    ctx.lineTo(-s * 0.3 * r, 0);
+    ctx.lineTo(-s * r, s * r);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  function drawDeathParticles() {
+    for (const p of deathParticles) {
+      ctx.fillStyle = hexToRgba(p.color, p.life);
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // --- UI ---
+  function drawUI() {
+    ctx.textAlign = 'center';
+
+    if (gameMode === MODE.ENDLESS) {
+      // Score
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 28px "Segoe UI", sans-serif';
+      ctx.shadowColor = NEON_BLUE;
+      ctx.shadowBlur = 10;
+      ctx.fillText(score.toString(), W() / 2, 38);
+      ctx.shadowBlur = 0;
+    } else {
+      // Level name + progress bar
+      const level = LEVELS[currentLevel];
+      ctx.fillStyle = hexToRgba(level.color, 0.8);
+      ctx.font = 'bold 16px "Segoe UI", sans-serif';
+      ctx.fillText(level.name, W() / 2, 28);
+
+      // Progress bar
+      const barW = 200;
+      const barH = 6;
+      const barX = W() / 2 - barW / 2;
+      const barY = 38;
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = level.color;
+      ctx.shadowColor = level.color;
+      ctx.shadowBlur = 8;
+      ctx.fillRect(barX, barY, barW * Math.min(levelProgress, 1), barH);
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // --- Chevron icon for menus ---
+  function drawChevronIcon(cx, cy, scale) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    const sc = scale * (1 + 0.08 * Math.sin(menuPulse * 1.5));
+    ctx.scale(sc, sc);
+    ctx.shadowColor = skinGlow;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = skinPrimary;
+    ctx.beginPath();
+    ctx.moveTo(18, 0); ctx.lineTo(-12, -14); ctx.lineTo(-4, 0); ctx.lineTo(-12, 14);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = skinSecondary;
+    ctx.beginPath();
+    ctx.moveTo(8, 0); ctx.lineTo(-5, -6); ctx.lineTo(-2, 0); ctx.lineTo(-5, 6);
+    ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // --- Main Menu ---
+  function drawMenu() {
+    menuPulse += 0.03;
+    loadSkin();
+    ctx.textAlign = 'center';
+
+    // Chevron icon
+    drawChevronIcon(W() / 2, H() / 2 - 80, 1.8);
+
+    // Title
+    ctx.shadowColor = NEON_BLUE;
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 52px "Segoe UI", sans-serif';
+    ctx.fillText('NEON DASH', W() / 2, H() / 2 - 20);
+    ctx.shadowBlur = 0;
+
+    // Play prompt
+    const pulseAlpha = 0.5 + 0.5 * Math.sin(menuPulse * 2);
+    ctx.font = 'bold 20px "Segoe UI", sans-serif';
+    ctx.fillStyle = hexToRgba('#ffffff', pulseAlpha);
+    ctx.fillText('Tryck för att starta', W() / 2, H() / 2 + 35);
+
+    // High score
+    if (highScore > 0) {
+      ctx.font = 'bold 16px "Segoe UI", sans-serif';
+      ctx.fillStyle = hexToRgba(NEON_PURPLE, 0.9);
+      ctx.fillText(`Bästa: ${highScore}`, W() / 2, H() / 2 + 70);
+    }
+  }
+
+  // --- Mode Select ---
+  function drawModeSelect() {
+    menuPulse += 0.03;
+    loadSkin();
+    ctx.textAlign = 'center';
+
+    // Title
+    ctx.shadowColor = NEON_BLUE;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px "Segoe UI", sans-serif';
+    ctx.fillText('VÄLJ LÄGE', W() / 2, H() / 2 - 70);
+    ctx.shadowBlur = 0;
+
+    // Mode cards — sizes must match click handler!
+    const items = getModeItems();
+    const cardW = 150;
+    const cardH = 100;
+    const cardGap = 20;
+    const totalW = items.length * cardW + (items.length - 1) * cardGap;
+    const startX = W() / 2 - totalW / 2;
+    const cy = H() / 2 + 10;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const bx = startX + i * (cardW + cardGap);
+      const selected = i === selectedModeIndex;
+      const cardColor = item.color || NEON_BLUE;
+
+      // Card background
+      if (selected) {
+        ctx.shadowColor = cardColor;
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = hexToRgba(cardColor, 0.15);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      }
+      ctx.beginPath();
+      ctx.roundRect(bx, cy - cardH / 2, cardW, cardH, 12);
+      ctx.fill();
+
+      // Border
+      ctx.strokeStyle = selected ? cardColor : 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = selected ? 2 : 1;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Icon
+      ctx.fillStyle = selected ? cardColor : 'rgba(255,255,255,0.5)';
+      ctx.font = 'bold 28px "Segoe UI", sans-serif';
+      ctx.fillText(item.icon, bx + cardW / 2, cy - 10);
+
+      // Label
+      ctx.fillStyle = selected ? '#ffffff' : 'rgba(255,255,255,0.6)';
+      ctx.font = `bold 15px "Segoe UI", sans-serif`;
+      ctx.fillText(item.label, bx + cardW / 2, cy + 18);
+
+      // Description
+      ctx.fillStyle = selected ? hexToRgba(cardColor, 0.8) : 'rgba(255,255,255,0.3)';
+      ctx.font = '11px "Segoe UI", sans-serif';
+      ctx.fillText(item.desc, bx + cardW / 2, cy + 32);
+    }
+
+    // Hint
+    ctx.font = '13px "Segoe UI", sans-serif';
+    ctx.fillStyle = 'rgba(136,136,170,0.6)';
+    ctx.fillText('Klicka för att välja', W() / 2, H() / 2 + 80);
+  }
+
+  // --- Death Screen ---
+  function drawDeathScreen() {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W(), H());
+    ctx.textAlign = 'center';
+
+    ctx.shadowColor = NEON_PINK;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = NEON_PINK;
+    ctx.font = 'bold 44px "Segoe UI", sans-serif';
+    ctx.fillText('GAME OVER', W() / 2, H() / 2 - 40);
+    ctx.shadowBlur = 0;
+
+    if (gameMode === MODE.ENDLESS) {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 28px "Segoe UI", sans-serif';
+      ctx.fillText(`Poäng: ${score}`, W() / 2, H() / 2 + 10);
+
+      ctx.fillStyle = hexToRgba(NEON_PURPLE, 0.9);
+      ctx.font = 'bold 16px "Segoe UI", sans-serif';
+      ctx.fillText(`Bästa: ${highScore}`, W() / 2, H() / 2 + 40);
+
+      if (score === highScore && score > 0) {
+        const p = 0.7 + 0.3 * Math.sin(Date.now() * 0.005);
+        ctx.fillStyle = hexToRgba(NEON_GREEN, p);
+        ctx.font = 'bold 18px "Segoe UI", sans-serif';
+        ctx.fillText('NYTT REKORD!', W() / 2, H() / 2 + 65);
+      }
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '18px "Segoe UI", sans-serif';
+      ctx.fillText(LEVELS[currentLevel].name, W() / 2, H() / 2 + 10);
+    }
+
+    if (shakeTimer <= 0) {
+      const p = 0.5 + 0.5 * Math.sin(Date.now() * 0.004);
+      ctx.fillStyle = hexToRgba('#ffffff', p);
+      ctx.font = '16px "Segoe UI", sans-serif';
+      ctx.fillText('Tryck för att fortsätta', W() / 2, H() / 2 + 100);
+    }
+  }
+
+  // --- Level Complete ---
+  function drawLevelComplete() {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W(), H());
+    ctx.textAlign = 'center';
+
+    const level = LEVELS[currentLevel];
+    const p = 0.7 + 0.3 * Math.sin(Date.now() * 0.003);
+
+    ctx.shadowColor = NEON_GREEN;
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = hexToRgba(NEON_GREEN, p);
+    ctx.font = 'bold 44px "Segoe UI", sans-serif';
+    ctx.fillText('KLARAD!', W() / 2, H() / 2 - 30);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '20px "Segoe UI", sans-serif';
+    ctx.fillText(level.name, W() / 2, H() / 2 + 10);
+
+    const pa = 0.5 + 0.5 * Math.sin(Date.now() * 0.004);
+    ctx.fillStyle = hexToRgba('#ffffff', pa);
+    ctx.font = '16px "Segoe UI", sans-serif';
+    ctx.fillText('Tryck för att fortsätta', W() / 2, H() / 2 + 60);
+  }
+
+  // ========== UPDATE ==========
+  function update() {
+    if (state === STATE.PLAYING) {
+      // Wave movement — no angle change, just up/down
+      const moveSpeed = gameSpeed;
+      player.vy = holding ? -moveSpeed : moveSpeed;
+      player.y += player.vy;
+
+      // Clamp to tunnel walls — don't die
+      if (player.y - player.size < tunnelTop()) {
+        player.y = tunnelTop() + player.size;
+      }
+      if (player.y + player.size > tunnelBottom()) {
+        player.y = tunnelBottom() - player.size;
+      }
+
+      // Trail
+      player.trail.push({ x: player.x, y: player.y });
+      if (player.trail.length > 22) player.trail.shift();
+
+      // Move obstacles
+      for (const ob of obstacles) ob.x -= gameSpeed;
+
+      // Endless scoring
+      if (gameMode === MODE.ENDLESS) {
+        const prevLen = obstacles.length;
+        obstacles = obstacles.filter(ob => (ob.x + (ob.width || 100)) > -50);
+        score += prevLen - obstacles.length;
+
+        distance += gameSpeed;
+        gameSpeed = baseSpeed + distance * 0.00025;
+
+        // Generate new obstacles
+        const lastOb = obstacles[obstacles.length - 1];
+        if (!lastOb || lastOb.x < W()) {
+          const spacing = 200 + Math.random() * 150 - Math.min(distance * 0.004, 50);
+          const newX = lastOb ? lastOb.x + (lastOb.width || 30) + Math.max(spacing, 130) : W() + 100;
+          obstacles.push(generateEndlessObstacle(newX));
+        }
+      }
+
+      // Level progress
+      if (gameMode === MODE.LEVEL && levelLength > 0) {
+        distance += gameSpeed;
+        levelProgress = distance / levelLength;
+
+        // Check finish
+        for (const ob of obstacles) {
+          if (ob.type === 'finish' && ob.x < player.x) {
+            levelComplete = true;
+            state = STATE.LEVEL_COMPLETE;
+            return;
+          }
+        }
+
+        obstacles = obstacles.filter(ob => (ob.x + (ob.width || 100)) > -50);
+      }
+
+      // Collision
+      if (checkCollision()) die();
+    }
+
+    if (shakeTimer > 0) shakeTimer--;
+    if (flashTimer > 0) flashTimer--;
+
+    for (const p of deathParticles) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life -= p.decay;
+    }
+    deathParticles = deathParticles.filter(p => p.life > 0);
+  }
+
+  // ========== GAME LOOP ==========
+  function gameLoop() {
+    update();
+    ctx.save();
+
+    if (shakeTimer > 0) {
+      ctx.translate((Math.random() - 0.5) * shakeTimer * 1.5, (Math.random() - 0.5) * shakeTimer * 1.5);
+    }
+
+    drawBackground();
+
+    if (state === STATE.PLAYING) {
+      drawObstacles();
+      drawPlayer();
+      drawUI();
+    } else if (state === STATE.DEAD) {
+      drawObstacles();
+      drawDeathParticles();
+      drawUI();
+      drawDeathScreen();
+    } else if (state === STATE.LEVEL_COMPLETE) {
+      drawObstacles();
+      drawPlayer();
+      drawLevelComplete();
+    } else if (state === STATE.MODE_SELECT) {
+      drawModeSelect();
+    } else {
+      drawMenu();
+    }
+
+    if (flashTimer > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${flashTimer / 8 * 0.4})`;
+      ctx.fillRect(0, 0, W(), H());
+    }
+
+    ctx.restore();
+    requestAnimationFrame(gameLoop);
+  }
+
+  // --- Start ---
+  initStars();
+  initBgParticles();
+  loadSkin();
+  gameLoop();
+})();
+</script>
 </body>
 </html>

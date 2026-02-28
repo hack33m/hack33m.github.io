@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:poki.se)",
+      "WebFetch(domain:poki.com)",
+      "Bash(python3 -m http.server:*)",
+      "Bash(git init:*)",
+      "Bash(git -C /Users/ehsan/Dev/Elia/projekt1 status)",
+      "Bash(git -C /Users/ehsan/Dev/Elia/projekt1 log --oneline -5)",
+      "Bash(git -C /Users/ehsan/Dev/Elia/projekt1 add index.html game.html css/style.css js/app.js data/games.json assets/images/ games/)",
+      "Bash(git -C:*)",
+      "WebSearch",
+      "WebFetch(domain:www.corny.se)",
+      "WebFetch(domain:nordicexpatshop.com)",
+      "WebFetch(domain:www.mocafino.com)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(open:*)",
+      "WebFetch(domain:www.crazygames.com)",
+      "Bash(python3:*)",
+      "Bash(lsof:*)",
+      "Bash(ipconfig getifaddr:*)",
+      "Bash(gh auth:*)",
+      "Bash(brew install:*)",
+      "Bash(gh repo:*)",
+      "Bash(gh api:*)",
+      "Bash(git:*)"
+    ]
+  }
+}

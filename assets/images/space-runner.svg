@@ -1,12 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f0c29"/>
-      <stop offset="50%" style="stop-color:#302b63"/>
-      <stop offset="100%" style="stop-color:#24243e"/>
+      <stop offset="0%" style="stop-color:#0a0a1a"/>
+      <stop offset="50%" style="stop-color:#1a1040"/>
+      <stop offset="100%" style="stop-color:#0a0a2e"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0"/>
+      <stop offset="50%" style="stop-color:#00d4ff;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#00d4ff;stop-opacity:0"/>
     </linearGradient>
   </defs>
   <rect fill="url(#bg)" width="400" height="300"/>
+  <!-- Stars -->
   <circle cx="60" cy="50" r="2" fill="#fff" opacity="0.7"/>
   <circle cx="150" cy="30" r="1.5" fill="#fff" opacity="0.5"/>
   <circle cx="250" cy="70" r="2" fill="#fff" opacity="0.8"/>
@@ -15,7 +21,22 @@
   <circle cx="300" cy="120" r="2" fill="#fff" opacity="0.5"/>
   <circle cx="50" cy="200" r="1" fill="#fff" opacity="0.6"/>
   <circle cx="350" cy="230" r="1.5" fill="#fff" opacity="0.4"/>
-  <text x="200" y="140" text-anchor="middle" font-size="72">🚀</text>
-  <text x="200" y="200" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="28" fill="#fff">Space Runner</text>
-  <text x="200" y="235" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#a78bfa">ACTION</text>
+  <!-- Tunnel lines -->
+  <line x1="0" y1="80" x2="400" y2="80" stroke="#00d4ff" stroke-width="2" opacity="0.6"/>
+  <line x1="0" y1="220" x2="400" y2="220" stroke="#00d4ff" stroke-width="2" opacity="0.6"/>
+  <rect x="0" y="80" width="400" height="4" fill="url(#glow)"/>
+  <rect x="0" y="218" width="400" height="4" fill="url(#glow)"/>
+  <!-- Zigzag trail -->
+  <polyline points="40,170 80,120 120,170 160,120 200,170 240,120 275,150" fill="none" stroke="#00d4ff" stroke-width="2" opacity="0.35" stroke-linejoin="miter"/>
+  <!-- Obstacle spikes -->
+  <polygon points="300,80 310,115 320,80" fill="#ff2d95" opacity="0.7"/>
+  <polygon points="310,80 320,115 330,80" fill="#ff2d95" opacity="0.7"/>
+  <polygon points="340,220 350,185 360,220" fill="#a855f7" opacity="0.7"/>
+  <polygon points="350,220 360,185 370,220" fill="#a855f7" opacity="0.7"/>
+  <!-- Player arrow/chevron -->
+  <polygon points="293,150 265,136 273,150 265,164" fill="#00d4ff"/>
+  <polygon points="285,150 272,143 275,150 272,157" fill="#fff"/>
+  <!-- Title -->
+  <text x="200" y="265" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="28" fill="#fff">Neon Dash</text>
+  <text x="200" y="288" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#00d4ff">ACTION</text>
 </svg>

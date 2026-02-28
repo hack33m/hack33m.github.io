@@ -40,6 +40,19 @@ const NAME_EFFECTS = [
   { id: 'bold', name: 'Fet text', price: 50 },
 ];
 
+const ARROW_SKINS = [
+  { id: 'default', name: 'Standard', price: 0, primary: '#00d4ff', secondary: '#ffffff', trail: '#00d4ff', glow: '#00d4ff', glowStyle: 'normal' },
+  { id: 'crimson', name: 'Crimson', price: 75, primary: '#ff2d55', secondary: '#ffaacc', trail: '#ff2d55', glow: '#ff2d55', glowStyle: 'normal' },
+  { id: 'emerald', name: 'Emerald', price: 75, primary: '#39ff14', secondary: '#ccffcc', trail: '#39ff14', glow: '#39ff14', glowStyle: 'normal' },
+  { id: 'sunset', name: 'Sunset', price: 100, primary: '#ff6a00', secondary: '#ffdd44', trail: '#ff8c00', glow: '#ff6a00', glowStyle: 'normal' },
+  { id: 'phantom', name: 'Phantom', price: 150, primary: '#a855f7', secondary: '#e0ccff', trail: '#a855f7', glow: '#a855f7', glowStyle: 'pulse' },
+  { id: 'arctic', name: 'Arctic', price: 150, primary: '#88eeff', secondary: '#ffffff', trail: '#aaeeff', glow: '#88eeff', glowStyle: 'frost' },
+  { id: 'golden', name: 'Golden', price: 200, primary: '#fbbf24', secondary: '#fff8e0', trail: '#fbbf24', glow: '#fbbf24', glowStyle: 'normal' },
+  { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', trail: '#ff2200', glow: '#ff4400', glowStyle: 'flicker' },
+  { id: 'void', name: 'Void', price: 300, primary: '#1a0033', secondary: '#6600cc', trail: '#3300aa', glow: '#6600cc', glowStyle: 'reverse' },
+  { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', trail: 'rainbow', glow: 'rainbow', glowStyle: 'rainbow' },
+];
+
 const EMOJI_PACK_PRICE = 100;
 
 let allGames = [];
@@ -103,6 +116,8 @@ function defaultUserData(overrides) {
     unlockedTitles: [],
     unlockedEffects: [],
     unlockedEmojis: [],
+    unlockedSkins: [],
+    arrowSkin: null,
     ...overrides,
   };
 }
@@ -127,6 +142,7 @@ function ensureOwnerAccount() {
     if (!owner.unlockedTitles) { owner.unlockedTitles = []; changed = true; }
     if (!owner.unlockedEffects) { owner.unlockedEffects = []; changed = true; }
     if (!owner.unlockedEmojis) { owner.unlockedEmojis = []; changed = true; }
+    if (!owner.unlockedSkins) { owner.unlockedSkins = []; changed = true; }
     if (changed) saveUsers(users);
   }
 }
@@ -139,6 +155,8 @@ function migrateUser(user) {
   if (!user.unlockedTitles) { user.unlockedTitles = []; changed = true; }
   if (!user.unlockedEffects) { user.unlockedEffects = []; changed = true; }
   if (!user.unlockedEmojis) { user.unlockedEmojis = []; changed = true; }
+  if (!user.unlockedSkins) { user.unlockedSkins = []; changed = true; }
+  if (user.arrowSkin === undefined) { user.arrowSkin = null; changed = true; }
   return changed;
 }
 
@@ -861,6 +879,31 @@ function renderShop(user) {
   });
   html += '</div>';
 
+  // Arrow Skins
+  html += '<h3 class="shop-category-title">🏹 Arrow Skins <span style="color:var(--text-muted);font-size:14px;">(Neon Dash)</span></h3><div class="shop-items">';
+  ARROW_SKINS.filter(s => s.price > 0).forEach(skin => {
+    const owned = (u.unlockedSkins || []).includes(skin.id);
+    const equipped = u.arrowSkin === skin.id;
+    const fillColor = skin.primary === 'rainbow' ? '#a855f7' : skin.primary;
+    const glowColor = skin.glow === 'rainbow' ? '#a855f7' : skin.glow;
+    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
+      <div class="skin-preview">
+        <svg viewBox="0 0 48 48" width="48" height="48" style="filter:drop-shadow(0 0 6px ${glowColor});">
+          <polygon points="36,24 12,12 18,24 12,36" fill="${fillColor}"/>
+          <polygon points="30,24 18,18 21,24 18,30" fill="${skin.secondary}"/>
+        </svg>
+      </div>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">${skin.name}</span>
+      ${owned
+        ? (equipped
+          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-skin">Utrustad ✓</button>'
+          : `<button class="shop-btn shop-btn-equip" data-action="equip-skin" data-id="${skin.id}">Använd</button>`)
+        : `<button class="shop-btn shop-btn-buy" data-action="buy-skin" data-id="${skin.id}" data-price="${skin.price}">🪙 ${skin.price}</button>`
+      }
+    </div>`;
+  });
+  html += '</div>';
+
   // Extra Emojis
   html += `<h3 class="shop-category-title">😈 Extra Avatarer <span style="color:var(--text-muted);font-size:14px;">(${EMOJI_PACK_PRICE} coins styck)</span></h3><div class="shop-items emoji-items">`;
   AVATARS_LOCKED.forEach(emoji => {
@@ -895,6 +938,7 @@ function renderShop(user) {
         if (action === 'buy-title') { if (!users[idx].unlockedTitles) users[idx].unlockedTitles = []; users[idx].unlockedTitles.push(id); users[idx].title = id; }
         if (action === 'buy-effect') { if (!users[idx].unlockedEffects) users[idx].unlockedEffects = []; users[idx].unlockedEffects.push(id); users[idx].nameEffect = id; }
         if (action === 'buy-emoji') { if (!users[idx].unlockedEmojis) users[idx].unlockedEmojis = []; users[idx].unlockedEmojis.push(emoji); }
+        if (action === 'buy-skin') { if (!users[idx].unlockedSkins) users[idx].unlockedSkins = []; users[idx].unlockedSkins.push(id); users[idx].arrowSkin = id; }
         saveUsers(users);
       }
       if (action === 'equip-color') updateUser({ nameColor: color });
@@ -903,6 +947,8 @@ function renderShop(user) {
       if (action === 'unequip-title') updateUser({ title: null });
       if (action === 'equip-effect') updateUser({ nameEffect: id });
       if (action === 'unequip-effect') updateUser({ nameEffect: null });
+      if (action === 'equip-skin') updateUser({ arrowSkin: id });
+      if (action === 'unequip-skin') updateUser({ arrowSkin: null });
 
       renderShop(getCurrentUser());
       renderHeaderAuth();

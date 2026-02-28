@@ -1197,6 +1197,22 @@ button {
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
 }
 
+.skin-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+}
+
+.skin-preview svg {
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.shop-item:hover .skin-preview svg {
+  transform: scale(1.15);
+}
+
 .shop-item {
   display: flex;
   flex-direction: column;
