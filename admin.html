@@ -277,13 +277,16 @@
           if (curIsOwner()) {
             if (isAdminUser) actions += `<button class="btn-sm btn-demote" data-uid="${u.uid}" data-action="demote">Ta bort admin</button>`;
             else actions += `<button class="btn-sm btn-promote" data-uid="${u.uid}" data-action="promote">Gör admin</button>`;
-            const hasCorny = (u.unlockedEmojis || []).includes('corny');
-            if (hasCorny) actions += `<button class="btn-sm btn-demote" data-uid="${u.uid}" data-action="remove-corny">Ta bort Corny</button>`;
-            else actions += `<button class="btn-sm btn-promote" data-uid="${u.uid}" data-action="give-corny">Ge Corny 🍫</button>`;
           }
           if (curIsOwner() || (!isAdminUser)) {
             actions += `<button class="btn-sm btn-delete" data-uid="${u.uid}" data-action="delete">Ta bort</button>`;
           }
+        }
+        // Corny button — owner can give to anyone including themselves
+        if (curIsOwner()) {
+          const hasCorny = (u.unlockedEmojis || []).includes('corny');
+          if (hasCorny) actions += `<button class="btn-sm btn-demote" data-uid="${u.uid}" data-action="remove-corny">Ta bort Corny</button>`;
+          else actions += `<button class="btn-sm btn-promote" data-uid="${u.uid}" data-action="give-corny">Ge Corny 🍫</button>`;
         }
 
         const canEditCoins = curIsOwner() || (!isOwnerUser && !isAdminUser);
