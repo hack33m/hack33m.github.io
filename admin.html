@@ -125,7 +125,7 @@
       bannedUntil: row.banned_until, favorites: row.favorites || [],
       nameColor: row.name_color, nameEffect: row.name_effect, title: row.title,
       unlockedEmojis: row.unlocked_emojis || [], unlockedSkins: row.unlocked_skins || [],
-      joined: row.joined_at,
+      arrowSkin: row.arrow_skin, joined: row.joined_at,
     };
   }
 
@@ -369,9 +369,14 @@
         else if (action === 'remove-corny') {
           const emojis = (user.unlockedEmojis || []).filter(e => e !== 'corny');
           const skins = (user.unlockedSkins || []).filter(s => s !== 'corny');
-          await supabaseClient.from('profiles').update({ unlocked_emojis: emojis, unlocked_skins: skins }).eq('id', uid);
+          const updates = { unlocked_emojis: emojis, unlocked_skins: skins };
+          if (user.avatar === 'corny') updates.avatar = '😀';
+          if (user.arrowSkin === 'corny') updates.arrow_skin = null;
+          await supabaseClient.from('profiles').update(updates).eq('id', uid);
           user.unlockedEmojis = emojis;
           user.unlockedSkins = skins;
+          if (user.avatar === 'corny') user.avatar = '😀';
+          if (user.arrowSkin === 'corny') user.arrowSkin = null;
         }
         else if (action === 'add-coins') {
           const input = panel.querySelector(`input.coins-input[data-uid="${uid}"]`);

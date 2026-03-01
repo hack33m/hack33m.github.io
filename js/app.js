@@ -881,10 +881,13 @@ function initProfilePage() {
 }
 
 // ===== SHOP PAGE =====
-function initShopPage() {
+async function initShopPage() {
   const user = getCurrentUser();
   if (!user) { window.location.href = 'index.html'; return; }
-  renderShop(user);
+  // Re-fetch profile to get latest data (coins, unlocks etc.)
+  const { data } = await supabaseClient.from('profiles').select('*').eq('id', user.uid).single();
+  if (data) currentUserData = mapProfile(data);
+  renderShop(getCurrentUser());
 }
 
 function renderShop(user) {
@@ -991,40 +994,60 @@ function renderShop(user) {
   });
   html += '</div>';
 
-  // Exclusive items (owner-granted)
-  const exclusiveSkins = ARROW_SKINS.filter(s => s.exclusive && (u.unlockedSkins || []).includes(s.id));
+  // Exclusive items (owner-granted) — always visible
   const hasCornyAvatar = (u.unlockedEmojis || []).includes('corny');
-  if (exclusiveSkins.length > 0 || hasCornyAvatar) {
-    html += '<h3 class="shop-category-title">⭐ Exclusive</h3><div class="shop-items">';
-    if (hasCornyAvatar) {
-      const equippedAvatar = u.avatar === 'corny';
-      html += `<div class="shop-item ${equippedAvatar ? 'equipped' : ''}">
-        <span class="shop-item-preview"><img src="${CORNY_IMAGE_URL}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;"></span>
-        <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Avatar</span>
-        ${equippedAvatar
-          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-corny-avatar">Utrustad ✓</button>'
-          : '<button class="shop-btn shop-btn-equip" data-action="equip-corny-avatar">Använd</button>'
-        }
-      </div>`;
-    }
-    exclusiveSkins.forEach(skin => {
-      const equipped = u.arrowSkin === skin.id;
-      html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
-        <div class="skin-preview">
-          <svg viewBox="0 0 48 48" width="48" height="48" style="filter:drop-shadow(0 0 6px ${skin.glow});">
-            <polygon points="36,24 12,12 18,24 12,36" fill="${skin.primary}"/>
-            <polygon points="30,24 18,18 21,24 18,30" fill="${skin.secondary}"/>
-          </svg>
-        </div>
-        <span class="shop-item-name" style="font-weight:700;font-size:14px;">${skin.name}</span>
-        ${equipped
-          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-skin">Utrustad ✓</button>'
-          : `<button class="shop-btn shop-btn-equip" data-action="equip-skin" data-id="${skin.id}">Använd</button>`
-        }
-      </div>`;
-    });
-    html += '</div>';
+  const hasCornySkin = (u.unlockedSkins || []).includes('corny');
+  html += '<h3 class="shop-category-title">⭐ Exclusive</h3><div class="shop-items">';
+
+  // Corny Avatar
+  if (hasCornyAvatar) {
+    const equippedAvatar = u.avatar === 'corny';
+    html += `<div class="shop-item ${equippedAvatar ? 'equipped' : ''}">
+      <span class="shop-item-preview"><img src="${CORNY_IMAGE_URL}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;"></span>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Avatar</span>
+      ${equippedAvatar
+        ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-corny-avatar">Utrustad ✓</button>'
+        : '<button class="shop-btn shop-btn-equip" data-action="equip-corny-avatar">Använd</button>'
+      }
+    </div>`;
+  } else {
+    html += `<div class="shop-item" style="opacity:0.5;">
+      <span class="shop-item-preview"><img src="${CORNY_IMAGE_URL}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;filter:grayscale(1);"></span>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Avatar</span>
+      <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
+    </div>`;
   }
+
+  // Corny Skin
+  const cornySkin = ARROW_SKINS.find(s => s.id === 'corny');
+  if (hasCornySkin) {
+    const equipped = u.arrowSkin === 'corny';
+    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
+      <div class="skin-preview">
+        <svg viewBox="0 0 48 48" width="48" height="48" style="filter:drop-shadow(0 0 6px ${cornySkin.glow});">
+          <polygon points="36,24 12,12 18,24 12,36" fill="${cornySkin.primary}"/>
+          <polygon points="30,24 18,18 21,24 18,30" fill="${cornySkin.secondary}"/>
+        </svg>
+      </div>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Caramel</span>
+      ${equipped
+        ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-skin">Utrustad ✓</button>'
+        : '<button class="shop-btn shop-btn-equip" data-action="equip-skin" data-id="corny">Använd</button>'
+      }
+    </div>`;
+  } else {
+    html += `<div class="shop-item" style="opacity:0.5;">
+      <div class="skin-preview">
+        <svg viewBox="0 0 48 48" width="48" height="48" style="filter:grayscale(1) drop-shadow(0 0 6px #888);">
+          <polygon points="36,24 12,12 18,24 12,36" fill="${cornySkin.primary}"/>
+          <polygon points="30,24 18,18 21,24 18,30" fill="${cornySkin.secondary}"/>
+        </svg>
+      </div>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Caramel</span>
+      <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
+    </div>`;
+  }
+  html += '</div>';
 
   grid.innerHTML = html;
 
