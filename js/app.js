@@ -7,7 +7,7 @@ const MAX_RECENT = 6;
 const AVATARS_FREE = ['😀','😎','🤩','😈','👻','🤖','🦊','🐱','🐶','🦁','🐸','🐼','🦄','🐲','🎮','⚡','🔥','💎','🌟','🚀'];
 const AVATARS_LOCKED = ['🏆','👾','🎪','🧙','🦸','🎭','💀','🍕','🎃','👽','🤠','🦇','🐉','🗿','💩','🧛','🥶','🤯','🫥','🤑'];
 
-const CORNY_IMAGE_URL = 'https://www.corny.se/fileadmin/user_upload/corny_se/products/BIG/salted-caramel/corny-big-granola-bar-salted-caramell-packaging.jpg';
+const CORNY_IMAGE_URL = 'images/corny.jpg';
 
 // Shop items
 const NAME_COLORS = [
@@ -826,9 +826,12 @@ function initGamePage() {
 }
 
 // ===== PROFILE PAGE =====
-function initProfilePage() {
-  const user = getCurrentUser();
+async function initProfilePage() {
+  let user = getCurrentUser();
   if (!user) { window.location.href = 'index.html'; return; }
+  // Re-fetch profile to get latest data
+  const { data } = await supabaseClient.from('profiles').select('*').eq('id', user.uid).single();
+  if (data) { currentUserData = mapProfile(data); user = currentUserData; }
 
   document.getElementById('profile-avatar').innerHTML = renderAvatar(user.avatar, 80);
 
