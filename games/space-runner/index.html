@@ -882,11 +882,11 @@
     const isCorny = getEquippedSkinId() === 'corny' && cornyImgLoaded;
 
     if (isCorny) {
-      // Draw Corny package as the player
+      // Draw Corny package as the player (800x236 ratio ≈ 3.4:1)
       ctx.shadowColor = skinGlow;
       ctx.shadowBlur = 15;
-      const imgW = s * 3;
-      const imgH = s * 3.6;
+      const imgW = s * 4;
+      const imgH = s * 1.2;
       ctx.drawImage(cornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
       ctx.shadowBlur = 0;
     } else {
@@ -982,8 +982,8 @@
     if (isCorny) {
       ctx.shadowColor = skinGlow;
       ctx.shadowBlur = 15;
-      const imgW = 30;
-      const imgH = 36;
+      const imgW = 50;
+      const imgH = 15;
       ctx.drawImage(cornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
       ctx.shadowBlur = 0;
     } else {
