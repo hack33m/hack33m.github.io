@@ -485,7 +485,7 @@
     else startGame(MODE.LEVEL, idx - 1);
   }
 
-  // Gameplay hold/release — mousedown/touchstart
+  // Gameplay hold/release
   function onDown(e) {
     if (e) e.preventDefault();
     canvas.focus();
@@ -502,8 +502,8 @@
   canvas.addEventListener('touchstart', onDown, { passive: false });
   canvas.addEventListener('touchend', onUp, { passive: false });
 
-  // All screen transitions happen on click (not mousedown) to avoid double-fire
-  canvas.addEventListener('click', (e) => {
+  // Screen transitions — shared handler for click and tap
+  function handleScreenTap(clientX, clientY) {
     if (!screenReady()) return;
 
     if (state === STATE.MENU) {
@@ -522,25 +522,45 @@
     }
 
     if (state === STATE.MODE_SELECT) {
-      // Hit-test the mode cards
       const items = getModeItems();
       const cardW = 150;
       const cardGap = 20;
       const totalW = items.length * cardW + (items.length - 1) * cardGap;
       const sx = W() / 2 - totalW / 2;
       const cy = H() / 2 + 10;
-      const clickX = e.clientX;
-      const clickY = e.clientY;
 
       for (let i = 0; i < items.length; i++) {
         const bx = sx + i * (cardW + cardGap);
-        if (clickX >= bx && clickX <= bx + cardW && clickY >= cy - 50 && clickY <= cy + 50) {
+        if (clientX >= bx && clientX <= bx + cardW && clientY >= cy - 50 && clientY <= cy + 50) {
           selectMode(i);
           return;
         }
       }
     }
+  }
+
+  canvas.addEventListener('click', (e) => {
+    handleScreenTap(e.clientX, e.clientY);
   });
+
+  // Touch tap — touchend fires even when click is prevented
+  let touchStartPos = null;
+  canvas.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touchStartPos = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+
+  canvas.addEventListener('touchend', (e) => {
+    if (!touchStartPos) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartPos.x;
+    const dy = t.clientY - touchStartPos.y;
+    // Only count as tap if finger didn't move much
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+      handleScreenTap(t.clientX, t.clientY);
+    }
+    touchStartPos = null;
+  }, { passive: true });
 
   // Keyboard
   function handleKeyDown(e) {
