@@ -63,11 +63,17 @@
   };
 
   // --- Corny Image ---
-  const CORNY_IMG_URL = '../../images/corny.jpg';
   const cornyImg = new Image();
-  cornyImg.src = CORNY_IMG_URL;
   let cornyImgLoaded = false;
   cornyImg.onload = () => { cornyImgLoaded = true; };
+  cornyImg.onerror = () => {
+    // Retry with absolute path
+    if (!cornyImg._retried) {
+      cornyImg._retried = true;
+      cornyImg.src = '/images/corny.jpg';
+    }
+  };
+  cornyImg.src = '../../images/corny.jpg';
 
   let skinPrimary = NEON_BLUE;
   let skinSecondary = '#ffffff';
@@ -882,11 +888,11 @@
     const isCorny = getEquippedSkinId() === 'corny' && cornyImgLoaded;
 
     if (isCorny) {
-      // Draw Corny package as the player (800x236 ratio ≈ 3.4:1)
+      // Draw Corny package as the player (0.5x scale, 3.4:1 aspect ratio)
       ctx.shadowColor = skinGlow;
       ctx.shadowBlur = 15;
-      const imgW = s * 2;
-      const imgH = s * 0.6;
+      const imgH = s * 2;
+      const imgW = imgH * 3.4;
       ctx.drawImage(cornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
       ctx.shadowBlur = 0;
     } else {
@@ -982,8 +988,8 @@
     if (isCorny) {
       ctx.shadowColor = skinGlow;
       ctx.shadowBlur = 15;
-      const imgW = 50;
-      const imgH = 15;
+      const imgH = 20;
+      const imgW = imgH * 3.4;
       ctx.drawImage(cornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
       ctx.shadowBlur = 0;
     } else {
