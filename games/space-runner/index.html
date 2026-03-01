@@ -67,15 +67,16 @@
   let skinGlow = NEON_BLUE;
   let skinGlowStyle = 'normal';
 
+  let _equippedSkinId = 'default';
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'skin-data') {
+      _equippedSkinId = e.data.skinId || 'default';
+      loadSkin();
+    }
+  });
+
   function getEquippedSkinId() {
-    try {
-      const session = JSON.parse(localStorage.getItem('elias-spelportal-session'));
-      if (!session) return 'default';
-      const users = JSON.parse(localStorage.getItem('elias-spelportal-users')) || [];
-      const user = users.find(u => u.username === session.username);
-      if (!user || !user.arrowSkin) return 'default';
-      return user.arrowSkin;
-    } catch { return 'default'; }
+    return _equippedSkinId;
   }
 
   function loadSkin() {

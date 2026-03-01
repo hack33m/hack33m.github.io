@@ -1,0 +1,4 @@
+// Supabase Configuration
+const SUPABASE_URL = 'https://jorogcnwgwciinitahur.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impvcm9nY253Z3djaWluaXRhaHVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzNjUzMzQsImV4cCI6MjA4Nzk0MTMzNH0.KWIDZ0l7Amr_lIKHAneeWdiQKBXlxPWLcc-P5jNw700';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

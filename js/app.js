@@ -1,18 +1,11 @@
-// ===== Elias Spelportal - App Logic =====
+// ===== Elias Spelportal - App Logic (Supabase) =====
 
 const STORAGE_KEY = 'elias-spelportal-recent';
-const USERS_KEY = 'elias-spelportal-users';
-const SESSION_KEY = 'elias-spelportal-session';
-const FEEDBACK_STORAGE_KEY = 'elias-spelportal-feedback';
 const THEME_KEY = 'elias-spelportal-theme';
-const CLAIMED_KEY = 'elias-spelportal-claimed';
 const MAX_RECENT = 6;
 
 const AVATARS_FREE = ['😀','😎','🤩','😈','👻','🤖','🦊','🐱','🐶','🦁','🐸','🐼','🦄','🐲','🎮','⚡','🔥','💎','🌟','🚀'];
 const AVATARS_LOCKED = ['🏆','👾','🎪','🧙','🦸','🎭','💀','🍕','🎃','👽','🤠','🦇','🐉','🗿','💩','🧛','🥶','🤯','🫥','🤑'];
-
-const OWNER_USERNAME = 'Hack33m_';
-const OWNER_PASSWORD = 'eliagillarcorny123';
 
 // Shop items
 const NAME_COLORS = [
@@ -58,18 +51,85 @@ const EMOJI_PACK_PRICE = 100;
 let allGames = [];
 let activeCategory = 'all';
 let searchQuery = '';
+let currentUserData = null;
+
+// ===== Supabase Helpers =====
+function usernameToEmail(username) {
+  return `${username.toLowerCase()}@spelportal.app`;
+}
+
+function mapProfile(row) {
+  if (!row) return null;
+  return {
+    uid: row.id,
+    username: row.username,
+    avatar: row.avatar || '😀',
+    role: row.role || 'user',
+    coins: row.coins || 0,
+    banned: row.banned || false,
+    bannedUntil: row.banned_until,
+    favorites: row.favorites || [],
+    nameColor: row.name_color,
+    nameEffect: row.name_effect,
+    title: row.title,
+    unlockedColors: row.unlocked_colors || [],
+    unlockedTitles: row.unlocked_titles || [],
+    unlockedEffects: row.unlocked_effects || [],
+    unlockedEmojis: row.unlocked_emojis || [],
+    unlockedSkins: row.unlocked_skins || [],
+    arrowSkin: row.arrow_skin,
+    joined: row.joined_at,
+  };
+}
+
+function mapToDb(updates) {
+  const map = {
+    nameColor: 'name_color',
+    nameEffect: 'name_effect',
+    unlockedColors: 'unlocked_colors',
+    unlockedTitles: 'unlocked_titles',
+    unlockedEffects: 'unlocked_effects',
+    unlockedEmojis: 'unlocked_emojis',
+    unlockedSkins: 'unlocked_skins',
+    arrowSkin: 'arrow_skin',
+    bannedUntil: 'banned_until',
+  };
+  const result = {};
+  for (const [key, value] of Object.entries(updates)) {
+    result[map[key] || key] = value;
+  }
+  return result;
+}
 
 // ===== Init =====
-document.addEventListener('DOMContentLoaded', () => {
-  ensureOwnerAccount();
+document.addEventListener('DOMContentLoaded', async () => {
   applyTheme();
-  loadGames();
   setupMobileMenu();
   setupEasterEgg();
-  setupFeedback();
   setupAuth();
+  setupFeedback();
+
+  await initAuth();
+
   renderHeaderAuth();
+  loadGames();
 });
+
+async function initAuth() {
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      const { data } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      currentUserData = data ? mapProfile(data) : null;
+    }
+  } catch (e) {
+    console.error('Auth init error:', e);
+  }
+}
 
 // ===== Theme =====
 function applyTheme() {
@@ -82,82 +142,8 @@ function setTheme(theme) {
 }
 
 // ===== Users & Auth =====
-function getUsers() {
-  try { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; }
-  catch { return []; }
-}
-function saveUsers(users) { localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
-
 function getCurrentUser() {
-  try {
-    const s = JSON.parse(localStorage.getItem(SESSION_KEY));
-    if (!s) return null;
-    return getUsers().find(u => u.username === s.username) || null;
-  } catch { return null; }
-}
-
-function loginUser(username) { localStorage.setItem(SESSION_KEY, JSON.stringify({ username })); }
-function logoutUser() { localStorage.removeItem(SESSION_KEY); }
-
-function defaultUserData(overrides) {
-  return {
-    username: '',
-    password: '',
-    avatar: '😀',
-    favorites: [],
-    joined: new Date().toISOString(),
-    role: 'user',       // 'owner', 'admin', 'user'
-    banned: false,
-    coins: 0,
-    nameColor: null,
-    nameEffect: null,
-    title: null,
-    unlockedColors: [],
-    unlockedTitles: [],
-    unlockedEffects: [],
-    unlockedEmojis: [],
-    unlockedSkins: [],
-    arrowSkin: null,
-    ...overrides,
-  };
-}
-
-function ensureOwnerAccount() {
-  const users = getUsers();
-  const owner = users.find(u => u.username === OWNER_USERNAME);
-  if (!owner) {
-    users.push(defaultUserData({
-      username: OWNER_USERNAME,
-      password: OWNER_PASSWORD,
-      avatar: '👑',
-      role: 'owner',
-      coins: 0,
-    }));
-    saveUsers(users);
-  } else {
-    let changed = false;
-    if (owner.role !== 'owner') { owner.role = 'owner'; changed = true; }
-    if (owner.coins === undefined) { owner.coins = 0; changed = true; }
-    if (!owner.unlockedColors) { owner.unlockedColors = []; changed = true; }
-    if (!owner.unlockedTitles) { owner.unlockedTitles = []; changed = true; }
-    if (!owner.unlockedEffects) { owner.unlockedEffects = []; changed = true; }
-    if (!owner.unlockedEmojis) { owner.unlockedEmojis = []; changed = true; }
-    if (!owner.unlockedSkins) { owner.unlockedSkins = []; changed = true; }
-    if (changed) saveUsers(users);
-  }
-}
-
-function migrateUser(user) {
-  let changed = false;
-  if (user.coins === undefined) { user.coins = 0; changed = true; }
-  if (!user.role) { user.role = user.isAdmin ? 'admin' : 'user'; changed = true; }
-  if (!user.unlockedColors) { user.unlockedColors = []; changed = true; }
-  if (!user.unlockedTitles) { user.unlockedTitles = []; changed = true; }
-  if (!user.unlockedEffects) { user.unlockedEffects = []; changed = true; }
-  if (!user.unlockedEmojis) { user.unlockedEmojis = []; changed = true; }
-  if (!user.unlockedSkins) { user.unlockedSkins = []; changed = true; }
-  if (user.arrowSkin === undefined) { user.arrowSkin = null; changed = true; }
-  return changed;
+  return currentUserData;
 }
 
 function isOwner() { const u = getCurrentUser(); return u && u.role === 'owner'; }
@@ -171,74 +157,136 @@ function getRoleBadge(role) {
   return { label: 'Medlem', cls: 'badge-active' };
 }
 
-function registerUser(username, password, avatar) {
-  const users = getUsers();
-  if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
-    return { ok: false, error: 'Användarnamnet är redan taget' };
+async function registerUser(username, password, avatar) {
+  // Check username uniqueness
+  const { data: existing } = await supabaseClient
+    .from('profiles')
+    .select('id')
+    .eq('username_lower', username.toLowerCase())
+    .maybeSingle();
+
+  if (existing) return { ok: false, error: 'Användarnamnet är redan taget' };
+
+  // Sign up with Supabase Auth
+  const { data, error } = await supabaseClient.auth.signUp({
+    email: usernameToEmail(username),
+    password: password,
+  });
+
+  if (error) {
+    if (error.message.includes('already registered')) return { ok: false, error: 'Användarnamnet är redan taget' };
+    if (error.message.includes('Password')) return { ok: false, error: 'Lösenordet måste vara minst 6 tecken' };
+    return { ok: false, error: error.message };
   }
-  users.push(defaultUserData({ username, password, avatar: avatar || '😀' }));
-  saveUsers(users);
-  loginUser(username);
+
+  // Create profile
+  const { error: profileError } = await supabaseClient.from('profiles').insert({
+    id: data.user.id,
+    username: username,
+    username_lower: username.toLowerCase(),
+    avatar: avatar || '😀',
+  });
+
+  if (profileError) {
+    console.error('Profile creation error:', profileError);
+    return { ok: false, error: 'Kunde inte skapa profil' };
+  }
+
+  // Cache locally
+  currentUserData = mapProfile({
+    id: data.user.id,
+    username: username,
+    username_lower: username.toLowerCase(),
+    avatar: avatar || '😀',
+    role: 'user',
+    coins: 0,
+    banned: false,
+    banned_until: null,
+    favorites: [],
+    name_color: null,
+    name_effect: null,
+    title: null,
+    unlocked_colors: [],
+    unlocked_titles: [],
+    unlocked_effects: [],
+    unlocked_emojis: [],
+    unlocked_skins: [],
+    arrow_skin: null,
+    joined_at: new Date().toISOString(),
+  });
+
   return { ok: true };
 }
 
-function authenticateUser(username, password) {
-  const users = getUsers();
-  const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-  if (!user) return { ok: false, error: 'Användaren finns inte' };
-  if (user.banned) {
-    // Check if ban has expired
-    if (user.bannedUntil) {
-      if (new Date() >= new Date(user.bannedUntil)) {
-        // Ban expired - auto unban
-        const idx = users.findIndex(u => u.username === user.username);
-        users[idx].banned = false;
-        users[idx].bannedUntil = null;
-        saveUsers(users);
-      } else {
-        const until = new Date(user.bannedUntil).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        return { ok: false, error: `Kontot är bannat till ${until}` };
-      }
+async function authenticateUser(username, password) {
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email: usernameToEmail(username),
+    password: password,
+  });
+
+  if (error) return { ok: false, error: 'Fel användarnamn eller lösenord' };
+
+  // Load profile
+  const { data: profile } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id', data.user.id)
+    .single();
+
+  if (!profile) {
+    await supabaseClient.auth.signOut();
+    return { ok: false, error: 'Kontot har tagits bort' };
+  }
+
+  // Check ban
+  if (profile.banned) {
+    if (profile.banned_until && new Date() >= new Date(profile.banned_until)) {
+      // Ban expired, auto unban
+      await supabaseClient.from('profiles').update({ banned: false, banned_until: null }).eq('id', data.user.id);
+      profile.banned = false;
+      profile.banned_until = null;
+    } else if (profile.banned_until) {
+      const until = new Date(profile.banned_until).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      await supabaseClient.auth.signOut();
+      return { ok: false, error: `Kontot är bannat till ${until}` };
     } else {
+      await supabaseClient.auth.signOut();
       return { ok: false, error: 'Detta konto är permanent bannat' };
     }
   }
-  if (user.password !== password) return { ok: false, error: 'Fel lösenord' };
-  loginUser(user.username);
+
+  currentUserData = mapProfile(profile);
   return { ok: true };
 }
 
-function updateUser(updates) {
-  const user = getCurrentUser();
-  if (!user) return;
-  const users = getUsers();
-  const idx = users.findIndex(u => u.username === user.username);
-  if (idx === -1) return;
-  Object.assign(users[idx], updates);
-  saveUsers(users);
+async function logoutUser() {
+  await supabaseClient.auth.signOut();
+  currentUserData = null;
 }
 
-function deleteAccount() {
-  const user = getCurrentUser();
-  if (!user) return;
-  let users = getUsers();
-  users = users.filter(u => u.username !== user.username);
-  saveUsers(users);
-  logoutUser();
+async function updateUser(updates) {
+  if (!currentUserData) return;
+  const dbUpdates = mapToDb(updates);
+  await supabaseClient.from('profiles').update(dbUpdates).eq('id', currentUserData.uid);
+  Object.assign(currentUserData, updates);
 }
 
-function toggleFavorite(gameId) {
+async function deleteAccount() {
+  if (!currentUserData) return;
+  await supabaseClient.from('profiles').delete().eq('id', currentUserData.uid);
+  await supabaseClient.auth.signOut();
+  currentUserData = null;
+}
+
+async function toggleFavorite(gameId) {
   const user = getCurrentUser();
   if (!user) return false;
-  const users = getUsers();
-  const idx = users.findIndex(u => u.username === user.username);
-  if (idx === -1) return false;
-  if (!users[idx].favorites) users[idx].favorites = [];
-  const fi = users[idx].favorites.indexOf(gameId);
-  if (fi === -1) users[idx].favorites.push(gameId);
-  else users[idx].favorites.splice(fi, 1);
-  saveUsers(users);
-  return users[idx].favorites.includes(gameId);
+  const favs = [...(user.favorites || [])];
+  const idx = favs.indexOf(gameId);
+  if (idx === -1) favs.push(gameId);
+  else favs.splice(idx, 1);
+  await updateUser({ favorites: favs });
+  return favs.includes(gameId);
 }
 
 function isFavorite(gameId) {
@@ -248,42 +296,44 @@ function isFavorite(gameId) {
 }
 
 // ===== Coins =====
-function addCoins(amount) {
-  const user = getCurrentUser();
-  if (!user) return;
-  const users = getUsers();
-  const idx = users.findIndex(u => u.username === user.username);
-  if (idx === -1) return;
-  if (users[idx].coins === undefined) users[idx].coins = 0;
-  users[idx].coins += amount;
-  saveUsers(users);
+async function addCoins(amount) {
+  if (!currentUserData) return;
+  const newCoins = (currentUserData.coins || 0) + amount;
+  await supabaseClient.from('profiles').update({ coins: newCoins }).eq('id', currentUserData.uid);
+  currentUserData.coins = newCoins;
 }
 
-function spendCoins(amount) {
-  const user = getCurrentUser();
-  if (!user) return false;
-  if ((user.coins || 0) < amount) return false;
-  const users = getUsers();
-  const idx = users.findIndex(u => u.username === user.username);
-  if (idx === -1) return false;
-  users[idx].coins -= amount;
-  saveUsers(users);
+async function spendCoins(amount) {
+  if (!currentUserData) return false;
+  if ((currentUserData.coins || 0) < amount) return false;
+  const newCoins = currentUserData.coins - amount;
+  await supabaseClient.from('profiles').update({ coins: newCoins }).eq('id', currentUserData.uid);
+  currentUserData.coins = newCoins;
   return true;
 }
 
-function getClaimedGames() {
-  try { return JSON.parse(localStorage.getItem(CLAIMED_KEY)) || {}; }
-  catch { return {}; }
-}
+async function claimGameCoins(gameId) {
+  if (!currentUserData) return false;
+  const today = new Date().toISOString().split('T')[0];
 
-function claimGameCoins(gameId) {
-  const claimed = getClaimedGames();
-  const today = new Date().toDateString();
-  const key = `${gameId}_${today}`;
-  if (claimed[key]) return false;
-  claimed[key] = true;
-  localStorage.setItem(CLAIMED_KEY, JSON.stringify(claimed));
-  addCoins(25);
+  const { data: existing } = await supabaseClient
+    .from('claimed_coins')
+    .select('id')
+    .eq('user_id', currentUserData.uid)
+    .eq('game_id', gameId)
+    .eq('claim_date', today)
+    .maybeSingle();
+
+  if (existing) return false;
+
+  const { error } = await supabaseClient.from('claimed_coins').insert({
+    user_id: currentUserData.uid,
+    game_id: gameId,
+    claim_date: today,
+  });
+
+  if (error) return false;
+  await addCoins(25);
   return true;
 }
 
@@ -330,19 +380,17 @@ function renderHeaderAuth() {
     return;
   }
 
-  // Migrate old users
-  if (migrateUser(user)) {
-    const users = getUsers();
-    const idx = users.findIndex(u => u.username === user.username);
-    if (idx !== -1) { Object.assign(users[idx], user); saveUsers(users); }
-  }
-
   let adminBtn = '';
   if (isAdmin()) {
-    let fbCount = 0;
-    try { fbCount = (JSON.parse(localStorage.getItem(FEEDBACK_STORAGE_KEY)) || []).length; } catch {}
-    const notif = fbCount > 0 ? `<span class="admin-notif">${fbCount}</span>` : '';
-    adminBtn = `<a href="admin.html" class="admin-btn">🛡️ Admin${notif}</a>`;
+    adminBtn = `<a href="admin.html" class="admin-btn">🛡️ Admin<span class="admin-notif" id="admin-notif" style="display:none"></span></a>`;
+    // Fetch feedback count async
+    supabaseClient.from('feedback').select('id', { count: 'exact', head: true }).then(({ count }) => {
+      const notifEl = document.getElementById('admin-notif');
+      if (notifEl && count > 0) {
+        notifEl.textContent = count;
+        notifEl.style.display = '';
+      }
+    });
   }
   const coinsDisplay = `<a href="shop.html" class="coins-display" title="Öppna shop">🪙 ${user.coins || 0}</a>`;
 
@@ -367,7 +415,7 @@ function renderHeaderAuth() {
   const dropdown = document.getElementById('user-dropdown');
   menuBtn.addEventListener('click', (e) => { e.stopPropagation(); dropdown.classList.toggle('open'); });
   document.addEventListener('click', () => dropdown.classList.remove('open'));
-  document.getElementById('header-logout').addEventListener('click', () => { logoutUser(); window.location.reload(); });
+  document.getElementById('header-logout').addEventListener('click', async () => { await logoutUser(); window.location.reload(); });
   document.getElementById('open-settings').addEventListener('click', () => { dropdown.classList.remove('open'); openSettingsModal(); });
 }
 
@@ -393,22 +441,32 @@ function setupAuth() {
   const picker = document.getElementById('reg-avatar-picker');
   if (picker) renderAvatarPicker(picker, '😀', AVATARS_FREE);
 
-  document.getElementById('login-form').addEventListener('submit', (e) => {
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const r = authenticateUser(document.getElementById('login-username').value.trim(), document.getElementById('login-password').value);
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Loggar in...';
+    const r = await authenticateUser(
+      document.getElementById('login-username').value.trim(),
+      document.getElementById('login-password').value
+    );
     if (r.ok) { modal.classList.remove('visible'); window.location.reload(); }
-    else document.getElementById('login-error').textContent = r.error;
+    else { document.getElementById('login-error').textContent = r.error; btn.disabled = false; btn.textContent = 'Logga in'; }
   });
 
-  document.getElementById('register-form').addEventListener('submit', (e) => {
+  document.getElementById('register-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const pw1 = document.getElementById('reg-password').value;
     const pw2 = document.getElementById('reg-password2').value;
     if (pw1 !== pw2) { document.getElementById('register-error').textContent = 'Lösenorden matchar inte'; return; }
+    if (pw1.length < 6) { document.getElementById('register-error').textContent = 'Lösenordet måste vara minst 6 tecken'; return; }
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Skapar konto...';
     const avatar = picker.querySelector('.avatar-option.selected')?.textContent || '😀';
-    const r = registerUser(document.getElementById('reg-username').value.trim(), pw1, avatar);
+    const r = await registerUser(document.getElementById('reg-username').value.trim(), pw1, avatar);
     if (r.ok) { modal.classList.remove('visible'); window.location.reload(); }
-    else document.getElementById('register-error').textContent = r.error;
+    else { document.getElementById('register-error').textContent = r.error; btn.disabled = false; btn.textContent = 'Skapa konto'; }
   });
 }
 
@@ -471,8 +529,7 @@ function openSettingsModal() {
       </div>
       <div class="settings-section">
         <h3 class="settings-heading">Byt lösenord</h3>
-        <input type="password" id="settings-old-pw" class="modal-input" placeholder="Nuvarande lösenord">
-        <input type="password" id="settings-new-pw" class="modal-input" placeholder="Nytt lösenord (minst 4 tecken)">
+        <input type="password" id="settings-new-pw" class="modal-input" placeholder="Nytt lösenord (minst 6 tecken)">
         <button class="settings-save-btn" id="save-password">Uppdatera lösenord</button>
       </div>
       <div class="settings-section">
@@ -492,9 +549,9 @@ function openSettingsModal() {
 
   const picker = document.getElementById('settings-avatar-picker');
   renderAvatarPicker(picker, user.avatar, avatars);
-  picker.addEventListener('click', (e) => {
+  picker.addEventListener('click', async (e) => {
     if (e.target.classList.contains('avatar-option') && e.target.classList.contains('selected')) {
-      updateUser({ avatar: e.target.textContent });
+      await updateUser({ avatar: e.target.textContent });
       showSS('Avatar uppdaterad!');
       renderHeaderAuth();
     }
@@ -503,13 +560,11 @@ function openSettingsModal() {
   document.getElementById('settings-close').addEventListener('click', () => modal.remove());
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
-  document.getElementById('save-password').addEventListener('click', () => {
-    const oldPw = document.getElementById('settings-old-pw').value;
+  document.getElementById('save-password').addEventListener('click', async () => {
     const newPw = document.getElementById('settings-new-pw').value;
-    if (oldPw !== user.password) { showSS('Fel nuvarande lösenord', true); return; }
-    if (newPw.length < 4) { showSS('Minst 4 tecken', true); return; }
-    updateUser({ password: newPw });
-    document.getElementById('settings-old-pw').value = '';
+    if (newPw.length < 6) { showSS('Minst 6 tecken', true); return; }
+    const { error } = await supabaseClient.auth.updateUser({ password: newPw });
+    if (error) { showSS('Kunde inte uppdatera lösenord', true); return; }
     document.getElementById('settings-new-pw').value = '';
     showSS('Lösenord uppdaterat!');
   });
@@ -522,8 +577,8 @@ function openSettingsModal() {
     });
   });
 
-  document.getElementById('settings-delete-account').addEventListener('click', () => {
-    if (confirm('Är du säker?')) { deleteAccount(); window.location.href = 'index.html'; }
+  document.getElementById('settings-delete-account').addEventListener('click', async () => {
+    if (confirm('Är du säker?')) { await deleteAccount(); window.location.href = 'index.html'; }
   });
 
   function showSS(msg, err) {
@@ -605,10 +660,10 @@ function createGameCard(game) {
       <div class="card-title">${game.title}</div>
       <span class="card-category" data-cat="${game.category}">${game.category}</span>
     </div>`;
-  card.querySelector('.card-fav-btn').addEventListener('click', (e) => {
+  card.querySelector('.card-fav-btn').addEventListener('click', async (e) => {
     e.preventDefault(); e.stopPropagation();
     if (!getCurrentUser()) { openAuthModal('login'); return; }
-    const f = toggleFavorite(game.id);
+    const f = await toggleFavorite(game.id);
     e.target.classList.toggle('is-fav', f);
   });
   return card;
@@ -683,11 +738,13 @@ function setupFeedback() {
   fab.addEventListener('click', () => { modal.classList.add('visible'); if (form) form.style.display = ''; if (suc) suc.style.display = 'none'; });
   if (cb) cb.addEventListener('click', () => modal.classList.remove('visible'));
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('visible'); });
-  if (form) form.addEventListener('submit', (e) => {
+  if (form) form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const entry = { name: document.getElementById('feedback-name').value, type: document.getElementById('feedback-type').value, message: document.getElementById('feedback-message').value, date: new Date().toISOString() };
-    let fl = []; try { fl = JSON.parse(localStorage.getItem(FEEDBACK_STORAGE_KEY)) || []; } catch {}
-    fl.push(entry); localStorage.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(fl));
+    await supabaseClient.from('feedback').insert({
+      name: document.getElementById('feedback-name').value,
+      type: document.getElementById('feedback-type').value,
+      message: document.getElementById('feedback-message').value,
+    });
     form.style.display = 'none'; if (suc) suc.style.display = ''; form.reset();
   });
 }
@@ -706,17 +763,24 @@ function initGamePage() {
   const cb = document.getElementById('game-category'); cb.textContent = game.category; cb.dataset.cat = game.category;
 
   const iframe = document.getElementById('game-iframe'), loader = document.getElementById('game-loader');
-  iframe.addEventListener('load', () => loader.classList.add('hidden'));
+  iframe.addEventListener('load', () => {
+    loader.classList.add('hidden');
+    // Send skin data to game iframe
+    const user = getCurrentUser();
+    if (user && user.arrowSkin) {
+      iframe.contentWindow.postMessage({ type: 'skin-data', skinId: user.arrowSkin }, '*');
+    }
+  });
   iframe.src = game.path;
   saveRecentlyPlayed(game.id);
 
   // Listen for score-based coin rewards from game iframe
-  window.addEventListener('message', (e) => {
+  window.addEventListener('message', async (e) => {
     if (e.data && e.data.type === 'game-score' && getCurrentUser()) {
       const score = e.data.score || 0;
-      const earned = Math.floor(score / 10); // 1 coin per 10 points
+      const earned = Math.floor(score / 10);
       if (earned > 0) {
-        addCoins(earned);
+        await addCoins(earned);
         renderHeaderAuth();
       }
     }
@@ -727,7 +791,7 @@ function initGamePage() {
   if (favBtn) {
     const upd = () => { const f = isFavorite(gameId); favBtn.textContent = f ? '♥' : '♡'; favBtn.classList.toggle('is-fav', f); };
     upd();
-    favBtn.addEventListener('click', () => { if (!getCurrentUser()) { openAuthModal('login'); return; } toggleFavorite(gameId); upd(); });
+    favBtn.addEventListener('click', async () => { if (!getCurrentUser()) { openAuthModal('login'); return; } await toggleFavorite(gameId); upd(); });
   }
 
   document.getElementById('fullscreen-btn').addEventListener('click', () => {
@@ -768,9 +832,9 @@ function initProfilePage() {
   const picker = document.getElementById('profile-avatar-picker');
   if (picker) {
     renderAvatarPicker(picker, user.avatar, getAvailableAvatars(user));
-    picker.addEventListener('click', (e) => {
+    picker.addEventListener('click', async (e) => {
       if (e.target.classList.contains('avatar-option') && e.target.classList.contains('selected')) {
-        updateUser({ avatar: e.target.textContent });
+        await updateUser({ avatar: e.target.textContent });
         document.getElementById('profile-avatar').textContent = e.target.textContent;
         renderHeaderAuth();
       }
@@ -787,9 +851,9 @@ function initProfilePage() {
   if (!rGames.length) { rEmpty.style.display = ''; rGrid.style.display = 'none'; }
   else rGames.forEach(g => rGrid.appendChild(createGameCard(g)));
 
-  document.getElementById('logout-btn').addEventListener('click', () => { logoutUser(); window.location.href = 'index.html'; });
-  document.getElementById('delete-account-btn').addEventListener('click', () => {
-    if (confirm('Är du säker?')) { deleteAccount(); window.location.href = 'index.html'; }
+  document.getElementById('logout-btn').addEventListener('click', async () => { await logoutUser(); window.location.href = 'index.html'; });
+  document.getElementById('delete-account-btn').addEventListener('click', async () => {
+    if (confirm('Är du säker?')) { await deleteAccount(); window.location.href = 'index.html'; }
   });
 }
 
@@ -797,7 +861,6 @@ function initProfilePage() {
 function initShopPage() {
   const user = getCurrentUser();
   if (!user) { window.location.href = 'index.html'; return; }
-
   renderShop(user);
 }
 
@@ -805,8 +868,7 @@ function renderShop(user) {
   const grid = document.getElementById('shop-grid');
   if (!grid) return;
 
-  const freshUser = getCurrentUser();
-  const u = freshUser || user;
+  const u = getCurrentUser() || user;
   const coinsEl = document.getElementById('shop-coins');
   if (coinsEl) coinsEl.textContent = u.coins || 0;
 
@@ -827,7 +889,7 @@ function renderShop(user) {
         ? (equipped
           ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-color">Utrustad ✓</button>'
           : `<button class="shop-btn shop-btn-equip" data-action="equip-color" data-id="${item.id}" data-color="${item.color}">Använd</button>`)
-        : `<button class="shop-btn shop-btn-buy" data-action="buy-color" data-id="${item.id}" data-price="${item.price}">🪙 ${item.price}</button>`
+        : `<button class="shop-btn shop-btn-buy" data-action="buy-color" data-id="${item.id}" data-color="${item.color}" data-price="${item.price}">🪙 ${item.price}</button>`
       }
     </div>`;
   });
@@ -910,7 +972,7 @@ function renderShop(user) {
 
   // Event handlers
   grid.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const action = btn.dataset.action;
       const price = parseInt(btn.dataset.price) || 0;
       const id = btn.dataset.id;
@@ -918,25 +980,36 @@ function renderShop(user) {
       const color = btn.dataset.color;
 
       if (action.startsWith('buy-')) {
-        if (!spendCoins(price)) { alert(`Inte tillräckligt med coins! Du behöver ${price} 🪙`); return; }
-        const users = getUsers();
-        const idx = users.findIndex(x => x.username === u.username);
-        if (idx === -1) return;
-        if (action === 'buy-color') { if (!users[idx].unlockedColors) users[idx].unlockedColors = []; users[idx].unlockedColors.push(id); users[idx].nameColor = color; }
-        if (action === 'buy-title') { if (!users[idx].unlockedTitles) users[idx].unlockedTitles = []; users[idx].unlockedTitles.push(id); users[idx].title = id; }
-        if (action === 'buy-effect') { if (!users[idx].unlockedEffects) users[idx].unlockedEffects = []; users[idx].unlockedEffects.push(id); users[idx].nameEffect = id; }
-        if (action === 'buy-emoji') { if (!users[idx].unlockedEmojis) users[idx].unlockedEmojis = []; users[idx].unlockedEmojis.push(emoji); }
-        if (action === 'buy-skin') { if (!users[idx].unlockedSkins) users[idx].unlockedSkins = []; users[idx].unlockedSkins.push(id); users[idx].arrowSkin = id; }
-        saveUsers(users);
+        if (!await spendCoins(price)) { alert(`Inte tillräckligt med coins! Du behöver ${price} 🪙`); return; }
+        if (action === 'buy-color') {
+          const colors = [...(currentUserData.unlockedColors || []), id];
+          await updateUser({ unlockedColors: colors, nameColor: color });
+        }
+        if (action === 'buy-title') {
+          const titles = [...(currentUserData.unlockedTitles || []), id];
+          await updateUser({ unlockedTitles: titles, title: id });
+        }
+        if (action === 'buy-effect') {
+          const effects = [...(currentUserData.unlockedEffects || []), id];
+          await updateUser({ unlockedEffects: effects, nameEffect: id });
+        }
+        if (action === 'buy-emoji') {
+          const emojis = [...(currentUserData.unlockedEmojis || []), emoji];
+          await updateUser({ unlockedEmojis: emojis });
+        }
+        if (action === 'buy-skin') {
+          const skins = [...(currentUserData.unlockedSkins || []), id];
+          await updateUser({ unlockedSkins: skins, arrowSkin: id });
+        }
       }
-      if (action === 'equip-color') updateUser({ nameColor: color });
-      if (action === 'unequip-color') updateUser({ nameColor: null });
-      if (action === 'equip-title') updateUser({ title: id });
-      if (action === 'unequip-title') updateUser({ title: null });
-      if (action === 'equip-effect') updateUser({ nameEffect: id });
-      if (action === 'unequip-effect') updateUser({ nameEffect: null });
-      if (action === 'equip-skin') updateUser({ arrowSkin: id });
-      if (action === 'unequip-skin') updateUser({ arrowSkin: null });
+      if (action === 'equip-color') await updateUser({ nameColor: color });
+      if (action === 'unequip-color') await updateUser({ nameColor: null });
+      if (action === 'equip-title') await updateUser({ title: id });
+      if (action === 'unequip-title') await updateUser({ title: null });
+      if (action === 'equip-effect') await updateUser({ nameEffect: id });
+      if (action === 'unequip-effect') await updateUser({ nameEffect: null });
+      if (action === 'equip-skin') await updateUser({ arrowSkin: id });
+      if (action === 'unequip-skin') await updateUser({ arrowSkin: null });
 
       renderShop(getCurrentUser());
       renderHeaderAuth();

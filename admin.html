@@ -96,23 +96,27 @@
   </style>
 </head>
 <body>
-<div id="app"></div>
+<div id="app"><div class="empty" style="padding:80px 20px;text-align:center;"><p>Laddar...</p></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/supabase-config.js"></script>
 <script>
-  const USERS_KEY = 'elias-spelportal-users';
-  const SESSION_KEY = 'elias-spelportal-session';
-  const FEEDBACK_KEY = 'elias-spelportal-feedback';
-  const OWNER_USERNAME = 'Hack33m_';
-
-  function getUsers() { try { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; } catch { return []; } }
-  function saveUsers(u) { localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
-  function getFeedback() { try { return JSON.parse(localStorage.getItem(FEEDBACK_KEY)) || []; } catch { return []; } }
-  function saveFeedback(f) { localStorage.setItem(FEEDBACK_KEY, JSON.stringify(f)); }
-  function getCurrentUser() { try { const s = JSON.parse(localStorage.getItem(SESSION_KEY)); if (!s) return null; return getUsers().find(u => u.username === s.username) || null; } catch { return null; } }
-  function isOwner() { const u = getCurrentUser(); return u && u.username === OWNER_USERNAME; }
-  function isAdmin() { const u = getCurrentUser(); return u && (u.role === 'admin' || u.role === 'owner'); }
+  let currentUser = null;
+  let allUsers = [];
+  let allFeedback = [];
 
   function esc(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
-  function fmtDate(iso) { return new Date(iso).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  function fmtDate(iso) { if (!iso) return 'Okänt'; return new Date(iso).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+
+  function mapProfile(row) {
+    if (!row) return null;
+    return {
+      uid: row.id, username: row.username, avatar: row.avatar || '😀',
+      role: row.role || 'user', coins: row.coins || 0, banned: row.banned || false,
+      bannedUntil: row.banned_until, favorites: row.favorites || [],
+      nameColor: row.name_color, nameEffect: row.name_effect, title: row.title,
+      joined: row.joined_at,
+    };
+  }
 
   function getStyledName(user) {
     if (!user) return '';
@@ -125,30 +129,42 @@
     return '<span class="styled-name" style="' + style + '">' + esc(user.username) + '</span>';
   }
 
-  const app = document.getElementById('app');
-  if (!isAdmin()) {
-    app.innerHTML = '<div class="access-denied"><h2>🔒 Åtkomst nekad</h2><p>Du måste vara admin för att se denna sida.</p><a href="index.html">← Tillbaka</a></div>';
-  } else {
-    renderAdmin();
+  function curIsOwner() { return currentUser && currentUser.role === 'owner'; }
+  function curIsAdmin() { return currentUser && (currentUser.role === 'admin' || currentUser.role === 'owner'); }
+
+  async function init() {
+    const app = document.getElementById('app');
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) { showDenied(app); return; }
+
+    const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
+    if (!profile) { showDenied(app); return; }
+    currentUser = mapProfile(profile);
+    if (!curIsAdmin()) { showDenied(app); return; }
+
+    renderAdmin(app);
   }
 
-  function renderAdmin() {
-    const user = getCurrentUser();
-    const titleClass = isOwner() ? 'owner-title' : 'admin-title';
-    const roleLabel = isOwner() ? 'Owner' : 'Admin';
+  function showDenied(app) {
+    app.innerHTML = '<div class="access-denied"><h2>🔒 Åtkomst nekad</h2><p>Du måste vara admin för att se denna sida.</p><a href="index.html">← Tillbaka</a></div>';
+  }
+
+  function renderAdmin(app) {
+    const titleClass = curIsOwner() ? 'owner-title' : 'admin-title';
+    const roleLabel = curIsOwner() ? 'Owner' : 'Admin';
     app.innerHTML = `
       <header class="admin-header">
         <a href="index.html" class="back-link">← Tillbaka</a>
         <h1><span class="${titleClass}">🛡️ ${roleLabel} Panel</span></h1>
-        <span class="admin-user">${user.avatar} ${esc(user.username)}</span>
+        <span class="admin-user">${currentUser.avatar} ${esc(currentUser.username)}</span>
       </header>
       <div class="tabs">
         <button class="tab active" data-panel="feedback">📬 Feedback</button>
         <button class="tab" data-panel="accounts">👥 Konton</button>
       </div>
       <div class="tab-content">
-        <div class="panel active" id="panel-feedback"></div>
-        <div class="panel" id="panel-accounts"></div>
+        <div class="panel active" id="panel-feedback"><div class="empty"><p>Laddar...</p></div></div>
+        <div class="panel" id="panel-accounts"><div class="empty"><p>Laddar...</p></div></div>
       </div>`;
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -158,13 +174,19 @@
         document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
       });
     });
+    loadFeedback();
+    loadAccounts();
+  }
+
+  async function loadFeedback() {
+    const { data } = await supabaseClient.from('feedback').select('*').order('created_at', { ascending: false });
+    allFeedback = data || [];
     renderFeedbackPanel();
-    renderAccountsPanel();
   }
 
   function renderFeedbackPanel() {
     const panel = document.getElementById('panel-feedback');
-    const list = getFeedback();
+    const list = allFeedback;
     const tl = { forslag: 'Förslag', forbattring: 'Förbättring', bugg: 'Bugg' };
     const tb = { forslag: 'badge-forslag', forbattring: 'badge-forbattring', bugg: 'badge-bugg' };
     if (!list.length) { panel.innerHTML = '<div class="empty"><span class="empty-icon">📭</span><p>Ingen feedback ännu.</p></div>'; return; }
@@ -174,26 +196,34 @@
       <span class="stat-pill">Förbättringar: <strong>${list.filter(f=>f.type==='forbattring').length}</strong></span>
       <span class="stat-pill">Buggar: <strong>${list.filter(f=>f.type==='bugg').length}</strong></span>
     </div>`;
-    [...list].reverse().forEach((item, ri) => {
-      const idx = list.length - 1 - ri;
+    list.forEach(item => {
       h += `<div class="item-card">
-        <div class="item-top"><span class="item-name">${esc(item.name)}</span><span class="badge ${tb[item.type]||'badge-forslag'}">${tl[item.type]||item.type}</span><span class="item-date">${fmtDate(item.date)}</span></div>
+        <div class="item-top"><span class="item-name">${esc(item.name)}</span><span class="badge ${tb[item.type]||'badge-forslag'}">${tl[item.type]||item.type}</span><span class="item-date">${fmtDate(item.created_at)}</span></div>
         <div class="item-message">${esc(item.message)}</div>
-        <div class="item-actions"><button class="btn-sm btn-delete" data-fb-idx="${idx}">Ta bort</button></div>
+        <div class="item-actions"><button class="btn-sm btn-delete" data-fb-id="${item.id}">Ta bort</button></div>
       </div>`;
     });
     panel.innerHTML = h;
-    panel.querySelectorAll('[data-fb-idx]').forEach(btn => {
-      btn.addEventListener('click', () => { const fb = getFeedback(); fb.splice(parseInt(btn.dataset.fbIdx), 1); saveFeedback(fb); renderFeedbackPanel(); });
+    panel.querySelectorAll('[data-fb-id]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await supabaseClient.from('feedback').delete().eq('id', parseInt(btn.dataset.fbId));
+        allFeedback = allFeedback.filter(f => f.id !== parseInt(btn.dataset.fbId));
+        renderFeedbackPanel();
+      });
     });
+  }
+
+  async function loadAccounts() {
+    const { data } = await supabaseClient.from('profiles').select('*').order('joined_at', { ascending: false });
+    allUsers = (data || []).map(mapProfile);
+    renderAccountsPanel();
   }
 
   function renderAccountsPanel(filter) {
     const panel = document.getElementById('panel-accounts');
-    const users = getUsers();
+    const users = allUsers;
     const q = (filter || '').toLowerCase().trim();
     const filtered = q ? users.filter(u => u.username.toLowerCase().includes(q)) : users;
-    const curIsOwner = isOwner();
 
     let h = `<div class="stats-bar">
       <span class="stat-pill">Konton: <strong>${users.length}</strong></span>
@@ -208,7 +238,7 @@
     } else {
       filtered.forEach(u => {
         const uRole = u.role || 'user';
-        const isOwnerUser = u.username === OWNER_USERNAME;
+        const isOwnerUser = uRole === 'owner';
         const isAdminUser = uRole === 'admin';
         const statusBadge = u.banned ? '<span class="badge badge-banned">Bannad</span>' : '<span class="badge badge-active">Aktiv</span>';
         let roleBadge = '';
@@ -218,119 +248,105 @@
         const favCount = (u.favorites || []).length;
         const coins = u.coins || 0;
         const title = u.title || '—';
-
-        // Determine what actions current user can perform
         let actions = '';
 
-        // Owner can never be touched by anyone
         if (!isOwnerUser) {
-          // Ban/unban — owner can always, admins can only ban regular users
-          if (curIsOwner || (!isAdminUser)) {
+          if (curIsOwner() || (!isAdminUser)) {
             if (u.banned) {
-              let banInfo = '';
-              if (u.bannedUntil) {
-                banInfo = `<span class="ban-until">Till ${fmtDate(u.bannedUntil)}</span>`;
-              } else {
-                banInfo = '<span class="ban-until">Permanent</span>';
-              }
-              actions += `${banInfo} <button class="btn-sm btn-unban" data-user="${esc(u.username)}" data-action="unban">Avbanna</button>`;
+              let banInfo = u.bannedUntil ? `<span class="ban-until">Till ${fmtDate(u.bannedUntil)}</span>` : '<span class="ban-until">Permanent</span>';
+              actions += `${banInfo} <button class="btn-sm btn-unban" data-uid="${u.uid}" data-action="unban">Avbanna</button>`;
             } else {
-              actions += `<select class="ban-duration-select" data-user="${esc(u.username)}">
-                <option value="1h">1 timme</option>
-                <option value="24h">24 timmar</option>
-                <option value="7d">7 dagar</option>
-                <option value="30d">30 dagar</option>
-                <option value="perm">Permanent</option>
-              </select>
-              <button class="btn-sm btn-ban" data-user="${esc(u.username)}" data-action="ban">Banna</button>`;
+              actions += `<select class="ban-duration-select" data-uid="${u.uid}">
+                <option value="1h">1 timme</option><option value="24h">24 timmar</option>
+                <option value="7d">7 dagar</option><option value="30d">30 dagar</option>
+                <option value="perm">Permanent</option></select>
+              <button class="btn-sm btn-ban" data-uid="${u.uid}" data-action="ban">Banna</button>`;
             }
           }
-
-          // Promote/demote — only owner
-          if (curIsOwner) {
-            if (isAdminUser) {
-              actions += `<button class="btn-sm btn-demote" data-user="${esc(u.username)}" data-action="demote">Ta bort admin</button>`;
-            } else {
-              actions += `<button class="btn-sm btn-promote" data-user="${esc(u.username)}" data-action="promote">Gör admin</button>`;
-            }
+          if (curIsOwner()) {
+            if (isAdminUser) actions += `<button class="btn-sm btn-demote" data-uid="${u.uid}" data-action="demote">Ta bort admin</button>`;
+            else actions += `<button class="btn-sm btn-promote" data-uid="${u.uid}" data-action="promote">Gör admin</button>`;
           }
-
-          // Delete — owner can delete anyone, admins can only delete regular users
-          if (curIsOwner || (!isAdminUser)) {
-            actions += `<button class="btn-sm btn-delete" data-user="${esc(u.username)}" data-action="delete">Ta bort</button>`;
+          if (curIsOwner() || (!isAdminUser)) {
+            actions += `<button class="btn-sm btn-delete" data-uid="${u.uid}" data-action="delete">Ta bort</button>`;
           }
         }
 
-        // Coins — owner can edit anyone's coins (including own), admins can edit non-admin/non-owner
-        const canEditCoins = curIsOwner || (!isOwnerUser && !isAdminUser);
+        const canEditCoins = curIsOwner() || (!isOwnerUser && !isAdminUser);
         const coinsEdit = canEditCoins
-          ? `<input type="number" class="coins-input" data-user="${esc(u.username)}" value="0" min="-99999" max="99999">
-             <button class="btn-sm btn-coins" data-user="${esc(u.username)}" data-action="add-coins">+/- Coins</button>`
-          : '';
+          ? `<input type="number" class="coins-input" data-uid="${u.uid}" value="0" min="-99999" max="99999">
+             <button class="btn-sm btn-coins" data-uid="${u.uid}" data-action="add-coins">+/- Coins</button>` : '';
 
         h += `<div class="item-card">
           <div class="item-top">
             <span class="user-avatar">${u.avatar||'😀'}</span>
             <span class="item-name">${getStyledName(u)}</span>
             ${statusBadge}${roleBadge}
-            <span class="item-date">Gick med ${u.joined ? fmtDate(u.joined) : 'Okänt'}</span>
+            <span class="item-date">Gick med ${fmtDate(u.joined)}</span>
           </div>
           <div class="user-stats">
             <span>🪙 <strong>${coins}</strong> coins</span>
             <span>❤️ <strong>${favCount}</strong> favoriter</span>
             <span>🏅 ${title}</span>
           </div>
-          <div class="item-actions">
-            ${actions}
-            ${coinsEdit}
-          </div>
+          <div class="item-actions">${actions}${coinsEdit}</div>
         </div>`;
       });
     }
 
     panel.innerHTML = h;
-
     document.getElementById('account-search').addEventListener('input', (e) => renderAccountsPanel(e.target.value));
 
     panel.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const username = btn.dataset.user;
+      btn.addEventListener('click', async () => {
+        const uid = btn.dataset.uid;
         const action = btn.dataset.action;
-        const users = getUsers();
-        const idx = users.findIndex(u => u.username === username);
-        if (idx === -1) return;
+        const user = allUsers.find(u => u.uid === uid);
+        if (!user) return;
 
         if (action === 'ban') {
-          const durSelect = panel.querySelector(`select.ban-duration-select[data-user="${username}"]`);
+          const durSelect = panel.querySelector(`select.ban-duration-select[data-uid="${uid}"]`);
           const dur = durSelect ? durSelect.value : 'perm';
           const durLabels = { '1h': '1 timme', '24h': '24 timmar', '7d': '7 dagar', '30d': '30 dagar', 'perm': 'permanent' };
-          if (confirm(`Banna ${username} i ${durLabels[dur]}?`)) {
-            users[idx].banned = true;
-            if (dur === 'perm') {
-              users[idx].bannedUntil = null;
-            } else {
+          if (confirm(`Banna ${user.username} i ${durLabels[dur]}?`)) {
+            let bannedUntil = null;
+            if (dur !== 'perm') {
               const now = new Date();
               if (dur === '1h') now.setHours(now.getHours() + 1);
               else if (dur === '24h') now.setHours(now.getHours() + 24);
               else if (dur === '7d') now.setDate(now.getDate() + 7);
               else if (dur === '30d') now.setDate(now.getDate() + 30);
-              users[idx].bannedUntil = now.toISOString();
+              bannedUntil = now.toISOString();
             }
-            saveUsers(users);
+            await supabaseClient.from('profiles').update({ banned: true, banned_until: bannedUntil }).eq('id', uid);
+            user.banned = true; user.bannedUntil = bannedUntil;
           }
         }
-        else if (action === 'unban') { users[idx].banned = false; users[idx].bannedUntil = null; saveUsers(users); }
-        else if (action === 'delete') { if (confirm(`Ta bort ${username}?`)) { users.splice(idx, 1); saveUsers(users); } }
-        else if (action === 'promote') { users[idx].role = 'admin'; saveUsers(users); }
-        else if (action === 'demote') { users[idx].role = 'user'; saveUsers(users); }
+        else if (action === 'unban') {
+          await supabaseClient.from('profiles').update({ banned: false, banned_until: null }).eq('id', uid);
+          user.banned = false; user.bannedUntil = null;
+        }
+        else if (action === 'delete') {
+          if (confirm(`Ta bort ${user.username}?`)) {
+            await supabaseClient.from('profiles').delete().eq('id', uid);
+            allUsers = allUsers.filter(u => u.uid !== uid);
+          }
+        }
+        else if (action === 'promote') {
+          await supabaseClient.from('profiles').update({ role: 'admin' }).eq('id', uid);
+          user.role = 'admin';
+        }
+        else if (action === 'demote') {
+          await supabaseClient.from('profiles').update({ role: 'user' }).eq('id', uid);
+          user.role = 'user';
+        }
         else if (action === 'add-coins') {
-          const input = panel.querySelector(`input.coins-input[data-user="${username}"]`);
+          const input = panel.querySelector(`input.coins-input[data-uid="${uid}"]`);
           const amount = parseInt(input.value) || 0;
           if (amount === 0) return;
-          if (users[idx].coins === undefined) users[idx].coins = 0;
-          users[idx].coins += amount;
-          if (users[idx].coins < 0) users[idx].coins = 0;
-          saveUsers(users);
+          const newCoins = Math.max(0, (user.coins || 0) + amount);
+          await supabaseClient.from('profiles').update({ coins: newCoins }).eq('id', uid);
+          user.coins = newCoins;
           input.value = 0;
         }
 
@@ -338,6 +354,8 @@
       });
     });
   }
+
+  init();
 </script>
 </body>
 </html>
