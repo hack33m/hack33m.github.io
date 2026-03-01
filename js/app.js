@@ -7,6 +7,8 @@ const MAX_RECENT = 6;
 const AVATARS_FREE = ['😀','😎','🤩','😈','👻','🤖','🦊','🐱','🐶','🦁','🐸','🐼','🦄','🐲','🎮','⚡','🔥','💎','🌟','🚀'];
 const AVATARS_LOCKED = ['🏆','👾','🎪','🧙','🦸','🎭','💀','🍕','🎃','👽','🤠','🦇','🐉','🗿','💩','🧛','🥶','🤯','🫥','🤑'];
 
+const CORNY_IMAGE_URL = 'https://www.corny.se/fileadmin/user_upload/corny_se/products/BIG/salted-caramel/corny-big-granola-bar-salted-caramell-packaging.jpg';
+
 // Shop items
 const NAME_COLORS = [
   { id: 'red', name: 'Röd', color: '#f87171', price: 50 },
@@ -44,6 +46,7 @@ const ARROW_SKINS = [
   { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', trail: '#ff2200', glow: '#ff4400', glowStyle: 'flicker' },
   { id: 'void', name: 'Void', price: 300, primary: '#1a0033', secondary: '#6600cc', trail: '#3300aa', glow: '#6600cc', glowStyle: 'reverse' },
   { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', trail: 'rainbow', glow: 'rainbow', glowStyle: 'rainbow' },
+  { id: 'corny', name: 'Corny Caramel', price: 0, primary: '#D4A574', secondary: '#FFF5E1', trail: '#B8860B', glow: '#D4A574', glowStyle: 'normal', exclusive: true },
 ];
 
 const EMOJI_PACK_PRICE = 100;
@@ -362,10 +365,23 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
+// ===== Render Avatar =====
+function renderAvatar(avatar, size) {
+  if (avatar === 'corny') {
+    const s = size || 32;
+    return `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;vertical-align:middle;">`;
+  }
+  return avatar || '😀';
+}
+
 // ===== Available Avatars =====
 function getAvailableAvatars(user) {
-  const extra = user ? (user.unlockedEmojis || []) : [];
-  return [...AVATARS_FREE, ...extra];
+  const extra = user ? (user.unlockedEmojis || []).filter(e => e !== 'corny') : [];
+  const avatars = [...AVATARS_FREE, ...extra];
+  if (user && (user.unlockedEmojis || []).includes('corny')) {
+    avatars.push('corny');
+  }
+  return avatars;
 }
 
 // ===== Render Header Auth =====
@@ -399,7 +415,7 @@ function renderHeaderAuth() {
     ${coinsDisplay}
     <div class="user-menu-wrapper">
       <button class="user-menu-btn" id="user-menu-btn">
-        <span class="user-menu-avatar">${user.avatar}</span>
+        <span class="user-menu-avatar">${renderAvatar(user.avatar, 28)}</span>
         <span class="user-menu-name">${getStyledName(user)}</span>
         <span class="user-menu-arrow">▾</span>
       </button>
@@ -463,7 +479,7 @@ function setupAuth() {
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
     btn.textContent = 'Skapar konto...';
-    const avatar = picker.querySelector('.avatar-option.selected')?.textContent || '😀';
+    const avatar = picker.querySelector('.avatar-option.selected')?.dataset.avatar || '😀';
     const r = await registerUser(document.getElementById('reg-username').value.trim(), pw1, avatar);
     if (r.ok) { modal.classList.remove('visible'); window.location.reload(); }
     else { document.getElementById('register-error').textContent = r.error; btn.disabled = false; btn.textContent = 'Skapa konto'; }
@@ -491,11 +507,16 @@ function clearAuthErrors() {
 // ===== Avatar Picker =====
 function renderAvatarPicker(container, selected, list) {
   container.innerHTML = '';
-  (list || AVATARS_FREE).forEach(emoji => {
+  (list || AVATARS_FREE).forEach(avatar => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'avatar-option' + (emoji === selected ? ' selected' : '');
-    btn.textContent = emoji;
+    btn.className = 'avatar-option' + (avatar === selected ? ' selected' : '');
+    btn.dataset.avatar = avatar;
+    if (avatar === 'corny') {
+      btn.innerHTML = `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    } else {
+      btn.textContent = avatar;
+    }
     btn.addEventListener('click', () => {
       container.querySelectorAll('.avatar-option').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
@@ -550,8 +571,9 @@ function openSettingsModal() {
   const picker = document.getElementById('settings-avatar-picker');
   renderAvatarPicker(picker, user.avatar, avatars);
   picker.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('avatar-option') && e.target.classList.contains('selected')) {
-      await updateUser({ avatar: e.target.textContent });
+    const btn = e.target.closest('.avatar-option');
+    if (btn && btn.classList.contains('selected')) {
+      await updateUser({ avatar: btn.dataset.avatar });
       showSS('Avatar uppdaterad!');
       renderHeaderAuth();
     }
@@ -808,7 +830,7 @@ function initProfilePage() {
   const user = getCurrentUser();
   if (!user) { window.location.href = 'index.html'; return; }
 
-  document.getElementById('profile-avatar').textContent = user.avatar;
+  document.getElementById('profile-avatar').innerHTML = renderAvatar(user.avatar, 80);
 
   const nameEl = document.getElementById('profile-username');
   nameEl.innerHTML = getStyledName(user);
@@ -833,9 +855,10 @@ function initProfilePage() {
   if (picker) {
     renderAvatarPicker(picker, user.avatar, getAvailableAvatars(user));
     picker.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('avatar-option') && e.target.classList.contains('selected')) {
-        await updateUser({ avatar: e.target.textContent });
-        document.getElementById('profile-avatar').textContent = e.target.textContent;
+      const btn = e.target.closest('.avatar-option');
+      if (btn && btn.classList.contains('selected')) {
+        await updateUser({ avatar: btn.dataset.avatar });
+        document.getElementById('profile-avatar').innerHTML = renderAvatar(btn.dataset.avatar, 80);
         renderHeaderAuth();
       }
     });
@@ -931,7 +954,7 @@ function renderShop(user) {
 
   // Arrow Skins
   html += '<h3 class="shop-category-title">🏹 Arrow Skins <span style="color:var(--text-muted);font-size:14px;">(Neon Dash)</span></h3><div class="shop-items">';
-  ARROW_SKINS.filter(s => s.price > 0).forEach(skin => {
+  ARROW_SKINS.filter(s => s.price > 0 && !s.exclusive).forEach(skin => {
     const owned = (u.unlockedSkins || []).includes(skin.id);
     const equipped = u.arrowSkin === skin.id;
     const fillColor = skin.primary === 'rainbow' ? '#a855f7' : skin.primary;
@@ -968,6 +991,41 @@ function renderShop(user) {
   });
   html += '</div>';
 
+  // Exclusive items (owner-granted)
+  const exclusiveSkins = ARROW_SKINS.filter(s => s.exclusive && (u.unlockedSkins || []).includes(s.id));
+  const hasCornyAvatar = (u.unlockedEmojis || []).includes('corny');
+  if (exclusiveSkins.length > 0 || hasCornyAvatar) {
+    html += '<h3 class="shop-category-title">⭐ Exclusive</h3><div class="shop-items">';
+    if (hasCornyAvatar) {
+      const equippedAvatar = u.avatar === 'corny';
+      html += `<div class="shop-item ${equippedAvatar ? 'equipped' : ''}">
+        <span class="shop-item-preview"><img src="${CORNY_IMAGE_URL}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;"></span>
+        <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Avatar</span>
+        ${equippedAvatar
+          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-corny-avatar">Utrustad ✓</button>'
+          : '<button class="shop-btn shop-btn-equip" data-action="equip-corny-avatar">Använd</button>'
+        }
+      </div>`;
+    }
+    exclusiveSkins.forEach(skin => {
+      const equipped = u.arrowSkin === skin.id;
+      html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
+        <div class="skin-preview">
+          <svg viewBox="0 0 48 48" width="48" height="48" style="filter:drop-shadow(0 0 6px ${skin.glow});">
+            <polygon points="36,24 12,12 18,24 12,36" fill="${skin.primary}"/>
+            <polygon points="30,24 18,18 21,24 18,30" fill="${skin.secondary}"/>
+          </svg>
+        </div>
+        <span class="shop-item-name" style="font-weight:700;font-size:14px;">${skin.name}</span>
+        ${equipped
+          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-skin">Utrustad ✓</button>'
+          : `<button class="shop-btn shop-btn-equip" data-action="equip-skin" data-id="${skin.id}">Använd</button>`
+        }
+      </div>`;
+    });
+    html += '</div>';
+  }
+
   grid.innerHTML = html;
 
   // Event handlers
@@ -1002,6 +1060,8 @@ function renderShop(user) {
           await updateUser({ unlockedSkins: skins, arrowSkin: id });
         }
       }
+      if (action === 'equip-corny-avatar') await updateUser({ avatar: 'corny' });
+      if (action === 'unequip-corny-avatar') await updateUser({ avatar: '😀' });
       if (action === 'equip-color') await updateUser({ nameColor: color });
       if (action === 'unequip-color') await updateUser({ nameColor: null });
       if (action === 'equip-title') await updateUser({ title: id });

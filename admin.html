@@ -104,8 +104,18 @@
   let allUsers = [];
   let allFeedback = [];
 
+  const CORNY_IMAGE_URL = 'https://www.corny.se/fileadmin/user_upload/corny_se/products/BIG/salted-caramel/corny-big-granola-bar-salted-caramell-packaging.jpg';
+
   function esc(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
   function fmtDate(iso) { if (!iso) return 'Okänt'; return new Date(iso).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+
+  function renderAvatar(avatar, size) {
+    if (avatar === 'corny') {
+      const s = size || 32;
+      return `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;vertical-align:middle;">`;
+    }
+    return avatar || '😀';
+  }
 
   function mapProfile(row) {
     if (!row) return null;
@@ -114,6 +124,7 @@
       role: row.role || 'user', coins: row.coins || 0, banned: row.banned || false,
       bannedUntil: row.banned_until, favorites: row.favorites || [],
       nameColor: row.name_color, nameEffect: row.name_effect, title: row.title,
+      unlockedEmojis: row.unlocked_emojis || [], unlockedSkins: row.unlocked_skins || [],
       joined: row.joined_at,
     };
   }
@@ -156,7 +167,7 @@
       <header class="admin-header">
         <a href="index.html" class="back-link">← Tillbaka</a>
         <h1><span class="${titleClass}">🛡️ ${roleLabel} Panel</span></h1>
-        <span class="admin-user">${currentUser.avatar} ${esc(currentUser.username)}</span>
+        <span class="admin-user">${renderAvatar(currentUser.avatar, 24)} ${esc(currentUser.username)}</span>
       </header>
       <div class="tabs">
         <button class="tab active" data-panel="feedback">📬 Feedback</button>
@@ -266,6 +277,9 @@
           if (curIsOwner()) {
             if (isAdminUser) actions += `<button class="btn-sm btn-demote" data-uid="${u.uid}" data-action="demote">Ta bort admin</button>`;
             else actions += `<button class="btn-sm btn-promote" data-uid="${u.uid}" data-action="promote">Gör admin</button>`;
+            const hasCorny = (u.unlockedEmojis || []).includes('corny');
+            if (hasCorny) actions += `<button class="btn-sm btn-demote" data-uid="${u.uid}" data-action="remove-corny">Ta bort Corny</button>`;
+            else actions += `<button class="btn-sm btn-promote" data-uid="${u.uid}" data-action="give-corny">Ge Corny 🍫</button>`;
           }
           if (curIsOwner() || (!isAdminUser)) {
             actions += `<button class="btn-sm btn-delete" data-uid="${u.uid}" data-action="delete">Ta bort</button>`;
@@ -279,7 +293,7 @@
 
         h += `<div class="item-card">
           <div class="item-top">
-            <span class="user-avatar">${u.avatar||'😀'}</span>
+            <span class="user-avatar">${renderAvatar(u.avatar, 28)}</span>
             <span class="item-name">${getStyledName(u)}</span>
             ${statusBadge}${roleBadge}
             <span class="item-date">Gick med ${fmtDate(u.joined)}</span>
@@ -339,6 +353,22 @@
         else if (action === 'demote') {
           await supabaseClient.from('profiles').update({ role: 'user' }).eq('id', uid);
           user.role = 'user';
+        }
+        else if (action === 'give-corny') {
+          const emojis = [...(user.unlockedEmojis || [])];
+          const skins = [...(user.unlockedSkins || [])];
+          if (!emojis.includes('corny')) emojis.push('corny');
+          if (!skins.includes('corny')) skins.push('corny');
+          await supabaseClient.from('profiles').update({ unlocked_emojis: emojis, unlocked_skins: skins }).eq('id', uid);
+          user.unlockedEmojis = emojis;
+          user.unlockedSkins = skins;
+        }
+        else if (action === 'remove-corny') {
+          const emojis = (user.unlockedEmojis || []).filter(e => e !== 'corny');
+          const skins = (user.unlockedSkins || []).filter(s => s !== 'corny');
+          await supabaseClient.from('profiles').update({ unlocked_emojis: emojis, unlocked_skins: skins }).eq('id', uid);
+          user.unlockedEmojis = emojis;
+          user.unlockedSkins = skins;
         }
         else if (action === 'add-coins') {
           const input = panel.querySelector(`input.coins-input[data-uid="${uid}"]`);
