@@ -112,7 +112,7 @@
   function renderAvatar(avatar, size) {
     if (avatar === 'corny') {
       const s = size || 32;
-      return `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;vertical-align:middle;">`;
+      return `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:contain;background:#1a1a2e;vertical-align:middle;">`;
     }
     return avatar || '😀';
   }

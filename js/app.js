@@ -369,7 +369,7 @@ function escapeHtml(str) {
 function renderAvatar(avatar, size) {
   if (avatar === 'corny') {
     const s = size || 32;
-    return `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;vertical-align:middle;">`;
+    return `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:contain;background:#1a1a2e;vertical-align:middle;">`;
   }
   return avatar || '😀';
 }
@@ -513,7 +513,7 @@ function renderAvatarPicker(container, selected, list) {
     btn.className = 'avatar-option' + (avatar === selected ? ' selected' : '');
     btn.dataset.avatar = avatar;
     if (avatar === 'corny') {
-      btn.innerHTML = `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+      btn.innerHTML = `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:100%;height:100%;border-radius:50%;object-fit:contain;background:#1a1a2e;">`;
     } else {
       btn.textContent = avatar;
     }
@@ -999,7 +999,7 @@ function renderShop(user) {
     if (hasCornyAvatar) {
       const equippedAvatar = u.avatar === 'corny';
       html += `<div class="shop-item ${equippedAvatar ? 'equipped' : ''}">
-        <span class="shop-item-preview"><img src="${CORNY_IMAGE_URL}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;"></span>
+        <span class="shop-item-preview"><img src="${CORNY_IMAGE_URL}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;"></span>
         <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Avatar</span>
         ${equippedAvatar
           ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-corny-avatar">Utrustad ✓</button>'
