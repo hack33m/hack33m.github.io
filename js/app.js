@@ -1019,15 +1019,11 @@ function renderShop(user) {
   }
 
   // Corny Skin
-  const cornySkin = ARROW_SKINS.find(s => s.id === 'corny');
   if (hasCornySkin) {
     const equipped = u.arrowSkin === 'corny';
     html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
       <div class="skin-preview">
-        <svg viewBox="0 0 48 48" width="48" height="48" style="filter:drop-shadow(0 0 6px ${cornySkin.glow});">
-          <polygon points="36,24 12,12 18,24 12,36" fill="${cornySkin.primary}"/>
-          <polygon points="30,24 18,18 21,24 18,30" fill="${cornySkin.secondary}"/>
-        </svg>
+        <img src="${CORNY_IMAGE_URL}" style="width:48px;height:58px;object-fit:contain;filter:drop-shadow(0 0 6px #D4A574);">
       </div>
       <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Caramel</span>
       ${equipped
@@ -1038,10 +1034,7 @@ function renderShop(user) {
   } else {
     html += `<div class="shop-item" style="opacity:0.5;">
       <div class="skin-preview">
-        <svg viewBox="0 0 48 48" width="48" height="48" style="filter:grayscale(1) drop-shadow(0 0 6px #888);">
-          <polygon points="36,24 12,12 18,24 12,36" fill="${cornySkin.primary}"/>
-          <polygon points="30,24 18,18 21,24 18,30" fill="${cornySkin.secondary}"/>
-        </svg>
+        <img src="${CORNY_IMAGE_URL}" style="width:48px;height:58px;object-fit:contain;filter:grayscale(1) drop-shadow(0 0 6px #888);">
       </div>
       <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Caramel</span>
       <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
