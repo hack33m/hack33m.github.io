@@ -267,12 +267,13 @@ button {
 .games-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
+  gap: 32px;
   margin-bottom: 40px;
 }
 
 .games-grid.featured {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 36px;
 }
 
 .games-grid.small {

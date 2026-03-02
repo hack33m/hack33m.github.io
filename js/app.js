@@ -49,6 +49,19 @@ const ARROW_SKINS = [
   { id: 'corny', name: 'Corny Caramel', price: 0, primary: '#D4A574', secondary: '#FFF5E1', trail: '#B8860B', glow: '#D4A574', glowStyle: 'normal', exclusive: true },
 ];
 
+const BIRD_SKINS = [
+  { id: 'default', name: 'Standard', price: 0, primary: '#00d4ff', secondary: '#ffffff', glow: '#00d4ff' },
+  { id: 'crimson', name: 'Crimson', price: 75, primary: '#ff2d55', secondary: '#ffaacc', glow: '#ff2d55' },
+  { id: 'emerald', name: 'Emerald', price: 75, primary: '#39ff14', secondary: '#ccffcc', glow: '#39ff14' },
+  { id: 'sunset', name: 'Sunset', price: 100, primary: '#ff6a00', secondary: '#ffdd44', glow: '#ff6a00' },
+  { id: 'phantom', name: 'Phantom', price: 150, primary: '#a855f7', secondary: '#e0ccff', glow: '#a855f7' },
+  { id: 'arctic', name: 'Arctic', price: 150, primary: '#88eeff', secondary: '#ffffff', glow: '#88eeff' },
+  { id: 'golden', name: 'Golden', price: 200, primary: '#fbbf24', secondary: '#fff8e0', glow: '#fbbf24' },
+  { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', glow: '#ff4400' },
+  { id: 'void', name: 'Void', price: 300, primary: '#6600cc', secondary: '#bb88ff', glow: '#6600cc' },
+  { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', glow: 'rainbow' },
+];
+
 const EMOJI_PACK_PRICE = 100;
 
 let allGames = [];
@@ -80,7 +93,9 @@ function mapProfile(row) {
     unlockedEffects: row.unlocked_effects || [],
     unlockedEmojis: row.unlocked_emojis || [],
     unlockedSkins: row.unlocked_skins || [],
+    unlockedBirdSkins: row.unlocked_bird_skins || [],
     arrowSkin: row.arrow_skin,
+    birdSkin: row.bird_skin,
     joined: row.joined_at,
   };
 }
@@ -94,7 +109,9 @@ function mapToDb(updates) {
     unlockedEffects: 'unlocked_effects',
     unlockedEmojis: 'unlocked_emojis',
     unlockedSkins: 'unlocked_skins',
+    unlockedBirdSkins: 'unlocked_bird_skins',
     arrowSkin: 'arrow_skin',
+    birdSkin: 'bird_skin',
     bannedUntil: 'banned_until',
   };
   const result = {};
@@ -789,8 +806,9 @@ function initGamePage() {
     loader.classList.add('hidden');
     // Send skin data to game iframe
     const user = getCurrentUser();
-    if (user && user.arrowSkin) {
-      iframe.contentWindow.postMessage({ type: 'skin-data', skinId: user.arrowSkin }, '*');
+    if (user) {
+      const skinId = gameId === 'neon-bird' ? user.birdSkin : user.arrowSkin;
+      if (skinId) iframe.contentWindow.postMessage({ type: 'skin-data', skinId }, '*');
     }
   });
   iframe.src = game.path;
@@ -983,6 +1001,35 @@ function renderShop(user) {
   });
   html += '</div>';
 
+  // Bird Skins (Neon Bird)
+  html += '<h3 class="shop-category-title">🐦 Bird Skins <span style="color:var(--text-muted);font-size:14px;">(Neon Bird)</span></h3><div class="shop-items">';
+  BIRD_SKINS.filter(s => s.price > 0).forEach(skin => {
+    const owned = (u.unlockedBirdSkins || []).includes(skin.id);
+    const equipped = u.birdSkin === skin.id;
+    const fillColor = skin.primary === 'rainbow' ? '#a855f7' : skin.primary;
+    const glowColor = skin.glow === 'rainbow' ? '#a855f7' : skin.glow;
+    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
+      <div class="skin-preview">
+        <svg viewBox="0 0 48 48" width="48" height="48" style="filter:drop-shadow(0 0 6px ${glowColor});">
+          <circle cx="24" cy="24" r="12" fill="${fillColor}"/>
+          <circle cx="24" cy="24" r="12" fill="none" stroke="${glowColor}" stroke-width="1" opacity="0.5"/>
+          <circle cx="29" cy="21" r="3" fill="#fff"/>
+          <circle cx="30" cy="21" r="1.5" fill="#111"/>
+          <polygon points="35,22 42,24 35,26" fill="#ff6a00"/>
+          <ellipse cx="20" cy="20" rx="8" ry="3.5" fill="${skin.secondary}" opacity="0.7" transform="rotate(-20 20 20)"/>
+        </svg>
+      </div>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">${skin.name}</span>
+      ${owned
+        ? (equipped
+          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-bird-skin">Utrustad ✓</button>'
+          : `<button class="shop-btn shop-btn-equip" data-action="equip-bird-skin" data-id="${skin.id}">Använd</button>`)
+        : `<button class="shop-btn shop-btn-buy" data-action="buy-bird-skin" data-id="${skin.id}" data-price="${skin.price}">🪙 ${skin.price}</button>`
+      }
+    </div>`;
+  });
+  html += '</div>';
+
   // Extra Emojis
   html += `<h3 class="shop-category-title">😈 Extra Avatarer <span style="color:var(--text-muted);font-size:14px;">(${EMOJI_PACK_PRICE} coins styck)</span></h3><div class="shop-items emoji-items">`;
   AVATARS_LOCKED.forEach(emoji => {
@@ -1078,6 +1125,10 @@ function renderShop(user) {
           const skins = [...(currentUserData.unlockedSkins || []), id];
           await updateUser({ unlockedSkins: skins, arrowSkin: id });
         }
+        if (action === 'buy-bird-skin') {
+          const skins = [...(currentUserData.unlockedBirdSkins || []), id];
+          await updateUser({ unlockedBirdSkins: skins, birdSkin: id });
+        }
       }
       if (action === 'equip-corny-avatar') await updateUser({ avatar: 'corny' });
       if (action === 'unequip-corny-avatar') await updateUser({ avatar: '😀' });
@@ -1089,6 +1140,8 @@ function renderShop(user) {
       if (action === 'unequip-effect') await updateUser({ nameEffect: null });
       if (action === 'equip-skin') await updateUser({ arrowSkin: id });
       if (action === 'unequip-skin') await updateUser({ arrowSkin: null });
+      if (action === 'equip-bird-skin') await updateUser({ birdSkin: id });
+      if (action === 'unequip-bird-skin') await updateUser({ birdSkin: null });
 
       renderShop(getCurrentUser());
       renderHeaderAuth();
