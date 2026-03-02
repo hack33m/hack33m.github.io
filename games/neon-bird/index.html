@@ -623,11 +623,15 @@
     ctx.save();
     ctx.translate(bird.x, bird.y);
 
-    bird.rotation = Math.max(-30, Math.min(70, bird.vy * 4));
-    ctx.rotate(bird.rotation * Math.PI / 180);
-
     const r = BIRD_RADIUS;
     const isCorny = _equippedSkinId === 'corny' && cornyImgLoaded;
+
+    if (isCorny) {
+      bird.rotation = Math.max(-10, Math.min(15, bird.vy * 1.5));
+    } else {
+      bird.rotation = Math.max(-30, Math.min(70, bird.vy * 4));
+    }
+    ctx.rotate(bird.rotation * Math.PI / 180);
 
     if (isCorny) {
       // Draw Corny image as the bird
