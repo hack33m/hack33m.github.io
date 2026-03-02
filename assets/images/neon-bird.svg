@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a1a"/>
+      <stop offset="50%" style="stop-color:#0a1a2a"/>
+      <stop offset="100%" style="stop-color:#0a0a2e"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect fill="url(#bg)" width="400" height="300"/>
+  <!-- Stars -->
+  <circle cx="50" cy="40" r="1.5" fill="#fff" opacity="0.7"/>
+  <circle cx="130" cy="25" r="1" fill="#fff" opacity="0.5"/>
+  <circle cx="260" cy="55" r="2" fill="#fff" opacity="0.6"/>
+  <circle cx="350" cy="35" r="1.5" fill="#fff" opacity="0.4"/>
+  <circle cx="90" cy="95" r="1" fill="#fff" opacity="0.5"/>
+  <circle cx="320" cy="80" r="1.5" fill="#fff" opacity="0.3"/>
+  <!-- Bubbles -->
+  <circle cx="70" cy="160" r="4" fill="none" stroke="#00d4ff" stroke-width="0.8" opacity="0.3"/>
+  <circle cx="340" cy="130" r="3" fill="none" stroke="#00d4ff" stroke-width="0.6" opacity="0.25"/>
+  <circle cx="180" cy="85" r="2.5" fill="none" stroke="#00d4ff" stroke-width="0.6" opacity="0.2"/>
+  <!-- Leaves -->
+  <ellipse cx="55" cy="200" rx="6" ry="2.5" fill="#39ff14" opacity="0.2" transform="rotate(-30 55 200)"/>
+  <ellipse cx="310" cy="190" rx="5" ry="2" fill="#39ff14" opacity="0.15" transform="rotate(20 310 190)"/>
+  <!-- Left pipe (top + bottom) -->
+  <rect x="120" y="0" width="40" height="90" fill="#00d4ff" fill-opacity="0.1" stroke="#00d4ff" stroke-width="1.5" opacity="0.7" filter="url(#glow)"/>
+  <rect x="112" y="82" width="56" height="10" fill="#00d4ff" fill-opacity="0.2" stroke="#00d4ff" stroke-width="1.5" opacity="0.7"/>
+  <rect x="120" y="155" width="40" height="85" fill="#00d4ff" fill-opacity="0.1" stroke="#00d4ff" stroke-width="1.5" opacity="0.7" filter="url(#glow)"/>
+  <rect x="112" y="155" width="56" height="10" fill="#00d4ff" fill-opacity="0.2" stroke="#00d4ff" stroke-width="1.5" opacity="0.7"/>
+  <!-- Right pipe (top + bottom) -->
+  <rect x="260" y="0" width="40" height="120" fill="#39ff14" fill-opacity="0.1" stroke="#39ff14" stroke-width="1.5" opacity="0.7" filter="url(#glow)"/>
+  <rect x="252" y="112" width="56" height="10" fill="#39ff14" fill-opacity="0.2" stroke="#39ff14" stroke-width="1.5" opacity="0.7"/>
+  <rect x="260" y="185" width="40" height="55" fill="#39ff14" fill-opacity="0.1" stroke="#39ff14" stroke-width="1.5" opacity="0.7" filter="url(#glow)"/>
+  <rect x="252" y="185" width="56" height="10" fill="#39ff14" fill-opacity="0.2" stroke="#39ff14" stroke-width="1.5" opacity="0.7"/>
+  <!-- Bird -->
+  <circle cx="195" cy="130" r="12" fill="#00d4ff" opacity="0.9" filter="url(#glow)"/>
+  <circle cx="195" cy="130" r="12" fill="none" stroke="#00d4ff" stroke-width="1" opacity="0.6"/>
+  <!-- Eye -->
+  <circle cx="200" cy="127" r="3" fill="#fff"/>
+  <circle cx="201" cy="127" r="1.5" fill="#111"/>
+  <!-- Beak -->
+  <polygon points="206,127 213,130 206,133" fill="#ff6a00"/>
+  <!-- Wing -->
+  <ellipse cx="189" cy="126" rx="9" ry="4" fill="#fff" opacity="0.6" transform="rotate(-20 189 126)"/>
+  <!-- Coin -->
+  <circle cx="280" cy="152" r="6" fill="#ff6a00" opacity="0.7" filter="url(#glow)"/>
+  <circle cx="280" cy="152" r="3" fill="#fff" opacity="0.5"/>
+  <!-- Ground -->
+  <rect x="0" y="240" width="400" height="60" fill="#1a1a3a"/>
+  <line x1="0" y1="240" x2="400" y2="240" stroke="#00d4ff" stroke-width="1.5" opacity="0.5"/>
+  <!-- Title -->
+  <text x="200" y="270" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="28" fill="#fff">Neon Bird</text>
+  <text x="200" y="290" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#00d4ff">ACTION</text>
+</svg>

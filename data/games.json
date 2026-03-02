@@ -1,11 +1,20 @@
 [
   {
-    "id": "space-runner",
+    "id": "neon-dash",
     "title": "Neon Dash",
     "description": "Zig-zagga genom neonkorridoren och undvik hindren! Hur långt kan du nå?",
     "category": "Action",
-    "thumbnail": "assets/images/space-runner.svg",
-    "path": "games/space-runner/index.html",
+    "thumbnail": "assets/images/neon-dash.svg",
+    "path": "games/neon-dash/index.html",
+    "featured": true
+  },
+  {
+    "id": "neon-bird",
+    "title": "Neon Bird",
+    "description": "Flyg genom neonlandskapet! Undvik hinder och samla po\u00e4ng i rymden, havet och skogen.",
+    "category": "Action",
+    "thumbnail": "assets/images/neon-bird.svg",
+    "path": "games/neon-bird/index.html",
     "featured": true
   }
 ]
