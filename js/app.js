@@ -60,6 +60,7 @@ const BIRD_SKINS = [
   { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', glow: '#ff4400' },
   { id: 'void', name: 'Void', price: 300, primary: '#6600cc', secondary: '#bb88ff', glow: '#6600cc' },
   { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', glow: 'rainbow' },
+  { id: 'corny', name: 'Corny Caramel', price: 0, primary: '#D4A574', secondary: '#FFF5E1', glow: '#D4A574', exclusive: true },
 ];
 
 const EMOJI_PACK_PRICE = 100;
@@ -1068,14 +1069,14 @@ function renderShop(user) {
     </div>`;
   }
 
-  // Corny Skin
+  // Corny Skin (Neon Dash)
   if (hasCornySkin) {
     const equipped = u.arrowSkin === 'corny';
     html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
       <div class="skin-preview">
         <img src="${CORNY_IMAGE_URL}" style="width:48px;height:58px;object-fit:contain;filter:drop-shadow(0 0 6px #D4A574);">
       </div>
-      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Caramel</span>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Caramel<br><span style="font-size:11px;color:var(--text-muted);">Neon Dash</span></span>
       ${equipped
         ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-skin">Utrustad ✓</button>'
         : '<button class="shop-btn shop-btn-equip" data-action="equip-skin" data-id="corny">Använd</button>'
@@ -1086,7 +1087,31 @@ function renderShop(user) {
       <div class="skin-preview">
         <img src="${CORNY_IMAGE_URL}" style="width:48px;height:58px;object-fit:contain;filter:grayscale(1) drop-shadow(0 0 6px #888);">
       </div>
-      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Caramel</span>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Caramel<br><span style="font-size:11px;color:var(--text-muted);">Neon Dash</span></span>
+      <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
+    </div>`;
+  }
+
+  // Corny Skin (Neon Bird)
+  const hasCornyBirdSkin = (u.unlockedBirdSkins || []).includes('corny');
+  if (hasCornyBirdSkin) {
+    const equipped = u.birdSkin === 'corny';
+    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
+      <div class="skin-preview">
+        <img src="${CORNY_IMAGE_URL}" style="width:48px;height:58px;object-fit:contain;filter:drop-shadow(0 0 6px #D4A574);">
+      </div>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Bird<br><span style="font-size:11px;color:var(--text-muted);">Neon Bird</span></span>
+      ${equipped
+        ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-bird-skin">Utrustad ✓</button>'
+        : '<button class="shop-btn shop-btn-equip" data-action="equip-bird-skin" data-id="corny">Använd</button>'
+      }
+    </div>`;
+  } else {
+    html += `<div class="shop-item" style="opacity:0.5;">
+      <div class="skin-preview">
+        <img src="${CORNY_IMAGE_URL}" style="width:48px;height:58px;object-fit:contain;filter:grayscale(1) drop-shadow(0 0 6px #888);">
+      </div>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Bird<br><span style="font-size:11px;color:var(--text-muted);">Neon Bird</span></span>
       <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
     </div>`;
   }

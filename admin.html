@@ -360,23 +360,30 @@
         else if (action === 'give-corny') {
           const emojis = [...(user.unlockedEmojis || [])];
           const skins = [...(user.unlockedSkins || [])];
+          const birdSkins = [...(user.unlockedBirdSkins || [])];
           if (!emojis.includes('corny')) emojis.push('corny');
           if (!skins.includes('corny')) skins.push('corny');
-          await supabaseClient.from('profiles').update({ unlocked_emojis: emojis, unlocked_skins: skins }).eq('id', uid);
+          if (!birdSkins.includes('corny')) birdSkins.push('corny');
+          await supabaseClient.from('profiles').update({ unlocked_emojis: emojis, unlocked_skins: skins, unlocked_bird_skins: birdSkins }).eq('id', uid);
           user.unlockedEmojis = emojis;
           user.unlockedSkins = skins;
+          user.unlockedBirdSkins = birdSkins;
         }
         else if (action === 'remove-corny') {
           const emojis = (user.unlockedEmojis || []).filter(e => e !== 'corny');
           const skins = (user.unlockedSkins || []).filter(s => s !== 'corny');
-          const updates = { unlocked_emojis: emojis, unlocked_skins: skins };
+          const birdSkins = (user.unlockedBirdSkins || []).filter(s => s !== 'corny');
+          const updates = { unlocked_emojis: emojis, unlocked_skins: skins, unlocked_bird_skins: birdSkins };
           if (user.avatar === 'corny') updates.avatar = '😀';
           if (user.arrowSkin === 'corny') updates.arrow_skin = null;
+          if (user.birdSkin === 'corny') updates.bird_skin = null;
           await supabaseClient.from('profiles').update(updates).eq('id', uid);
           user.unlockedEmojis = emojis;
           user.unlockedSkins = skins;
+          user.unlockedBirdSkins = birdSkins;
           if (user.avatar === 'corny') user.avatar = '😀';
           if (user.arrowSkin === 'corny') user.arrowSkin = null;
+          if (user.birdSkin === 'corny') user.birdSkin = null;
         }
         else if (action === 'add-coins') {
           const input = panel.querySelector(`input.coins-input[data-uid="${uid}"]`);
