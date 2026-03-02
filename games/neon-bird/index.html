@@ -92,9 +92,11 @@
   // Corny image
   const cornyImg = new Image();
   let cornyImgLoaded = false;
+  const cornyPaths = ['../../images/corny.jpg', '/images/corny.jpg', '../images/corny.jpg', 'images/corny.jpg'];
+  let cornyPathIdx = 0;
   cornyImg.onload = () => { cornyImgLoaded = true; };
-  cornyImg.onerror = () => { if (!cornyImg._retried) { cornyImg._retried = true; cornyImg.src = '/images/corny.jpg'; } };
-  cornyImg.src = '../../images/corny.jpg';
+  cornyImg.onerror = () => { cornyPathIdx++; if (cornyPathIdx < cornyPaths.length) cornyImg.src = cornyPaths[cornyPathIdx]; };
+  cornyImg.src = cornyPaths[0];
 
   let skinPrimary = NEON_BLUE;
   let skinSecondary = '#ffffff';
