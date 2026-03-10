@@ -916,9 +916,7 @@
     showChapterTitle(1, 'Byn', () => {
       showStory([
         { speaker: '', text: 'Sommaren 1943. En liten värmländsk by vid norska gränsen.' },
-        { speaker: '', text: 'Kriget pågår i Europa, men här i byn märks det mest på de tomma hyllorna i affären och pappas oroliga blick vid radion varje kväll.' },
-        { speaker: 'Maja', text: 'Ännu en dag med ingenting att göra...' },
-        { speaker: '', text: 'Maja, snart tretton, sitter på stenmuren utanför hemmet. Hennes bästa vän Astrid flyttade till Stockholm i våras. Dagarna är långa och ensamma.' },
+        { speaker: '', text: 'Maja, snart tretton, saknar sin bästa vän som flyttade. En ny familj ska tydligen flytta in i det tomma huset.' },
       ], () => { loadLevel_village_part1(); });
     });
   }
@@ -988,19 +986,14 @@
       score += 10;
       showDialogue('Maja', 'Hej! Jag heter Maja. Ska ni bo här?', () => {
         queueDialogue('Hilde', 'Hilde. Vi kom från Norge. Mamma och jag.');
-        queueDialogue('Maja', 'Från Norge? Är det inte krig där?');
-        queueDialogue('Hilde', 'Jo... min pappa dog tidigt i kriget. Mamma fick en ny man — en tysk soldat.');
-        queueDialogue('Hilde', 'I Norge kallade folk mamma för "tysktös". De spottade på oss på gatan.');
-        queueDialogue('Hilde', 'Till slut fick vi fly hit. Men mamma gråter fortfarande varje natt.');
-        queueDialogueWithCallback('Maja', 'Det låter hemskt. Vill du... vill du hänga med mig imorgon? Jag kan visa byn.', () => {
+        queueDialogue('Hilde', 'Pappa dog i kriget. Mamma fick en tysk pojkvän. Folk kallade henne "tysktös"...');
+        queueDialogueWithCallback('Maja', 'Det låter hemskt. Vill du hänga med mig imorgon?', () => {
           // Update Hilde's name
           const h = npcs.find(n => n.id === 'hilde');
           if (h) h.name = 'Hilde';
 
           showStory([
-            { speaker: '', text: 'Dagarna går. Maja och Hilde blir snabbt vänner. Hilde berättar om livet i Norge — om tyska soldater på gatorna, om grannar som försvinner.' },
-            { speaker: '', text: 'En morgon ser Maja en pojke hon aldrig sett förut. Han sitter gömd bakom kyrkogårdsmuren och läser en bok.' },
-            { speaker: '', text: 'När han märker att Maja ser honom, gömmer han snabbt boken och gör sig redo att springa.' },
+            { speaker: '', text: 'Dagarna går. Maja och Hilde blir vänner. Men en morgon ser Maja en okänd pojke gömma sig bakom kyrkogårdsmuren...' },
           ], () => { loadLevel_village_part2(); });
         });
         advanceDialogue();
@@ -1076,20 +1069,14 @@
       foundBen = true;
       score += 10;
       showDialogue('Maja', 'Vänta! Du behöver inte vara rädd.', () => {
-        queueDialogue('Ben', '...');
-        queueDialogue('Ben', 'Snälla, berätta inte för någon att du sett mig.');
-        queueDialogue('Maja', 'Jag lovar. Vad heter du?');
-        queueDialogue('Ben', 'Ben. Jag bor hos Gustafssons... de gömmer mig.');
-        queueDialogue('Maja', 'Gömmer dig? Varför?');
-        queueDialogue('Ben', 'Jag är judisk. Min familj skickades till ett läger i Norge. Bara jag och min kusin lyckades fly.');
-        queueDialogue('Ben', 'Min kusin... han klarade sig inte över gränsen.');
-        queueDialogueWithCallback('Maja', 'Du är säker här. Jag och min vän Hilde — vi ska hjälpa dig.', () => {
+        queueDialogue('Ben', 'Snälla, berätta inte att du sett mig. Jag heter Ben.');
+        queueDialogue('Ben', 'Gustafssons gömmer mig. Jag är judisk. Min familj skickades till ett läger...');
+        queueDialogueWithCallback('Maja', 'Du är säker här. Hilde och jag — vi hjälper dig.', () => {
           const b = npcs.find(n => n.id === 'ben');
           if (b) b.name = 'Ben';
 
           showStory([
-            { speaker: '', text: 'Tre barn. En svensk flicka, en norsk flicka, och en judisk pojke. Tre helt olika livsöden — men samma längtan efter en värld utan krig.' },
-            { speaker: '', text: 'Under de följande dagarna blir de oskiljaktiliga. De träffas vid bäcken, i skogen, vid den gamla ladan — alltid i hemlighet, för Bens skull.' },
+            { speaker: '', text: 'Tre barn, tre öden. De blir oskiljaktiliga — och träffas i hemlighet vid den gamla ladan i skogen.' },
           ], () => { startChapter2(); });
         });
         advanceDialogue();
@@ -1106,12 +1093,9 @@
   function startChapter2() {
     showChapterTitle(2, 'Svarta Rosorna', () => {
       showStory([
-        { speaker: '', text: 'En kväll. Maja borde sova, men hon hör röster från köket.' },
-        { speaker: '', text: 'Pappa pratar med grannbonden Erik. De tror att Maja sover.' },
-        { speaker: 'Pappa', text: 'De har spårat upp Svarta Rosen. Motståndskvinna på norska sidan. Nazisterna planerar att ta henne imorgon natt.' },
-        { speaker: 'Erik', text: 'Herregud. Hon har räddat dussintals liv. Om de tar henne...' },
-        { speaker: '', text: 'Majas hjärta slår hårt. Hon har hört rykten om Svarta Rosen — en modig kvinna som hjälper människor att fly.' },
-        { speaker: '', text: 'Nästa dag springer Maja till de andra.' },
+        { speaker: '', text: 'En kväll hör Maja pappa prata med grannen Erik i köket.' },
+        { speaker: 'Pappa', text: 'Nazisterna har spårat upp Svarta Rosen. De tar henne imorgon natt.' },
+        { speaker: '', text: 'Svarta Rosen — motståndskvinna som räddar liv. Maja springer till de andra.' },
       ], () => { loadLevel_ladan(); });
     });
   }
@@ -1166,19 +1150,13 @@
         if (reachedLadan) return;
         reachedLadan = true;
         score += 10;
-        showDialogue('Maja', 'Jag hörde pappa i natt. Nazisterna har hittat Svarta Rosen! De tänker ta henne imorgon natt!', () => {
-          queueDialogue('Hilde', 'Svarta Rosen?! Hon hjälpte mamma och mig att fly! Utan henne hade vi aldrig nått Sverige!');
-          queueDialogue('Ben', 'Vi måste varna henne. Om nazisterna tar henne dör alla hon hjälper.');
-          queueDialogue('Maja', 'Men hur? Vi är bara barn...');
-          queueDialogue('Hilde', 'Vi vet var hon bor. En stuga utanför Halden. Jag minns vägen.');
-          queueDialogue('Ben', 'Vi kan gå på natten. Det finns en gammal smugglarled genom skogen.');
-          queueDialogue('Maja', 'Vi gör det. Vi varnar henne — tillsammans.');
-          queueDialogue('Hilde', 'Då är vi en motståndsgrupp nu. Vi behöver ett namn.');
-          queueDialogueWithCallback('Ben', 'Svarta Rosorna. Precis som henne.', () => {
+        showDialogue('Maja', 'Nazisterna har hittat Svarta Rosen! De tar henne imorgon natt!', () => {
+          queueDialogue('Hilde', 'Svarta Rosen?! Hon hjälpte mamma och mig fly! Vi måste varna henne!');
+          queueDialogue('Ben', 'Vi går på natten. Det finns en smugglarled genom skogen.');
+          queueDialogue('Hilde', 'Då är vi en motståndsgrupp. Vi behöver ett namn.');
+          queueDialogueWithCallback('Ben', 'Svarta Rosorna.', () => {
             showStory([
-              { speaker: '', text: 'De lägger sina händer på varandra. Ett löfte. Oavsett vad — de gör det här tillsammans.' },
-              { speaker: '', text: 'De bestämmer sig: imorgon natt smyger de ut. Genom skogen, över gränsen, in i det ockuperade Norge.' },
-              { speaker: '', text: 'Ingen av dem anar hur farligt det verkligen kommer att bli.' },
+              { speaker: '', text: 'De lägger händerna på varandra. Ett löfte. Imorgon natt smyger de ut — över gränsen till Norge.' },
             ], () => { startChapter3(); });
           });
           advanceDialogue();
@@ -1193,10 +1171,8 @@
   function startChapter3() {
     showChapterTitle(3, 'Gränsen', () => {
       showStory([
-        { speaker: '', text: 'Klockan elva på kvällen. Maja smyger ut genom sitt fönster. Månen gömmer sig bakom moln — perfekt.' },
-        { speaker: '', text: 'Hilde och Ben väntar redan vid ladan. Ingen säger något. De bara nickar åt varandra.' },
-        { speaker: '', text: 'De börjar gå in i den mörka skogen. Mot Norge. Mot det okända.' },
-        { speaker: '', text: 'Men vid gränsen patrullerar tyska soldater med ficklampor. Ni måste smyga förbi utan att bli sedda!' },
+        { speaker: '', text: 'Klockan elva. Maja smyger ut. Hilde och Ben väntar vid ladan.' },
+        { speaker: '', text: 'Vid gränsen patrullerar tyska soldater. Smyg förbi utan att bli sedd!' },
       ], () => { loadLevel_stealth(); });
     });
   }
@@ -1304,10 +1280,8 @@
   function startChapter4() {
     showChapterTitle(4, 'Svarta Rosen', () => {
       showStory([
-        { speaker: '', text: 'Ni är i Norge. Det ockuperade Norge.' },
-        { speaker: '', text: 'Allt ser likadant ut — samma skog, samma stenar — men luften känns annorlunda. Tyngre. Farligare.' },
-        { speaker: 'Hilde', text: 'Stugan ligger vid en glänta. En halvtimmes promenad härifrån. Jag minns vägen.' },
-        { speaker: '', text: 'Hilde tar ledningen. Hon känner igen terrängen.' },
+        { speaker: '', text: 'Ni är i Norge. Det ockuperade Norge. Luften känns tyngre.' },
+        { speaker: 'Hilde', text: 'Stugan ligger vid en glänta. Jag minns vägen. Följ mig!' },
       ], () => { loadLevel_cabin(); });
     });
   }
@@ -1360,15 +1334,11 @@
       if (rosenMet) return;
       rosenMet = true;
       score += 15;
-      showDialogue('', 'Hilde knackar på dörren — tre snabba, två långsamma. En kod hon minns.', () => {
-        queueDialogue('Svarta Rosen', 'Hilde?! Vad i all världen gör du här? Och vilka är de här?');
-        queueDialogue('Hilde', 'Mina vänner. Maja och Ben. Vi kom för att varna dig!');
-        queueDialogue('Maja', 'Nazisterna vet var du bor. De planerar att ta dig — kanske redan ikväll!');
-        queueDialogue('Svarta Rosen', 'Tre barn... tog sig över gränsen i mörkret för att varna mig.');
-        queueDialogue('Svarta Rosen', 'Ni har räddat mitt liv. Men nu måste vi alla fly härifrån.');
-        queueDialogueWithCallback('', 'Plötsligt hörs motorljud på vägen. Strålkastare sveper genom skogen. De är för tidiga — nazisterna kom redan ikväll!', () => {
-          queueDialogue('Ben', 'Bilar! De kommer!');
-          queueDialogueWithCallback('Svarta Rosen', 'Lyssna på mig. Jag skapar en distraktion. Ni tre — spring mot skogen, tillbaka mot Sverige. STANNA INTE.', () => {
+      showDialogue('Svarta Rosen', 'Hilde?! Vad gör ni här?', () => {
+        queueDialogue('Maja', 'Nazisterna vet var du bor! De kommer ikväll!');
+        queueDialogue('Svarta Rosen', 'Ni har räddat mitt liv. Men nu måste vi fly.');
+        queueDialogueWithCallback('', 'Motorljud! Strålkastare sveper genom skogen. Nazisterna är här!', () => {
+          queueDialogueWithCallback('Svarta Rosen', 'Jag skapar en distraktion. Ni tre — spring tillbaka mot Sverige. NU!', () => {
             startChapter5();
           });
           advanceDialogue();
@@ -1400,10 +1370,8 @@
   function startChapter5() {
     showChapterTitle(5, 'Flykten', () => {
       showStory([
-        { speaker: '', text: 'Svarta Rosen kastar en oljelampa mot en av bilarna — den exploderar i lågor! Soldaterna skriker.' },
-        { speaker: 'Svarta Rosen', text: 'NU! SPRING!' },
-        { speaker: '', text: 'I kaoset griper Maja Bens och Hildes händer. De springer som de aldrig sprungit förut.' },
-        { speaker: '', text: 'Fly tillbaka mot gränsen! Soldaterna jagar er genom skogen!' },
+        { speaker: '', text: 'Svarta Rosen kastar en oljelampa mot en bil — BOOM! I kaoset springer ni.' },
+        { speaker: '', text: 'Fly mot gränsen! Soldaterna jagar er!' },
       ], () => { loadLevel_escape(); });
     });
   }
@@ -1508,17 +1476,10 @@
   function startEnding() {
     showChapterTitle(6, 'Gryningen', () => {
       showStory([
-        { speaker: '', text: 'Gryningsljuset silar genom träden. Majas arm har slutat blöda — Hilde har bundit om den med en remsa av sitt förkläde.' },
-        { speaker: '', text: 'De sitter tysta. Utmattade. Men levande.' },
-        { speaker: 'Hilde', text: 'Tror ni hon klarade sig? Svarta Rosen?' },
-        { speaker: 'Ben', text: 'Hon har klarat sig förut. Hon klarar sig igen.' },
-        { speaker: '', text: 'Hemma möter en rasande men lättad pappa dem vid dörren. Han gråter — något Maja aldrig sett.' },
-        { speaker: 'Pappa', text: 'Var har ni varit?! Jag har letat hela natten!' },
-        { speaker: '', text: 'Maja berättar allt. Den här gången lyssnar pappa.' },
-        { speaker: 'Pappa', text: 'Du är modigare än jag, Maja. Modigare än jag.' },
-        { speaker: '', text: 'Veckor senare når ett rykte byn: Svarta Rosen lever. Hon har tagit sig till en annan del av Norge och fortsätter sitt arbete.' },
-        { speaker: '', text: 'De tre vännerna — Svarta Rosorna — sitter vid bäcken och ler mot varandra.' },
-        { speaker: '', text: 'De vet att kriget inte är över. Men de vet att vanliga människor kan göra ovanliga saker. Att tre barn kan förändra världen.' },
+        { speaker: '', text: 'Gryning. Utmattade men levande. Majas arm är ombunden med Hildes förkläde.' },
+        { speaker: 'Pappa', text: 'Du är modigare än jag, Maja.' },
+        { speaker: '', text: 'Veckor senare: Svarta Rosen lever. Svarta Rosorna sitter vid bäcken och ler.' },
+        { speaker: '', text: 'Vanliga människor kan göra ovanliga saker.' },
       ], () => {
         showEnd();
       });
