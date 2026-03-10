@@ -296,6 +296,11 @@
   function interactWithNPC() {
     if (!interactTarget) return;
     const npc = interactTarget;
+    // Custom handler takes priority
+    if (npc.customHandler) {
+      npc.customHandler();
+      return;
+    }
     if (npc.dialogueIndex < npc.dialogues.length) {
       showDialogue(npc.name, npc.dialogues[npc.dialogueIndex]);
       npc.dialogueIndex++;
@@ -906,41 +911,51 @@
   // === LEVEL DEFINITIONS ===
   // ============================================================
 
+  // ===== KAPITEL 1: BYN =====
   function startChapter1() {
     showChapterTitle(1, 'Byn', () => {
       showStory([
-        { speaker: '', text: 'Sommaren 1943. En liten värmländsk by nära norska gränsen.' },
-        { speaker: '', text: 'Kriget känns långt borta härifrån. Men det syns i de tomma hyllorna i affären, och i de oroliga blickarna hos de vuxna.' },
-        { speaker: '', text: 'Maja, snart tretton år, längtar efter en vän. Hennes bästa kompis Astrid flyttade till Stockholm i våras.' },
-      ], () => { loadLevel_village(); });
+        { speaker: '', text: 'Sommaren 1943. En liten värmländsk by vid norska gränsen.' },
+        { speaker: '', text: 'Kriget pågår i Europa, men här i byn märks det mest på de tomma hyllorna i affären och pappas oroliga blick vid radion varje kväll.' },
+        { speaker: 'Maja', text: 'Ännu en dag med ingenting att göra...' },
+        { speaker: '', text: 'Maja, snart tretton, sitter på stenmuren utanför hemmet. Hennes bästa vän Astrid flyttade till Stockholm i våras. Dagarna är långa och ensamma.' },
+      ], () => { loadLevel_village_part1(); });
     });
   }
 
-  function loadLevel_village() {
+  // -- Del 1: Maja ser Hilde anlända --
+  function loadLevel_village_part1() {
     currentLevel = {
-      width: 900, height: 700,
+      width: 1200, height: 900,
       type: 'village',
       particleType: 'firefly',
       paths: [
-        { x: 0, y: 300, w: 900, h: 40 },
-        { x: 400, y: 100, w: 40, h: 600 },
+        { x: 0, y: 420, w: 1200, h: 35 },   // Huvudvägen
+        { x: 180, y: 200, w: 30, h: 220 },   // Stig till Majas hus
+        { x: 550, y: 420, w: 30, h: 200 },   // Stig till kyrkan
       ],
       walls: [
-        { x: 140, y: 150, w: 70, h: 50 }, // Majas hus
-        { x: 500, y: 150, w: 70, h: 50 }, // Hildes hus
-        { x: 300, y: 480, w: 60, h: 45 }, // Kyrkan
-        { x: 650, y: 400, w: 60, h: 45 }, // Gustafssons
+        { x: 130, y: 140, w: 80, h: 55 },    // Majas hus
+        { x: 520, y: 580, w: 65, h: 50 },     // Kyrkan
+        { x: 530, y: 320, w: 70, h: 50 },     // Tomma huset (Hildes nya)
+        { x: 900, y: 550, w: 90, h: 60 },     // Gustafssons gård
+        { x: 350, y: 150, w: 55, h: 45 },     // Eriks hus
+        { x: 50, y: 650, w: 100, h: 15 },     // Stenmur
+        { x: 50, y: 750, w: 100, h: 15 },     // Stenmur
       ],
       trees: [
-        { x: 50, y: 100 }, { x: 100, y: 500 }, { x: 800, y: 100 }, { x: 750, y: 550 },
-        { x: 200, y: 600 }, { x: 850, y: 300 }, { x: 30, y: 400 }, { x: 600, y: 600 },
-        { x: 150, y: 50 }, { x: 700, y: 50 },
+        { x: 50, y: 80 }, { x: 300, y: 60 }, { x: 450, y: 100 },
+        { x: 30, y: 300 }, { x: 1100, y: 100 }, { x: 1050, y: 300 },
+        { x: 800, y: 120 }, { x: 700, y: 700 }, { x: 1100, y: 700 },
+        { x: 1150, y: 500 }, { x: 200, y: 800 }, { x: 400, y: 820 },
+        { x: 900, y: 800 }, { x: 1000, y: 150 }, { x: 650, y: 80 },
       ],
       houses: [
-        { x: 140, y: 150, w: 70, h: 50, label: 'Majas hem' },
-        { x: 500, y: 150, w: 70, h: 50, label: 'Nya huset' },
-        { x: 300, y: 480, w: 60, h: 45, label: 'Kyrkan' },
-        { x: 650, y: 400, w: 60, h: 45, label: 'Gustafssons' },
+        { x: 130, y: 140, w: 80, h: 55, label: 'Majas hem' },
+        { x: 530, y: 320, w: 70, h: 50, label: 'Tomma huset' },
+        { x: 520, y: 580, w: 65, h: 50, label: 'Kyrkan' },
+        { x: 900, y: 550, w: 90, h: 60, label: 'Gustafssons gård' },
+        { x: 350, y: 150, w: 55, h: 45, label: 'Eriks hus' },
       ]
     };
 
@@ -950,152 +965,238 @@
     particles = [];
     dialogueQueue = [];
 
-    resetPlayer(175, 250, 'maja');
+    resetPlayer(170, 240, 'maja');
     player.speed = 2.2;
 
-    addNPC('hilde', 535, 240, 'hilde', 'Hilde', [
-      'Hej... jag heter Hilde. Vi kom från Norge.',
-      'Min pappa dog i kriget. Mamma och jag flydde hit.',
-      'I Norge kallade de mamma för "tysktös"... Folk spottade på oss.',
+    // Pappa sitter inne — kan pratas med
+    addNPC('pappa', 160, 185, 'ben', 'Pappa', [
+      'Maja, spring inte för långt. Det är oroliga tider.',
+      'Jag hörde att en ny familj från Norge har flyttat in i det tomma huset vid kyrkan.',
     ]);
 
-    addNPC('ben', 680, 460, 'ben', 'Ben', [
-      'Snälla, berätta inte för någon att du sett mig!',
-      'Jag heter Ben. Gustafssons gömmer mig. Jag är... judisk.',
-      'Min familj skickades till ett läger. Bara jag lyckades fly.',
-    ]);
+    // Hilde står utanför det tomma huset — just anländ
+    addNPC('hilde', 565, 390, 'hilde', '???', []);
 
-    let talkedHilde = false, talkedBen = false;
+    let phase = 0; // 0 = explore, 1 = talked to hilde, 2 = days later, find ben
 
-    setObjective('Utforska byn och prata med de nya barnen');
+    setObjective('En ny familj har flyttat in. Gå till det tomma huset vid kyrkan.');
 
-    levelTriggers.push({
-      x: 500, y: 220, w: 100, h: 50,
-      action: () => {
-        // Check after talking to Hilde
-      }
-    });
+    // Override Hilde interaction
+    const hildeFirstMeeting = () => {
+      if (phase !== 0) return;
+      phase = 1;
+      score += 10;
+      showDialogue('Maja', 'Hej! Jag heter Maja. Ska ni bo här?', () => {
+        queueDialogue('Hilde', 'Hilde. Vi kom från Norge. Mamma och jag.');
+        queueDialogue('Maja', 'Från Norge? Är det inte krig där?');
+        queueDialogue('Hilde', 'Jo... min pappa dog tidigt i kriget. Mamma fick en ny man — en tysk soldat.');
+        queueDialogue('Hilde', 'I Norge kallade folk mamma för "tysktös". De spottade på oss på gatan.');
+        queueDialogue('Hilde', 'Till slut fick vi fly hit. Men mamma gråter fortfarande varje natt.');
+        queueDialogueWithCallback('Maja', 'Det låter hemskt. Vill du... vill du hänga med mig imorgon? Jag kan visa byn.', () => {
+          // Update Hilde's name
+          const h = npcs.find(n => n.id === 'hilde');
+          if (h) h.name = 'Hilde';
 
-    // Check function that runs each frame
-    currentLevel.update = () => {
-      const hilde = npcs.find(n => n.id === 'hilde');
-      const ben = npcs.find(n => n.id === 'ben');
-      if (hilde && hilde.talked && !talkedHilde) {
-        talkedHilde = true;
-        score += 10;
-        setObjective('Hitta Ben som gömmer sig vid Gustafssons hus');
-      }
-      if (ben && ben.talked && !talkedBen) {
-        talkedBen = true;
-        score += 10;
-      }
-      if (talkedHilde && talkedBen && !currentLevel.done) {
-        currentLevel.done = true;
-        setTimeout(() => {
-          showDialogue('', 'Du har träffat både Hilde och Ben. Tre nya vänner — med en hemlighet.', () => {
-            startChapter2();
-          });
-        }, 500);
-      }
+          showStory([
+            { speaker: '', text: 'Dagarna går. Maja och Hilde blir snabbt vänner. Hilde berättar om livet i Norge — om tyska soldater på gatorna, om grannar som försvinner.' },
+            { speaker: '', text: 'En morgon ser Maja en pojke hon aldrig sett förut. Han sitter gömd bakom kyrkogårdsmuren och läser en bok.' },
+            { speaker: '', text: 'När han märker att Maja ser honom, gömmer han snabbt boken och gör sig redo att springa.' },
+          ], () => { loadLevel_village_part2(); });
+        });
+        advanceDialogue();
+      });
     };
+
+    // Custom interaction for Hilde
+    const hildeNPC = npcs.find(n => n.id === 'hilde');
+    if (hildeNPC) hildeNPC.customHandler = () => { hildeFirstMeeting(); };
 
     state = STATE.PLAY;
   }
 
+  // -- Del 2: Hitta Ben vid kyrkogården --
+  function loadLevel_village_part2() {
+    currentLevel = {
+      width: 1200, height: 900,
+      type: 'village',
+      particleType: 'firefly',
+      paths: [
+        { x: 0, y: 420, w: 1200, h: 35 },
+        { x: 180, y: 200, w: 30, h: 220 },
+        { x: 550, y: 420, w: 30, h: 200 },
+      ],
+      walls: [
+        { x: 130, y: 140, w: 80, h: 55 },
+        { x: 520, y: 580, w: 65, h: 50 },
+        { x: 530, y: 320, w: 70, h: 50 },
+        { x: 900, y: 550, w: 90, h: 60 },
+        { x: 350, y: 150, w: 55, h: 45 },
+        { x: 480, y: 680, w: 120, h: 12 },  // Kyrkogårdsmur
+      ],
+      trees: [
+        { x: 50, y: 80 }, { x: 300, y: 60 }, { x: 450, y: 100 },
+        { x: 30, y: 300 }, { x: 1100, y: 100 }, { x: 1050, y: 300 },
+        { x: 800, y: 120 }, { x: 700, y: 700 }, { x: 1100, y: 700 },
+        { x: 1150, y: 500 }, { x: 200, y: 800 }, { x: 400, y: 820 },
+        { x: 900, y: 800 }, { x: 1000, y: 150 }, { x: 650, y: 80 },
+      ],
+      houses: [
+        { x: 130, y: 140, w: 80, h: 55, label: 'Majas hem' },
+        { x: 530, y: 320, w: 70, h: 50, label: 'Hildes hus' },
+        { x: 520, y: 580, w: 65, h: 50, label: 'Kyrkan' },
+        { x: 900, y: 550, w: 90, h: 60, label: 'Gustafssons gård' },
+        { x: 350, y: 150, w: 55, h: 45, label: 'Eriks hus' },
+      ]
+    };
+
+    npcs = [];
+    levelTriggers = [];
+    levelEnemies = [];
+    particles = [];
+    dialogueQueue = [];
+
+    resetPlayer(170, 240, 'maja');
+    player.speed = 2.2;
+
+    // Hilde is now at her house
+    addNPC('hilde2', 565, 390, 'hilde', 'Hilde', [
+      'Maja! Jag såg en pojke smyga runt bakom kyrkan. Han såg rädd ut.',
+      'Ska vi kolla?',
+    ]);
+
+    // Ben hides behind the church wall
+    addNPC('ben', 540, 710, 'ben', '???', []);
+
+    let foundBen = false;
+
+    setObjective('Hilde såg en pojke vid kyrkan. Gå dit och leta.');
+
+    const benFirstMeeting = () => {
+      if (foundBen) return;
+      foundBen = true;
+      score += 10;
+      showDialogue('Maja', 'Vänta! Du behöver inte vara rädd.', () => {
+        queueDialogue('Ben', '...');
+        queueDialogue('Ben', 'Snälla, berätta inte för någon att du sett mig.');
+        queueDialogue('Maja', 'Jag lovar. Vad heter du?');
+        queueDialogue('Ben', 'Ben. Jag bor hos Gustafssons... de gömmer mig.');
+        queueDialogue('Maja', 'Gömmer dig? Varför?');
+        queueDialogue('Ben', 'Jag är judisk. Min familj skickades till ett läger i Norge. Bara jag och min kusin lyckades fly.');
+        queueDialogue('Ben', 'Min kusin... han klarade sig inte över gränsen.');
+        queueDialogueWithCallback('Maja', 'Du är säker här. Jag och min vän Hilde — vi ska hjälpa dig.', () => {
+          const b = npcs.find(n => n.id === 'ben');
+          if (b) b.name = 'Ben';
+
+          showStory([
+            { speaker: '', text: 'Tre barn. En svensk flicka, en norsk flicka, och en judisk pojke. Tre helt olika livsöden — men samma längtan efter en värld utan krig.' },
+            { speaker: '', text: 'Under de följande dagarna blir de oskiljaktiliga. De träffas vid bäcken, i skogen, vid den gamla ladan — alltid i hemlighet, för Bens skull.' },
+          ], () => { startChapter2(); });
+        });
+        advanceDialogue();
+      });
+    };
+
+    const benNPC = npcs.find(n => n.id === 'ben');
+    if (benNPC) benNPC.customHandler = () => { benFirstMeeting(); };
+
+    state = STATE.PLAY;
+  }
+
+  // ===== KAPITEL 2: SVARTA ROSORNA =====
   function startChapter2() {
     showChapterTitle(2, 'Svarta Rosorna', () => {
       showStory([
-        { speaker: '', text: 'Dagarna går och de tre blir oskiljaktiliga. De träffas vid bäcken, i skogen, vid den gamla ladan.' },
-        { speaker: 'Hilde', text: 'I Norge försvinner grannar mitt i natten. Nazisterna tar alla som står emot.' },
-        { speaker: 'Ben', text: 'Min familj skickades till ett läger. Min kusin klarade sig inte över gränsen...' },
-        { speaker: '', text: 'En kväll hör Maja sin pappa prata med grannen Erik i köket...' },
-        { speaker: 'Pappa', text: 'De har spårat upp Svarta Rosen. Moståndskvinnan på norska sidan. De planerar att ta henne imorgon natt.' },
-        { speaker: '', text: 'Maja berättar allt för Hilde och Ben nästa dag.' },
-        { speaker: 'Hilde', text: 'Svarta Rosen! Hon hjälpte mamma och mig att fly. Utan henne hade vi aldrig nått Sverige!' },
-        { speaker: 'Ben', text: 'Vi måste varna henne. Om nazisterna tar henne dör alla hon hjälper.' },
-      ], () => { loadLevel_forest(); });
+        { speaker: '', text: 'En kväll. Maja borde sova, men hon hör röster från köket.' },
+        { speaker: '', text: 'Pappa pratar med grannbonden Erik. De tror att Maja sover.' },
+        { speaker: 'Pappa', text: 'De har spårat upp Svarta Rosen. Motståndskvinna på norska sidan. Nazisterna planerar att ta henne imorgon natt.' },
+        { speaker: 'Erik', text: 'Herregud. Hon har räddat dussintals liv. Om de tar henne...' },
+        { speaker: '', text: 'Majas hjärta slår hårt. Hon har hört rykten om Svarta Rosen — en modig kvinna som hjälper människor att fly.' },
+        { speaker: '', text: 'Nästa dag springer Maja till de andra.' },
+      ], () => { loadLevel_ladan(); });
     });
   }
 
-  function loadLevel_forest() {
+  // -- Kapitel 2: Möte i ladan --
+  function loadLevel_ladan() {
     currentLevel = {
-      width: 1200, height: 500,
+      width: 1000, height: 600,
       type: 'forest',
       particleType: 'firefly',
-      paths: [],
+      paths: [
+        { x: 0, y: 280, w: 1000, h: 25 },
+      ],
       walls: [],
       trees: [],
       houses: []
     };
 
-    // Dense forest
-    for (let i = 0; i < 40; i++) {
-      const tx = Math.random() * 1200;
-      const ty = Math.random() * 500;
-      // Leave a rough path through the middle
-      if (ty > 200 && ty < 300 && Math.random() > 0.3) continue;
-      currentLevel.trees.push({ x: tx, y: ty, size: 0.8 + Math.random() * 0.5 });
-      // Add wall for collision
+    // Dense forest med en stig
+    for (let i = 0; i < 35; i++) {
+      const tx = Math.random() * 1000;
+      const ty = Math.random() * 600;
+      if (ty > 250 && ty < 320) continue; // Stig
+      if (tx > 700 && tx < 850 && ty > 200 && ty < 400) continue; // Glänta för ladan
+      currentLevel.trees.push({ x: tx, y: ty, size: 0.7 + Math.random() * 0.5 });
       currentLevel.walls.push({ x: tx - 8, y: ty - 5, w: 16, h: 10 });
     }
+
+    // Ladan
+    currentLevel.walls.push({ x: 740, y: 250, w: 70, h: 50 });
+    currentLevel.houses.push({ x: 740, y: 250, w: 70, h: 50, label: 'Ladan' });
 
     npcs = [];
     levelTriggers = [];
     levelEnemies = [];
     particles = [];
 
-    resetPlayer(50, 250, 'maja');
-    player.speed = 2;
+    resetPlayer(50, 290, 'maja');
+    player.speed = 2.2;
 
-    // Place Hilde and Ben as following NPCs (visual only)
-    addNPC('hilde_follow', 30, 260, 'hilde', '', []);
-    addNPC('ben_follow', 40, 240, 'ben', '', []);
+    // Hilde och Ben väntar vid ladan
+    addNPC('hilde_ladan', 760, 320, 'hilde', 'Hilde', []);
+    addNPC('ben_ladan', 790, 330, 'ben', 'Ben', []);
 
-    // Ladan meeting point
-    currentLevel.walls.push({ x: 550, y: 200, w: 60, h: 45 });
-    currentLevel.houses.push({ x: 550, y: 200, w: 60, h: 45, label: 'Ladan' });
+    setObjective('Spring till ladan och berätta för Hilde och Ben!');
 
-    setObjective('Gå till ladan i skogen för att planera uppdraget');
+    let reachedLadan = false;
 
     levelTriggers.push({
-      x: 550, y: 250, w: 60, h: 30,
+      x: 720, y: 300, w: 80, h: 40,
       action: () => {
-        score += 15;
-        showDialogue('Maja', 'Vi kan inte sitta still. Vi varnar Svarta Rosen — tillsammans.', () => {
+        if (reachedLadan) return;
+        reachedLadan = true;
+        score += 10;
+        showDialogue('Maja', 'Jag hörde pappa i natt. Nazisterna har hittat Svarta Rosen! De tänker ta henne imorgon natt!', () => {
+          queueDialogue('Hilde', 'Svarta Rosen?! Hon hjälpte mamma och mig att fly! Utan henne hade vi aldrig nått Sverige!');
+          queueDialogue('Ben', 'Vi måste varna henne. Om nazisterna tar henne dör alla hon hjälper.');
+          queueDialogue('Maja', 'Men hur? Vi är bara barn...');
+          queueDialogue('Hilde', 'Vi vet var hon bor. En stuga utanför Halden. Jag minns vägen.');
+          queueDialogue('Ben', 'Vi kan gå på natten. Det finns en gammal smugglarled genom skogen.');
+          queueDialogue('Maja', 'Vi gör det. Vi varnar henne — tillsammans.');
           queueDialogue('Hilde', 'Då är vi en motståndsgrupp nu. Vi behöver ett namn.');
-          queueDialogueWithCallback('Ben', 'Svarta Rosorna. Precis som henne — Svarta Rosen.', () => {
-            startChapter3();
+          queueDialogueWithCallback('Ben', 'Svarta Rosorna. Precis som henne.', () => {
+            showStory([
+              { speaker: '', text: 'De lägger sina händer på varandra. Ett löfte. Oavsett vad — de gör det här tillsammans.' },
+              { speaker: '', text: 'De bestämmer sig: imorgon natt smyger de ut. Genom skogen, över gränsen, in i det ockuperade Norge.' },
+              { speaker: '', text: 'Ingen av dem anar hur farligt det verkligen kommer att bli.' },
+            ], () => { startChapter3(); });
           });
           advanceDialogue();
         });
       }
     });
 
-    // Followers follow player
-    currentLevel.update = () => {
-      const hilde = npcs.find(n => n.id === 'hilde_follow');
-      const ben = npcs.find(n => n.id === 'ben_follow');
-      if (hilde) {
-        hilde.x = lerp(hilde.x, player.x - 25, 0.04);
-        hilde.y = lerp(hilde.y, player.y + 10, 0.04);
-        hilde.walkFrame = (hilde.walkFrame || 0) + 0.05;
-      }
-      if (ben) {
-        ben.x = lerp(ben.x, player.x - 35, 0.03);
-        ben.y = lerp(ben.y, player.y - 10, 0.03);
-        ben.walkFrame = (ben.walkFrame || 0) + 0.05;
-      }
-    };
-
     state = STATE.PLAY;
   }
 
+  // ===== KAPITEL 3: GRÄNSEN =====
   function startChapter3() {
     showChapterTitle(3, 'Gränsen', () => {
       showStory([
-        { speaker: '', text: 'Klockan elva på kvällen. Maja smyger ut genom sitt fönster. Månen gömmer sig bakom moln.' },
-        { speaker: '', text: 'Hilde och Ben väntar redan. Ingen säger något. De bara nickar och börjar gå in i den mörka skogen.' },
-        { speaker: '', text: 'Nu måste ni ta er förbi de tyska patrullerna vid gränsen. Smyg genom skogen utan att bli sedd!' },
+        { speaker: '', text: 'Klockan elva på kvällen. Maja smyger ut genom sitt fönster. Månen gömmer sig bakom moln — perfekt.' },
+        { speaker: '', text: 'Hilde och Ben väntar redan vid ladan. Ingen säger något. De bara nickar åt varandra.' },
+        { speaker: '', text: 'De börjar gå in i den mörka skogen. Mot Norge. Mot det okända.' },
+        { speaker: '', text: 'Men vid gränsen patrullerar tyska soldater med ficklampor. Ni måste smyga förbi utan att bli sedda!' },
       ], () => { loadLevel_stealth(); });
     });
   }
@@ -1111,7 +1212,7 @@
       houses: []
     };
 
-    // Forest edges
+    // Skogens kanter
     for (let i = 0; i < 30; i++) {
       const tx = Math.random() * 1400;
       const ty = Math.random() < 0.5 ? Math.random() * 100 : 500 + Math.random() * 100;
@@ -1119,7 +1220,7 @@
       currentLevel.walls.push({ x: tx - 8, y: ty - 5, w: 16, h: 10 });
     }
 
-    // Scattered trees for cover
+    // Buskar att gömma sig bakom
     for (let i = 0; i < 15; i++) {
       const tx = 100 + Math.random() * 1200;
       const ty = 120 + Math.random() * 360;
@@ -1127,7 +1228,7 @@
       currentLevel.walls.push({ x: tx - 8, y: ty - 5, w: 16, h: 10 });
     }
 
-    // River at the end
+    // Floden vid gränsen
     currentLevel.river = { x: 1250, y: 0, w: 50, h: 600 };
 
     npcs = [];
@@ -1138,11 +1239,10 @@
     resetPlayer(50, 300, 'maja');
     player.speed = 1.8;
 
-    // Followers
     addNPC('hilde_follow', 30, 310, 'hilde', '', []);
     addNPC('ben_follow', 20, 290, 'ben', '', []);
 
-    // German patrols
+    // Tyska patrullerr
     levelEnemies.push({
       x: 300, y: 250, speed: 0.8, spotlight: true, spotRange: 120, spotAngle: 1.0,
       patrol: [{ x: 300, y: 150 }, { x: 300, y: 450 }], patrolIndex: 0, walkFrame: 0, dir: Math.PI / 2
@@ -1157,18 +1257,18 @@
     });
     levelEnemies.push({
       x: 1100, y: 350, speed: 0.6, spotlight: true, spotRange: 100, spotAngle: 1.0,
-      patrol: [{ x: 1050, y: 200 }, { x: 1150, y: 450 }], patrolIndex: 0, walkFrame: 0, dir: 0, stationary: false
+      patrol: [{ x: 1050, y: 200 }, { x: 1150, y: 450 }], patrolIndex: 0, walkFrame: 0, dir: 0
     });
 
     setObjective('Smyg förbi patrullerna och nå floden vid gränsen!');
 
-    // Goal: reach the river
     levelTriggers.push({
       x: 1250, y: 0, w: 50, h: 600,
       action: () => {
         score += 25;
         showDialogue('Ben', 'Bäcken! Det är gränsen — andra sidan är Norge!', () => {
-          queueDialogueWithCallback('Maja', 'Vi vadar över. Nu!', () => {
+          queueDialogue('Hilde', 'Det iskalla vattnet... men vi måste.');
+          queueDialogueWithCallback('Maja', 'Tillsammans. Nu!', () => {
             startChapter4();
           });
           advanceDialogue();
@@ -1178,8 +1278,7 @@
 
     caughtCallback = () => {
       if (state === STATE.DIALOGUE) return;
-      // Reset position
-      showDialogue('', 'Soldaterna upptäckte dig! Försök igen...', () => {
+      showDialogue('', 'Soldaterna upptäckte dig! Smyg tillbaka och försök en annan väg...', () => {
         player.x = 50; player.y = 300;
         levelEnemies.forEach(e => { e.alerted = false; });
       });
@@ -1201,11 +1300,14 @@
     state = STATE.PLAY;
   }
 
+  // ===== KAPITEL 4: SVARTA ROSEN =====
   function startChapter4() {
     showChapterTitle(4, 'Svarta Rosen', () => {
       showStory([
-        { speaker: '', text: 'De är i Norge. Det ockuperade Norge. Allt ser likadant ut — men luften känns tyngre. Farligare.' },
-        { speaker: 'Hilde', text: 'Stugan borde ligga vid ängen. Jag känner igen terrängen. Följ mig!' },
+        { speaker: '', text: 'Ni är i Norge. Det ockuperade Norge.' },
+        { speaker: '', text: 'Allt ser likadant ut — samma skog, samma stenar — men luften känns annorlunda. Tyngre. Farligare.' },
+        { speaker: 'Hilde', text: 'Stugan ligger vid en glänta. En halvtimmes promenad härifrån. Jag minns vägen.' },
+        { speaker: '', text: 'Hilde tar ledningen. Hon känner igen terrängen.' },
       ], () => { loadLevel_cabin(); });
     });
   }
@@ -1216,25 +1318,25 @@
       type: 'forest',
       particleType: 'firefly',
       paths: [
-        { x: 0, y: 280, w: 800, h: 30 },
+        { x: 0, y: 280, w: 800, h: 25 },
       ],
       walls: [],
       trees: [],
       houses: []
     };
 
-    // Forest around clearing
+    // Skog runt en glänta
     for (let i = 0; i < 25; i++) {
       const tx = Math.random() * 800;
       const ty = Math.random() * 600;
-      if (tx > 500 && tx < 700 && ty > 200 && ty < 400) continue; // Clearing for cabin
+      if (tx > 480 && tx < 700 && ty > 200 && ty < 420) continue; // Glänta
       currentLevel.trees.push({ x: tx, y: ty, size: 0.7 + Math.random() * 0.5 });
       currentLevel.walls.push({ x: tx - 8, y: ty - 5, w: 16, h: 10 });
     }
 
-    // Cabin
-    currentLevel.walls.push({ x: 570, y: 260, w: 80, h: 55 });
-    currentLevel.houses.push({ x: 570, y: 260, w: 80, h: 55, label: 'Stugan' });
+    // Svarta Rosens stuga
+    currentLevel.walls.push({ x: 540, y: 270, w: 85, h: 60 });
+    currentLevel.houses.push({ x: 540, y: 270, w: 85, h: 60, label: 'Stugan' });
 
     npcs = [];
     levelTriggers = [];
@@ -1247,15 +1349,37 @@
     addNPC('hilde_follow', 30, 305, 'hilde', '', []);
     addNPC('ben_follow', 20, 285, 'ben', '', []);
 
-    addNPC('rosen', 610, 320, 'hilde', 'Svarta Rosen', [
-      'Hilde? Vad i all världen gör du här?',
-      'Tre barn... tog sig över gränsen i mörkret för att varna mig.',
-      'Ni har räddat mitt liv. Men nu måste vi alla fly. De kan redan vara på väg.',
-    ]);
+    // Svarta Rosen inne i stugan — NPC utanför dörren
+    addNPC('rosen', 583, 340, 'hilde', 'Svarta Rosen', []);
 
-    setObjective('Hitta Svarta Rosens stuga och varna henne');
+    setObjective('Hitta stugan och varna Svarta Rosen!');
 
-    let rosenTalked = false;
+    let rosenMet = false;
+
+    const rosenMeeting = () => {
+      if (rosenMet) return;
+      rosenMet = true;
+      score += 15;
+      showDialogue('', 'Hilde knackar på dörren — tre snabba, två långsamma. En kod hon minns.', () => {
+        queueDialogue('Svarta Rosen', 'Hilde?! Vad i all världen gör du här? Och vilka är de här?');
+        queueDialogue('Hilde', 'Mina vänner. Maja och Ben. Vi kom för att varna dig!');
+        queueDialogue('Maja', 'Nazisterna vet var du bor. De planerar att ta dig — kanske redan ikväll!');
+        queueDialogue('Svarta Rosen', 'Tre barn... tog sig över gränsen i mörkret för att varna mig.');
+        queueDialogue('Svarta Rosen', 'Ni har räddat mitt liv. Men nu måste vi alla fly härifrån.');
+        queueDialogueWithCallback('', 'Plötsligt hörs motorljud på vägen. Strålkastare sveper genom skogen. De är för tidiga — nazisterna kom redan ikväll!', () => {
+          queueDialogue('Ben', 'Bilar! De kommer!');
+          queueDialogueWithCallback('Svarta Rosen', 'Lyssna på mig. Jag skapar en distraktion. Ni tre — spring mot skogen, tillbaka mot Sverige. STANNA INTE.', () => {
+            startChapter5();
+          });
+          advanceDialogue();
+        });
+        advanceDialogue();
+      });
+    };
+
+    const rosenNPC = npcs.find(n => n.id === 'rosen');
+    if (rosenNPC) rosenNPC.customHandler = () => { rosenMeeting(); };
+
     currentLevel.update = () => {
       const hilde = npcs.find(n => n.id === 'hilde_follow');
       const ben = npcs.find(n => n.id === 'ben_follow');
@@ -1267,32 +1391,19 @@
         ben.x = lerp(ben.x, player.x - 30, 0.04);
         ben.y = lerp(ben.y, player.y - 8, 0.04);
       }
-
-      const rosen = npcs.find(n => n.id === 'rosen');
-      if (rosen && rosen.talked && !rosenTalked) {
-        rosenTalked = true;
-        score += 15;
-        setTimeout(() => {
-          showDialogue('', 'Plötsligt hörs motorljud på vägen. Strålkastare sveper genom skogen.', () => {
-            queueDialogue('Ben', 'Bilar. De kommer! Nazisterna är här!');
-            queueDialogueWithCallback('Svarta Rosen', 'När jag ger tecknet — spring mot skogen! Tillbaka mot Sverige! SPRING!', () => {
-              startChapter5();
-            });
-            advanceDialogue();
-          });
-        }, 500);
-      }
     };
 
     state = STATE.PLAY;
   }
 
+  // ===== KAPITEL 5: FLYKTEN =====
   function startChapter5() {
     showChapterTitle(5, 'Flykten', () => {
       showStory([
-        { speaker: '', text: 'Svarta Rosen kastar en oljelampa mot en av bilarna — den exploderar i lågor!' },
-        { speaker: 'Maja', text: 'NU! SPRING!' },
-        { speaker: '', text: 'Fly tillbaka till Sverige! Spring mot floden innan soldaterna hinner ifatt er!' },
+        { speaker: '', text: 'Svarta Rosen kastar en oljelampa mot en av bilarna — den exploderar i lågor! Soldaterna skriker.' },
+        { speaker: 'Svarta Rosen', text: 'NU! SPRING!' },
+        { speaker: '', text: 'I kaoset griper Maja Bens och Hildes händer. De springer som de aldrig sprungit förut.' },
+        { speaker: '', text: 'Fly tillbaka mot gränsen! Soldaterna jagar er genom skogen!' },
       ], () => { loadLevel_escape(); });
     });
   }
@@ -1308,7 +1419,6 @@
       houses: []
     };
 
-    // Sparse trees for dodging
     for (let i = 0; i < 20; i++) {
       const tx = 100 + Math.random() * 1400;
       const ty = 50 + Math.random() * 400;
@@ -1324,12 +1434,12 @@
     particles = [];
 
     resetPlayer(80, 250, 'maja');
-    player.speed = 3; // Running!
+    player.speed = 3;
 
     addNPC('hilde_follow', 50, 260, 'hilde', '', []);
     addNPC('ben_follow', 40, 240, 'ben', '', []);
 
-    // Chasing soldiers
+    // Jagande soldater
     for (let i = 0; i < 3; i++) {
       levelEnemies.push({
         x: 20 + i * 30, y: 200 + i * 40, speed: 2.2, spotlight: false,
@@ -1339,25 +1449,28 @@
 
     setObjective('SPRING! Nå floden innan soldaterna hinner ikapp!');
 
-    // Getting shot at — trigger halfway
+    // Skott mitt i
     levelTriggers.push({
       x: 700, y: 0, w: 50, h: 500,
       action: () => {
-        showDialogue('', 'Skott! Kulorna viner genom grenarna! En brännande smärta i armen — men du kan inte stanna!', () => {
-          score += 10;
+        showDialogue('', 'SKOTT! Kulorna viner genom grenarna. En brännande smärta i armen — Maja snubblar.', () => {
+          queueDialogueWithCallback('Hilde', 'MAJA! Res dig! Vi är nästan framme!', () => {
+            score += 10;
+          });
+          advanceDialogue();
         });
       }
     });
 
-    // Goal
+    // Mål: floden
     levelTriggers.push({
       x: 1450, y: 0, w: 60, h: 500,
       action: () => {
         score += 25;
-        levelEnemies = []; // Stop chase
-        showDialogue('', 'Ni vadar genom det iskalla vattnet. På den svenska sidan kollapsar ni bland träden.', () => {
-          queueDialogue('Ben', 'Vi... vi klarade det.');
-          queueDialogueWithCallback('', 'Ropen från den norska sidan avtar. Ni är säkra.', () => {
+        levelEnemies = [];
+        showDialogue('', 'Ni kastar er i det iskalla vattnet. Det bedövar smärtan i Majas arm.', () => {
+          queueDialogue('', 'På den svenska sidan kollapsar ni bland träden. Ropen från den norska sidan avtar.');
+          queueDialogueWithCallback('Ben', 'Vi... vi klarade det.', () => {
             startEnding();
           });
           advanceDialogue();
@@ -1367,7 +1480,7 @@
 
     caughtCallback = () => {
       if (state === STATE.DIALOGUE) return;
-      showDialogue('', 'Soldaterna kom för nära! Försök igen — spring fortare!', () => {
+      showDialogue('', 'Soldaterna kom för nära! Spring fortare!', () => {
         player.x = 80; player.y = 250;
         levelEnemies.forEach(e => { e.x = 20; e.y = 200 + Math.random() * 100; e.alerted = true; });
       });
@@ -1391,15 +1504,21 @@
     state = STATE.PLAY;
   }
 
+  // ===== KAPITEL 6: GRYNINGEN =====
   function startEnding() {
     showChapterTitle(6, 'Gryningen', () => {
       showStory([
-        { speaker: '', text: 'Gryningsljuset silar genom träden. Majas arm har slutat blöda — Hilde har bundit om den med sitt förkläde.' },
+        { speaker: '', text: 'Gryningsljuset silar genom träden. Majas arm har slutat blöda — Hilde har bundit om den med en remsa av sitt förkläde.' },
+        { speaker: '', text: 'De sitter tysta. Utmattade. Men levande.' },
+        { speaker: 'Hilde', text: 'Tror ni hon klarade sig? Svarta Rosen?' },
+        { speaker: 'Ben', text: 'Hon har klarat sig förut. Hon klarar sig igen.' },
         { speaker: '', text: 'Hemma möter en rasande men lättad pappa dem vid dörren. Han gråter — något Maja aldrig sett.' },
+        { speaker: 'Pappa', text: 'Var har ni varit?! Jag har letat hela natten!' },
+        { speaker: '', text: 'Maja berättar allt. Den här gången lyssnar pappa.' },
         { speaker: 'Pappa', text: 'Du är modigare än jag, Maja. Modigare än jag.' },
-        { speaker: '', text: 'Veckor senare når ett rykte byn: Svarta Rosen lever. Hon fortsätter sitt arbete.' },
+        { speaker: '', text: 'Veckor senare når ett rykte byn: Svarta Rosen lever. Hon har tagit sig till en annan del av Norge och fortsätter sitt arbete.' },
         { speaker: '', text: 'De tre vännerna — Svarta Rosorna — sitter vid bäcken och ler mot varandra.' },
-        { speaker: '', text: 'De vet att kriget inte är över. Men de vet att vanliga människor kan göra ovanliga saker.' },
+        { speaker: '', text: 'De vet att kriget inte är över. Men de vet att vanliga människor kan göra ovanliga saker. Att tre barn kan förändra världen.' },
       ], () => {
         showEnd();
       });
