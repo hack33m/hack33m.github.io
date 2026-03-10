@@ -61,7 +61,7 @@
   };
 
   // === STATE ===
-  const STATE = { TITLE: 0, STORY: 1, PLAY: 2, DIALOGUE: 3, END: 4 };
+  const STATE = { TITLE: 0, STORY: 1, PLAY: 2, DIALOGUE: 3, END: 4, CHAPTER: 5 };
   let state = STATE.TITLE;
   let score = 0;
   let chapter = 0;
@@ -821,37 +821,47 @@
   }
 
   // === CHAPTER SYSTEM ===
+  let chapterTitleNum = 0;
+  let chapterTitleText = '';
+  let chapterTitleAlpha = 0;
+  let chapterTitleHold = 0;
+  let chapterTitleCallback = null;
+  let chapterTitleDone = false;
+
   function showChapterTitle(num, title, callback) {
+    chapterTitleNum = num;
+    chapterTitleText = title;
+    chapterTitleAlpha = 0;
+    chapterTitleHold = 0;
+    chapterTitleCallback = callback;
+    chapterTitleDone = false;
     fadeTransition(() => {
-      state = STATE.STORY; // Temporarily use story state for chapter title
-      let alpha = 0;
-      const chapterAnim = setInterval(() => {
-        ctx.fillStyle = 'rgba(10, 8, 5, 1)';
-        ctx.fillRect(0, 0, W(), H());
-
-        alpha = Math.min(alpha + 0.02, 1);
-        ctx.globalAlpha = alpha;
-        drawText(`KAPITEL ${num}`, W() / 2, H() / 2 - 20, 14, COL.textDim, 'center', null, false);
-        drawText(title, W() / 2, H() / 2 + 15, 32, COL.text, 'center', null, true);
-        ctx.globalAlpha = 1;
-
-        if (alpha >= 1) {
-          setTimeout(() => {
-            clearInterval(chapterAnim);
-            fadeTransition(callback);
-          }, 1500);
-          clearInterval(chapterAnim);
-          // Draw one more frame then wait
-          const hold = setInterval(() => {
-            ctx.fillStyle = 'rgba(10, 8, 5, 1)';
-            ctx.fillRect(0, 0, W(), H());
-            drawText(`KAPITEL ${num}`, W() / 2, H() / 2 - 20, 14, COL.textDim, 'center', null, false);
-            drawText(title, W() / 2, H() / 2 + 15, 32, COL.text, 'center', null, true);
-          }, 16);
-          setTimeout(() => { clearInterval(hold); fadeTransition(callback); }, 1500);
-        }
-      }, 16);
+      state = STATE.CHAPTER;
     });
+  }
+
+  function updateChapterTitle() {
+    if (chapterTitleDone) return;
+    if (chapterTitleAlpha < 1) {
+      chapterTitleAlpha = Math.min(chapterTitleAlpha + 0.025, 1);
+    } else {
+      chapterTitleHold++;
+      if (chapterTitleHold > 90) { // ~1.5 seconds at 60fps
+        chapterTitleDone = true;
+        fadeTransition(() => {
+          if (chapterTitleCallback) chapterTitleCallback();
+        });
+      }
+    }
+  }
+
+  function drawChapterTitle() {
+    ctx.fillStyle = 'rgba(10, 8, 5, 1)';
+    ctx.fillRect(0, 0, W(), H());
+    ctx.globalAlpha = chapterTitleAlpha;
+    drawText(`KAPITEL ${chapterTitleNum}`, W() / 2, H() / 2 - 20, 14, COL.textDim, 'center', null, false);
+    drawText(chapterTitleText, W() / 2, H() / 2 + 15, 32, COL.text, 'center', null, true);
+    ctx.globalAlpha = 1;
   }
 
   // === FADE ===
@@ -1603,6 +1613,9 @@
 
     if (state === STATE.TITLE) {
       drawTitle();
+    } else if (state === STATE.CHAPTER) {
+      updateChapterTitle();
+      drawChapterTitle();
     } else if (state === STATE.STORY) {
       updateStory();
       drawStory();
