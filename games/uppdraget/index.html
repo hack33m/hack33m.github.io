@@ -823,49 +823,49 @@
   // === CHAPTER SYSTEM ===
   let chapterTitleNum = 0;
   let chapterTitleText = '';
-  let chapterTitleAlpha = 0;
-  let chapterTitleHold = 0;
+  let chapterTimer = 0;
   let chapterTitleCallback = null;
-  let chapterTitleDone = false;
+  const CHAPTER_DURATION = 150; // frames total
 
   function showChapterTitle(num, title, callback) {
     chapterTitleNum = num;
     chapterTitleText = title;
-    chapterTitleAlpha = 0;
-    chapterTitleHold = 0;
+    chapterTimer = 0;
     chapterTitleCallback = callback;
-    chapterTitleDone = false;
-    fadeTransition(() => {
-      state = STATE.CHAPTER;
-    });
+    state = STATE.CHAPTER;
   }
 
   function updateChapterTitle() {
-    if (chapterTitleDone) return;
-    if (chapterTitleAlpha < 1) {
-      chapterTitleAlpha = Math.min(chapterTitleAlpha + 0.025, 1);
-    } else {
-      chapterTitleHold++;
-      if (chapterTitleHold > 90) { // ~1.5 seconds at 60fps
-        chapterTitleDone = true;
-        fadeTransition(() => {
-          if (chapterTitleCallback) chapterTitleCallback();
-        });
-      }
+    chapterTimer++;
+    if (chapterTimer >= CHAPTER_DURATION) {
+      if (chapterTitleCallback) chapterTitleCallback();
     }
   }
 
   function drawChapterTitle() {
     ctx.fillStyle = 'rgba(10, 8, 5, 1)';
     ctx.fillRect(0, 0, W(), H());
-    ctx.globalAlpha = chapterTitleAlpha;
+
+    // Fade in for first 40 frames, hold, fade out last 30 frames
+    let alpha = 1;
+    if (chapterTimer < 40) alpha = chapterTimer / 40;
+    else if (chapterTimer > CHAPTER_DURATION - 30) alpha = (CHAPTER_DURATION - chapterTimer) / 30;
+
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
     drawText(`KAPITEL ${chapterTitleNum}`, W() / 2, H() / 2 - 20, 14, COL.textDim, 'center', null, false);
     drawText(chapterTitleText, W() / 2, H() / 2 + 15, 32, COL.text, 'center', null, true);
     ctx.globalAlpha = 1;
   }
 
   // === FADE ===
+  let fadeQueue = [];
+
   function fadeTransition(callback) {
+    if (fadeDir !== 0) {
+      // Queue it if a fade is already running
+      fadeQueue.push(callback);
+      return;
+    }
     fadeDir = 1;
     fadeAlpha = 0;
     fadeCallback = () => {
@@ -876,15 +876,22 @@
 
   function updateFade() {
     if (fadeDir === 1) {
-      fadeAlpha = Math.min(fadeAlpha + 0.04, 1);
+      fadeAlpha = Math.min(fadeAlpha + 0.05, 1);
       if (fadeAlpha >= 1 && fadeCallback) {
         const cb = fadeCallback;
         fadeCallback = null;
         cb();
       }
     } else if (fadeDir === -1) {
-      fadeAlpha = Math.max(fadeAlpha - 0.04, 0);
-      if (fadeAlpha <= 0) fadeDir = 0;
+      fadeAlpha = Math.max(fadeAlpha - 0.05, 0);
+      if (fadeAlpha <= 0) {
+        fadeDir = 0;
+        // Process queued fades
+        if (fadeQueue.length > 0) {
+          const next = fadeQueue.shift();
+          fadeTransition(next);
+        }
+      }
     }
   }
 
@@ -986,7 +993,7 @@
         currentLevel.done = true;
         setTimeout(() => {
           showDialogue('', 'Du har träffat både Hilde och Ben. Tre nya vänner — med en hemlighet.', () => {
-            fadeTransition(() => startChapter2());
+            startChapter2();
           });
         }, 500);
       }
@@ -1057,7 +1064,7 @@
         showDialogue('Maja', 'Vi kan inte sitta still. Vi varnar Svarta Rosen — tillsammans.', () => {
           queueDialogue('Hilde', 'Då är vi en motståndsgrupp nu. Vi behöver ett namn.');
           queueDialogueWithCallback('Ben', 'Svarta Rosorna. Precis som henne — Svarta Rosen.', () => {
-            fadeTransition(() => startChapter3());
+            startChapter3();
           });
           advanceDialogue();
         });
@@ -1162,7 +1169,7 @@
         score += 25;
         showDialogue('Ben', 'Bäcken! Det är gränsen — andra sidan är Norge!', () => {
           queueDialogueWithCallback('Maja', 'Vi vadar över. Nu!', () => {
-            fadeTransition(() => startChapter4());
+            startChapter4();
           });
           advanceDialogue();
         });
@@ -1269,7 +1276,7 @@
           showDialogue('', 'Plötsligt hörs motorljud på vägen. Strålkastare sveper genom skogen.', () => {
             queueDialogue('Ben', 'Bilar. De kommer! Nazisterna är här!');
             queueDialogueWithCallback('Svarta Rosen', 'När jag ger tecknet — spring mot skogen! Tillbaka mot Sverige! SPRING!', () => {
-              fadeTransition(() => startChapter5());
+              startChapter5();
             });
             advanceDialogue();
           });
@@ -1351,7 +1358,7 @@
         showDialogue('', 'Ni vadar genom det iskalla vattnet. På den svenska sidan kollapsar ni bland träden.', () => {
           queueDialogue('Ben', 'Vi... vi klarade det.');
           queueDialogueWithCallback('', 'Ropen från den norska sidan avtar. Ni är säkra.', () => {
-            fadeTransition(() => startEnding());
+            startEnding();
           });
           advanceDialogue();
         });
@@ -1644,7 +1651,7 @@
   // === INPUT HANDLER ===
   function handleAction() {
     if (state === STATE.TITLE && titleReady) {
-      fadeTransition(() => startChapter1());
+      startChapter1();
     } else if (state === STATE.STORY) {
       advanceStory();
     } else if (state === STATE.DIALOGUE) {
