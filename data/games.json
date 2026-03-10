@@ -16,5 +16,14 @@
     "thumbnail": "assets/images/neon-bird.svg",
     "path": "games/neon-bird/index.html",
     "featured": true
+  },
+  {
+    "id": "uppdraget",
+    "title": "Uppdraget",
+    "description": "Ett textäventyr baserat på boken av Camilla Lagerqvist. Följ Maja, Ben och Hilde genom det ockuperade Norge 1943 — gör val som avgör deras öde.",
+    "category": "Äventyr",
+    "thumbnail": "assets/images/uppdraget.svg",
+    "path": "games/uppdraget/index.html",
+    "featured": true
   }
 ]

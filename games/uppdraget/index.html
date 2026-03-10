@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Uppdraget</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Nunito:wght@400;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1510;
+      overflow: hidden;
+      font-family: 'Merriweather', Georgia, serif;
+      user-select: none;
+      -webkit-user-select: none;
+      color: #e8dcc8;
+    }
+
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Atmospheric background */
+    #scene-bg {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 0;
+      transition: background 1.5s ease;
+    }
+
+    /* Snow/particle canvas */
+    #particles {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Content area */
+    #content {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Title screen */
+    #title-screen {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #title-screen h1 {
+      font-size: clamp(2.2rem, 6vw, 4rem);
+      color: #e8dcc8;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+      margin-bottom: 8px;
+      letter-spacing: 3px;
+    }
+
+    #title-screen .subtitle {
+      font-size: clamp(0.9rem, 2.5vw, 1.2rem);
+      color: #a89880;
+      font-style: italic;
+      margin-bottom: 6px;
+    }
+
+    #title-screen .author {
+      font-size: clamp(0.75rem, 2vw, 0.95rem);
+      color: #7a6e5e;
+      margin-bottom: 40px;
+    }
+
+    #title-screen .start-btn {
+      background: rgba(180, 140, 80, 0.2);
+      border: 2px solid #b48c50;
+      color: #e8dcc8;
+      padding: 14px 48px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      letter-spacing: 1px;
+    }
+
+    #title-screen .start-btn:hover {
+      background: rgba(180, 140, 80, 0.4);
+      transform: scale(1.05);
+    }
+
+    /* Chapter intro */
+    #chapter-intro {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 8;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      opacity: 0;
+      transition: opacity 1s ease;
+    }
+
+    #chapter-intro .chapter-num {
+      font-size: clamp(0.9rem, 2vw, 1.1rem);
+      color: #b48c50;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    #chapter-intro .chapter-title {
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      color: #e8dcc8;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+    }
+
+    /* Story text area */
+    #story-area {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    #narrator-box {
+      background: rgba(20, 16, 10, 0.85);
+      border: 1px solid rgba(180, 140, 80, 0.2);
+      border-radius: 12px;
+      padding: 24px;
+      max-height: 45vh;
+      overflow-y: auto;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    #narrator-box::-webkit-scrollbar { width: 4px; }
+    #narrator-box::-webkit-scrollbar-thumb { background: rgba(180,140,80,0.3); border-radius: 2px; }
+
+    #narrator-text {
+      font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+      line-height: 1.8;
+      color: #e8dcc8;
+    }
+
+    .speaker-name {
+      color: #b48c50;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 4px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.85em;
+      letter-spacing: 1px;
+    }
+
+    .dialogue {
+      font-style: italic;
+      color: #d4c4a8;
+    }
+
+    /* Choices */
+    #choices-area {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .choice-btn {
+      background: rgba(30, 24, 16, 0.85);
+      border: 1px solid rgba(180, 140, 80, 0.3);
+      color: #e8dcc8;
+      padding: 14px 20px;
+      font-family: 'Nunito', sans-serif;
+      font-size: clamp(0.9rem, 2.2vw, 1rem);
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: left;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .choice-btn:hover {
+      background: rgba(180, 140, 80, 0.25);
+      border-color: #b48c50;
+      transform: translateX(6px);
+    }
+
+    .choice-btn:active {
+      transform: translateX(3px);
+    }
+
+    /* Continue prompt */
+    #continue-prompt {
+      display: none;
+      text-align: center;
+      padding: 12px;
+      color: #7a6e5e;
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.85rem;
+      animation: pulse 2s infinite;
+      cursor: pointer;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    /* Chapter progress bar */
+    #progress-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      z-index: 5;
+      background: rgba(180, 140, 80, 0.1);
+    }
+
+    #progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #b48c50, #d4a55a);
+      width: 0%;
+      transition: width 0.8s ease;
+    }
+
+    /* Chapter indicator */
+    #chapter-indicator {
+      position: absolute;
+      top: 12px;
+      left: 20px;
+      z-index: 5;
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.75rem;
+      color: #7a6e5e;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      display: none;
+    }
+
+    /* Score display */
+    #score-display {
+      position: absolute;
+      top: 12px;
+      right: 20px;
+      z-index: 5;
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.8rem;
+      color: #b48c50;
+      display: none;
+    }
+
+    /* End screen */
+    #end-screen {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 10;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #end-screen h2 {
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      color: #e8dcc8;
+      margin-bottom: 16px;
+    }
+
+    #end-screen .end-summary {
+      font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+      color: #a89880;
+      max-width: 500px;
+      line-height: 1.8;
+      margin-bottom: 12px;
+    }
+
+    #end-screen .end-score {
+      font-family: 'Nunito', sans-serif;
+      font-size: 1.2rem;
+      color: #b48c50;
+      margin-bottom: 32px;
+    }
+
+    #end-screen .replay-btn {
+      background: rgba(180, 140, 80, 0.2);
+      border: 2px solid #b48c50;
+      color: #e8dcc8;
+      padding: 14px 48px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #end-screen .replay-btn:hover {
+      background: rgba(180, 140, 80, 0.4);
+      transform: scale(1.05);
+    }
+
+    /* Fade transitions */
+    .fade-in { animation: fadeIn 1s ease forwards; }
+    .fade-out { animation: fadeOut 0.6s ease forwards; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+    /* Typewriter cursor */
+    .typewriter-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1.1em;
+      background: #b48c50;
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink 0.8s infinite;
+    }
+
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  </style>
+</head>
+<body>
+<div id="game-container">
+  <div id="scene-bg"></div>
+  <canvas id="particles"></canvas>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+  <div id="chapter-indicator"></div>
+  <div id="score-display"></div>
+
+  <div id="title-screen">
+    <h1>UPPDRAGET</h1>
+    <p class="subtitle">Svarta Rosorna</p>
+    <p class="author">Baserat på boken av Camilla Lagerqvist</p>
+    <button class="start-btn" id="start-btn">Börja äventyret</button>
+  </div>
+
+  <div id="chapter-intro">
+    <div class="chapter-num" id="ch-num"></div>
+    <div class="chapter-title" id="ch-title"></div>
+  </div>
+
+  <div id="content">
+    <div id="story-area">
+      <div id="narrator-box">
+        <div id="narrator-text"></div>
+      </div>
+    </div>
+    <div id="choices-area"></div>
+    <div id="continue-prompt">Tryck för att fortsätta...</div>
+  </div>
+
+  <div id="end-screen">
+    <h2 id="end-title">Slutet</h2>
+    <p class="end-summary" id="end-summary"></p>
+    <p class="end-score" id="end-score"></p>
+    <button class="replay-btn" id="replay-btn">Spela igen</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  // === Elements ===
+  const sceneBg = document.getElementById('scene-bg');
+  const particleCanvas = document.getElementById('particles');
+  const pCtx = particleCanvas.getContext('2d');
+  const titleScreen = document.getElementById('title-screen');
+  const chapterIntro = document.getElementById('chapter-intro');
+  const chNum = document.getElementById('ch-num');
+  const chTitle = document.getElementById('ch-title');
+  const storyArea = document.getElementById('story-area');
+  const narratorText = document.getElementById('narrator-text');
+  const narratorBox = document.getElementById('narrator-box');
+  const choicesArea = document.getElementById('choices-area');
+  const continuePrompt = document.getElementById('continue-prompt');
+  const progressFill = document.getElementById('progress-fill');
+  const chapterIndicator = document.getElementById('chapter-indicator');
+  const scoreDisplay = document.getElementById('score-display');
+  const endScreen = document.getElementById('end-screen');
+  const endTitle = document.getElementById('end-title');
+  const endSummary = document.getElementById('end-summary');
+  const endScore = document.getElementById('end-score');
+
+  // === State ===
+  let score = 0;
+  let currentChapter = 0;
+  let currentScene = 0;
+  let isTyping = false;
+  let skipTyping = false;
+  let totalScenes = 0;
+  let scenesVisited = 0;
+
+  // === Scenes / Themes ===
+  const THEMES = {
+    village: {
+      bg: 'linear-gradient(180deg, #2a3a4a 0%, #3a4a3a 40%, #2a3a2a 70%, #1a2a1a 100%)',
+      particles: 'fireflies'
+    },
+    forest: {
+      bg: 'linear-gradient(180deg, #1a2a1a 0%, #0f1f0f 40%, #0a150a 70%, #050d05 100%)',
+      particles: 'fireflies'
+    },
+    night: {
+      bg: 'linear-gradient(180deg, #0a0f1a 0%, #111a2a 40%, #0a0f18 70%, #050810 100%)',
+      particles: 'stars'
+    },
+    border: {
+      bg: 'linear-gradient(180deg, #1a1520 0%, #201a25 40%, #15101a 70%, #0a0810 100%)',
+      particles: 'snow'
+    },
+    danger: {
+      bg: 'linear-gradient(180deg, #1a1010 0%, #2a1515 40%, #1a0f0f 70%, #100808 100%)',
+      particles: 'embers'
+    },
+    dawn: {
+      bg: 'linear-gradient(180deg, #2a2040 0%, #4a3050 30%, #6a4040 60%, #b48c50 100%)',
+      particles: 'stars'
+    }
+  };
+
+  // === Story Data ===
+  const STORY = [
+    // ===== CHAPTER 1: Byn =====
+    {
+      chapter: 1,
+      title: 'Byn',
+      scenes: [
+        {
+          theme: 'village',
+          text: 'Sommaren 1943. Solen ligger varm över den lilla värmländska byn vid norska gränsen. Maja, som snart fyller tretton, sitter på stenmuren utanför hemmet och tittar ut över fälten.\n\nKriget känns långt borta härifrån. Men det syns i de tomma hyllorna i affären, i de oroliga blickarna hos de vuxna, och i radionyheterna som pappa lyssnar på varje kväll med rynkad panna.',
+          choices: null
+        },
+        {
+          theme: 'village',
+          text: 'Maja suckar. Hennes bästa vän Astrid flyttade till Stockholm i våras, och dagarna känns långa och ensamma. Hon sparkar en sten längs grusvägen och funderar på om sommaren någonsin ska bli bra.',
+          speaker: 'Maja',
+          dialogue: '"Ännu en dag med ingenting att göra..."',
+          choices: null
+        },
+        {
+          theme: 'village',
+          text: 'Plötsligt ser hon en häst och vagn komma körande längs vägen. Den stannar vid det gamla huset bredvid kyrkan som stått tomt sedan förra hösten. En kvinna kliver ur, och efter henne — en flicka i Majas ålder med ljust hår och trotsig blick.',
+          choices: [
+            { text: 'Gå fram och hälsa på den nya flickan', next: 'greet', score: 10 },
+            { text: 'Stanna kvar och iaktta på avstånd', next: 'watch', score: 5 }
+          ]
+        },
+        {
+          id: 'greet',
+          theme: 'village',
+          speaker: 'Maja',
+          dialogue: '"Hej! Jag heter Maja. Ska ni bo här?"',
+          text: 'Flickan tittar misstänksamt på Maja, men mjuknar sedan.\n\n"Hilde," säger hon med norsk accent. "Vi kom från Norge. Mamma och jag."\n\nMaja märker hur Hilde kastar en nervös blick bakåt, som om hon väntar sig att någon ska följa efter dem.',
+          choices: null
+        },
+        {
+          id: 'watch',
+          theme: 'village',
+          text: 'Maja iakttar i smyg hur flickan hjälper sin mamma bära in lådor. Det är något annorlunda med dem — flickan verkar hela tiden titta sig omkring, som om hon är rädd.\n\nNästa dag ser Maja flickan sitta ensam vid bäcken. Den här gången går hon fram.',
+          speaker: 'Maja',
+          dialogue: '"Hej. Jag heter Maja. Du är ny här, eller hur?"',
+          text2: 'Flickan ser lättad ut över att någon pratar med henne.\n\n"Hilde," säger hon med norsk accent. "Vi flydde hit från Norge."',
+          choices: null
+        },
+        {
+          theme: 'village',
+          text: 'Under de följande dagarna lär Maja känna Hilde. Hon berättar att hennes pappa dog tidigt i kriget, och att hennes mamma har en ny man — en tysk soldat.\n\nHilde hatar det. Det var därför de till slut flydde till Sverige.',
+          speaker: 'Hilde',
+          dialogue: '"I Norge kallar de mamma för tysktös. Folk spottade på oss på gatan. Men mamma... hon försökte bara överleva."',
+          choices: null
+        },
+        {
+          theme: 'village',
+          text: 'En morgon ser Maja en pojke hon aldrig sett förut. Han sitter gömd bakom kyrkogårdsmuren och läser en bok. Han är mörkhårig, mager, och ser ut att vara i deras ålder.\n\nNär han märker att Maja ser honom, gömmer han snabbt boken och gör sig redo att springa.',
+          choices: [
+            { text: '"Vänta! Du behöver inte vara rädd."', next: 'kind', score: 10 },
+            { text: '"Vem är du? Vad gör du här?"', next: 'direct', score: 5 }
+          ]
+        },
+        {
+          id: 'kind',
+          theme: 'village',
+          text: 'Pojken stannar. Han ser osäker ut, men något i Majas röst får honom att slappna av.',
+          speaker: 'Ben',
+          dialogue: '"Jag heter Ben. Jag bor hos Gustafssons... de gömmer mig."',
+          text2: 'Maja förstår. Ben är judisk. Han har flytt från Norge, precis som Hilde — men av helt andra anledningar.',
+          choices: null
+        },
+        {
+          id: 'direct',
+          theme: 'village',
+          text: 'Pojken rycker till, men flyr inte.',
+          speaker: 'Ben',
+          dialogue: '"Snälla, berätta inte för någon att du sett mig. Jag heter Ben. Gustafssons gömmer mig."',
+          text2: 'Maja ser rädslan i hans ögon och förstår plötsligt allvaret. Ben är judisk. Han gömmer sig för att överleva.',
+          choices: null
+        }
+      ]
+    },
+    // ===== CHAPTER 2: Svarta Rosorna =====
+    {
+      chapter: 2,
+      title: 'Svarta Rosorna',
+      scenes: [
+        {
+          theme: 'forest',
+          text: 'Dagarna går och de tre blir oskiljaktiliga. De träffas vid bäcken, i skogen, vid den gamla ladan — alltid i hemlighet, för Bens skull.\n\nHilde berättar om livet i det ockuperade Norge. Om tyska soldater på gatorna. Om grannar som försvinner mitt i natten.',
+          speaker: 'Ben',
+          dialogue: '"Min familj skickades till ett läger. Bara jag och min kusin lyckades fly över gränsen. Min kusin... han klarade sig inte."',
+          choices: null
+        },
+        {
+          theme: 'forest',
+          text: 'En kväll hör Maja sin pappa prata med grannbonden Erik i köket. De tror att hon sover.',
+          speaker: 'Pappa',
+          dialogue: '"De säger att nazisterna har spårat upp Svarta Rosen. Du vet — motståndskvinna på norska sidan. De planerar att ta henne imorgon natt."',
+          text2: 'Majas hjärta slår hårt. Svarta Rosen — hon har hört rykten om henne. En modig kvinna som hjälper människor att fly undan nazisterna.',
+          choices: null
+        },
+        {
+          theme: 'forest',
+          text: 'Nästa dag berättar Maja allt för Hilde och Ben. Hildes ögon vidgas.',
+          speaker: 'Hilde',
+          dialogue: '"Svarta Rosen... jag vet vem det är! Hon hjälpte mamma och mig när vi flydde. Utan henne hade vi aldrig nått Sverige."',
+          choices: null
+        },
+        {
+          theme: 'forest',
+          speaker: 'Ben',
+          dialogue: '"Vi måste varna henne. Om nazisterna tar henne... alla de som hon hjälper kommer också att dö."',
+          text: 'De ser på varandra. Tre ungdomar — en svensk flicka, en norsk flicka, och en judisk pojke. Vad kan de egentligen göra?\n\nMen i deras ögon brinner samma eld.',
+          choices: [
+            { text: '"Vi gör det. Vi varnar henne — tillsammans."', next: 'decide_go', score: 15 },
+            { text: '"Det är för farligt. Vi borde berätta för de vuxna."', next: 'decide_adults', score: 10 }
+          ]
+        },
+        {
+          id: 'decide_go',
+          theme: 'forest',
+          speaker: 'Maja',
+          dialogue: '"Vi kan inte sitta still och bara titta på. Vi gör det — vi varnar Svarta Rosen."',
+          text: 'Ben nickar allvarligt. Hilde tar Majas hand.',
+          speaker2: 'Hilde',
+          dialogue2: '"Då är vi en motståndsgrupp nu. Vi behöver ett namn."',
+          choices: null
+        },
+        {
+          id: 'decide_adults',
+          theme: 'forest',
+          text: 'Maja springer hem och försöker berätta för sin pappa. Men han avfärdar henne.',
+          speaker: 'Pappa',
+          dialogue: '"Maja, detta är vuxnas problem. Lägg dig inte i."',
+          text2: 'Maja känner frustration brinna i bröstet. Ingen lyssnar på dem. Hon springer tillbaka till de andra.',
+          speaker2: 'Maja',
+          dialogue2: '"De vuxna vill inte lyssna. Då gör vi det själva."',
+          choices: null
+        },
+        {
+          theme: 'forest',
+          text: 'Ben plockar upp en svart nyponros som växer vid stenmuren.',
+          speaker: 'Ben',
+          dialogue: '"Svarta rosorna. Det blir vi. Precis som henne — Svarta Rosen."',
+          text2: 'De lägger sina händer på varandra. Ett löfte. Oavsett vad — de gör det här tillsammans.\n\nMen ingen av dem anar hur farligt det verkligen kommer att bli.',
+          choices: null
+        }
+      ]
+    },
+    // ===== CHAPTER 3: Planen =====
+    {
+      chapter: 3,
+      title: 'Planen',
+      scenes: [
+        {
+          theme: 'night',
+          text: 'De samlas i den gamla ladan som blivit deras hemliga mötesplats. Ben har ritat en karta baserad på vad han minns från sin flykt över gränsen.\n\nDet finns en stig genom skogen som leder till en gammal smugglarled. Om de följer den kan de ta sig till Norge utan att passera de bevakade vägarna.',
+          choices: null
+        },
+        {
+          theme: 'night',
+          speaker: 'Hilde',
+          dialogue: '"Svarta Rosen bor i en stuga utanför Halden. Jag vet ungefär var. Om vi går på natten borde vi kunna nå dit innan gryningen."',
+          text: 'Ben ser tveksam ut.',
+          speaker2: 'Ben',
+          dialogue2: '"Det är tyskt soldater överallt i gränsområdet. Vi måste vara helt tysta. Om de ser oss..."',
+          choices: null
+        },
+        {
+          theme: 'night',
+          text: 'Maja sväljer hårt. Hon vet vad som kan hända om de åker fast. Speciellt Ben — som judisk pojke i tyska händer...\n\nDe bestämmer sig för att gå imorgon natt. De packar varsitt knyte med lite bröd, en ficklampa, och Bens handritade karta.',
+          choices: [
+            { text: 'Skriva ett brev till pappa ifall de inte kommer tillbaka', next: 'letter', score: 10 },
+            { text: 'Inte berätta för någon — ju färre som vet, desto säkrare', next: 'secret', score: 10 }
+          ]
+        },
+        {
+          id: 'letter',
+          theme: 'night',
+          text: 'Maja sätter sig vid skrivbordet i sitt rum. Pennan darrar.',
+          speaker: 'Majas brev',
+          dialogue: '"Kära pappa. Om du läser det här så har jag gett mig av för att göra något viktigt. Jag vet att du sa att jag inte ska lägga mig i, men ibland måste man göra det som är rätt, även om det är farligt. Förlåt mig. Jag älskar dig. — Maja"',
+          text2: 'Hon gömmer brevet under kudden och torkar tårarna.',
+          choices: null
+        },
+        {
+          id: 'secret',
+          theme: 'night',
+          text: 'Maja bestämmer sig för att inte berätta för någon. Om de vuxna fick reda på det skulle de stoppa dem, och Svarta Rosen skulle dö.\n\nHon tittar på pappa som sitter vid radion. Han ser trött och orolig ut.',
+          speaker: 'Maja (tänker)',
+          dialogue: '"Förlåt, pappa. Men det här måste jag göra."',
+          choices: null
+        },
+        {
+          theme: 'night',
+          text: 'Klockan elva på kvällen. Maja smyger ut genom sitt fönster. Månen gömmer sig bakom moln — perfekt.\n\nHilde och Ben väntar redan vid ladan. Ingen säger något. De bara nickar åt varandra och börjar gå in i den mörka skogen.',
+          choices: null
+        }
+      ]
+    },
+    // ===== CHAPTER 4: Gränsen =====
+    {
+      chapter: 4,
+      title: 'Gränsen',
+      scenes: [
+        {
+          theme: 'border',
+          text: 'Skogen är becksvart. Grenarna knäcks under deras fötter, och varje ljud får dem att stanna och lyssna. Ben går först med ficklampan — men vågar bara tända den i korta blinkar.\n\nEfter två timmar når de bäcken som markerar gränsen.',
+          choices: null
+        },
+        {
+          theme: 'border',
+          speaker: 'Ben',
+          dialogue: '"Där borta — ser ni? Den andra sidan. Det är Norge."',
+          text: 'Hilde stirrar över vattnet. Hennes hemland. Ockuperat av nazisterna.\n\nPlötsligt hörs röster. Tyska röster. En patrull, inte långt bort.',
+          choices: [
+            { text: 'Gömma sig i buskarna och vänta tills patrullen passerar', next: 'hide', score: 15 },
+            { text: 'Springa över bäcken nu medan de fortfarande har chansen', next: 'run', score: 5 }
+          ]
+        },
+        {
+          id: 'hide',
+          theme: 'border',
+          text: 'De kastar sig ner i buskarna. Maja trycker ansiktet mot den kalla marken och håller andan.\n\nTvå tyska soldater vandrar förbi, bara fem meter bort. Deras ficklampor sveper över skogen. En av dem stannar.',
+          speaker: 'Tysk soldat',
+          dialogue: '"Hörde du något?"',
+          text2: 'Den andre rycker på axlarna. De går vidare.\n\nMaja räknar till hundra innan hon vågar andas igen. Sedan slussar de sig tyst ner i bäcken och vadar över.',
+          choices: null
+        },
+        {
+          id: 'run',
+          theme: 'danger',
+          text: 'De rusar ner mot bäcken. Vattnet är iskallt och når dem till midjan. Ben halkar på stenarna men Hilde griper tag i honom.\n\nBakom dem ropar någon på tyska. En ficklampa sveper över vattnet.',
+          speaker: 'Maja',
+          dialogue: '"Fortare!"',
+          text2: 'De tar sig uppför den andra stranden och kastar sig in bland träden. Ropen avtar — soldaterna verkar inte följa efter över gränsen. Ännu.',
+          choices: null
+        },
+        {
+          theme: 'border',
+          text: 'De är i Norge. Det ockuperade Norge.\n\nAllt ser likadant ut — samma skog, samma stenar — men luften känns annorlunda. Tyngre. Farligare.\n\nHilde tar ledningen nu. Hon känner igen terrängen.',
+          speaker: 'Hilde',
+          dialogue: '"Stugan borde ligga vid ängen, en halvtimmes promenad härifrån. Kom."',
+          choices: null
+        }
+      ]
+    },
+    // ===== CHAPTER 5: Svarta Rosen =====
+    {
+      chapter: 5,
+      title: 'Svarta Rosen',
+      scenes: [
+        {
+          theme: 'night',
+          text: 'De hittar stugan i en glänta. Det lyser svagt i ett fönster. Hilde knackar försiktigt — tre snabba, två långsamma. En kod hon minns.\n\nDörren öppnas på glänt. En kvinna med skarpa ögon och mörkt hår tittar ut.',
+          speaker: 'Svarta Rosen',
+          dialogue: '"Hilde? Vad i all världen gör du här?"',
+          choices: null
+        },
+        {
+          theme: 'night',
+          text: 'De berättar allt — om vad Maja hört, om att nazisterna vet var hon bor, att de kommer imorgon natt.',
+          speaker: 'Svarta Rosen',
+          dialogue: '"Tre barn... tog sig över gränsen i mörkret för att varna mig."',
+          text2: 'Hon ser rörd ut, men hennes blick hårdnar snabbt.',
+          speaker2: 'Svarta Rosen',
+          dialogue2: '"Ni har räddat mitt liv. Men nu måste vi alla fly. De kan redan vara på väg."',
+          choices: null
+        },
+        {
+          theme: 'night',
+          text: 'Svarta Rosen packar snabbt en väska. Hon bränner papper i kaminen — dokument som inte får hamna i fel händer.\n\nPlötsligt hör de motorljud på vägen.',
+          speaker: 'Ben',
+          dialogue: '"Bilar. De kommer."',
+          text2: 'Svarta Rosen släcker lampan. I mörkret ser de strålkastare svepa genom skogen. De är för tidiga. Nazisterna kom redan ikväll.',
+          choices: [
+            { text: 'Fly genom bakdörren och in i skogen', next: 'backdoor', score: 10 },
+            { text: 'Gömma sig i källaren tills de ger sig av', next: 'cellar', score: 10 }
+          ]
+        },
+        {
+          id: 'backdoor',
+          theme: 'danger',
+          text: 'Svarta Rosen visar dem en dold dörr bakom bokhyllan. Den leder ut på baksidan.\n\nDe springer. Grenar sliter i deras kläder. Bakom dem hörs dörren sparkas in, och tyska röster fyller stugan.\n\nDe hinner inte långt innan de hör kommandot.',
+          speaker: 'Tysk soldat',
+          dialogue: '"HALT! STEHENBLEIBEN!"',
+          choices: null
+        },
+        {
+          id: 'cellar',
+          theme: 'danger',
+          text: 'De klättrar ner i den fuktiga källaren. Svarta Rosen drar en matta över luckan ovanför dem.\n\nStövlar trampar genom huset. Möbler välts. Glas krossas.\n\nDe sitter dödstyst i mörkret i vad som känns som en evighet. Till slut avtar ljuden. Men när de försöker öppna luckan — står en soldat och väntar.',
+          speaker: 'Tysk soldat',
+          dialogue: '"Komm heraus. Sofort."',
+          text2: 'De har inget val. De klättrar upp med händerna i luften.',
+          choices: null
+        }
+      ]
+    },
+    // ===== CHAPTER 6: Flykten =====
+    {
+      chapter: 6,
+      title: 'Flykten',
+      scenes: [
+        {
+          theme: 'danger',
+          text: 'Allt ser mörkt ut. Men Svarta Rosen är inte någon som ger upp.\n\nI mörkret viskar hon till Maja.',
+          speaker: 'Svarta Rosen',
+          dialogue: '"När jag ger tecknet — spring mot skogen. Stanna inte. Spring mot Sverige. Jag ska distrahera dem."',
+          choices: null
+        },
+        {
+          theme: 'danger',
+          speaker: 'Maja',
+          dialogue: '"Men du då?"',
+          text: '',
+          speaker2: 'Svarta Rosen',
+          dialogue2: '"Jag har klarat mig förut. Ni tre är viktigare just nu. Spring."',
+          choices: [
+            { text: 'Lita på Svarta Rosen och förbereda sig att springa', next: 'trust', score: 15 },
+            { text: '"Vi kan inte lämna dig. Vi flyr tillsammans."', next: 'together', score: 10 }
+          ]
+        },
+        {
+          id: 'trust',
+          theme: 'danger',
+          text: 'Svarta Rosen rör sig blixtsnabbt. Hon kastar en oljelampa mot en av bilarna — den exploderar i lågor. Soldaterna skriker och springer mot branden.\n\nI kaoset griper Maja Bens och Hildes händer.',
+          speaker: 'Maja',
+          dialogue: '"NU!"',
+          text2: 'De springer som de aldrig sprungit förut. In i skogen, mot gränsen, mot säkerheten.',
+          choices: null
+        },
+        {
+          id: 'together',
+          theme: 'danger',
+          text: 'Svarta Rosen ser på Maja med något som liknar stolthet.',
+          speaker: 'Svarta Rosen',
+          dialogue: '"Modiga barn. Okej — tillsammans då."',
+          text2: 'Hon sliter loss en planka från staketet och slår ut strålkastaren på den närmaste bilen. I mörkret som följer springer de alla fyra in i skogen.',
+          choices: null
+        },
+        {
+          theme: 'danger',
+          text: 'Skott! Kulorna viner genom grenarna ovanför dem. Maja hör sig själv skrika men slutar inte springa.\n\nPlötsligt — en brännande smärta i armen. Maja snubblar.',
+          speaker: 'Hilde',
+          dialogue: '"MAJA!"',
+          text2: 'Ben och Hilde griper tag i henne och drar henne vidare. Blodet rinner nerför hennes arm, men de kan inte stanna nu.',
+          choices: null
+        },
+        {
+          theme: 'border',
+          text: 'Bäcken. Gränsen. De ser den glimma i mörkret.\n\nDe vadar över, halvt springande, halvt fallande. Det iskalla vattnet bedövar smärtan i Majas arm.\n\nPå den svenska sidan kollapsar de bland träden. Ropen från den norska sidan avtar.',
+          speaker: 'Ben',
+          dialogue: '"Vi... vi klarade det."',
+          choices: null
+        }
+      ]
+    },
+    // ===== CHAPTER 7: Gryningen =====
+    {
+      chapter: 7,
+      title: 'Gryningen',
+      scenes: [
+        {
+          theme: 'dawn',
+          text: 'Gryningsljuset silar genom träden. Majas arm har slutat blöda — Hilde har bundit om den med en remsa av sitt förkläde.\n\nDe sitter tysta. Utmattade. Men levande.',
+          choices: null
+        },
+        {
+          theme: 'dawn',
+          speaker: 'Hilde',
+          dialogue: '"Tror ni hon klarade sig? Svarta Rosen?"',
+          text: 'Ingen svarar. Men djupt inne vet de alla att en kvinna som överlevt så länge inte ger upp så lätt.',
+          choices: null
+        },
+        {
+          theme: 'dawn',
+          text: 'När de kommer hem möter en rasande men lättad pappa dem vid dörren. Han gråter — något Maja aldrig sett honom göra förut.',
+          speaker: 'Pappa',
+          dialogue: '"Var har ni varit?! Jag har letat hela natten!"',
+          text2: 'Maja berättar allt. Pappa lyssnar den här gången. Och när hon är klar, kramar han henne hårt.',
+          speaker3: 'Pappa',
+          dialogue3: '"Du är modigare än jag, Maja. Modigare än jag."',
+          choices: null
+        },
+        {
+          theme: 'dawn',
+          text: 'Veckor senare når ett rykte byn: Svarta Rosen lever. Hon har tagit sig till en annan del av Norge och fortsätter sitt arbete.\n\nDe tre vännerna — Svarta Rosorna — sitter vid bäcken och ler mot varandra.\n\nDe vet att kriget inte är över. Men de vet också att vanliga människor kan göra ovanliga saker.\n\nAtt tre barn kan förändra världen.',
+          choices: null
+        }
+      ]
+    }
+  ];
+
+  // Count total scenes
+  STORY.forEach(ch => {
+    ch.scenes.forEach(s => { if (!s.id) totalScenes++; });
+  });
+  // Approximate
+  totalScenes = STORY.reduce((sum, ch) => sum + ch.scenes.filter(s => !s.id).length, 0);
+
+  // === Particle System ===
+  let particles = [];
+  let particleType = 'fireflies';
+
+  function resizeParticleCanvas() {
+    particleCanvas.width = window.innerWidth;
+    particleCanvas.height = window.innerHeight;
+  }
+  resizeParticleCanvas();
+  window.addEventListener('resize', resizeParticleCanvas);
+
+  function createParticles(type) {
+    particleType = type;
+    particles = [];
+    const count = type === 'stars' ? 60 : type === 'snow' ? 80 : type === 'embers' ? 30 : 20;
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        size: Math.random() * 3 + 1,
+        speed: Math.random() * 0.5 + 0.1,
+        opacity: Math.random() * 0.6 + 0.2,
+        drift: Math.random() * 0.5 - 0.25,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  function updateParticles() {
+    pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+    const time = Date.now() * 0.001;
+
+    particles.forEach(p => {
+      if (particleType === 'snow') {
+        p.y += p.speed;
+        p.x += Math.sin(time + p.phase) * 0.3 + p.drift;
+        if (p.y > window.innerHeight) { p.y = -5; p.x = Math.random() * window.innerWidth; }
+        pCtx.fillStyle = `rgba(255, 255, 255, ${p.opacity * 0.5})`;
+        pCtx.beginPath();
+        pCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        pCtx.fill();
+      } else if (particleType === 'fireflies') {
+        p.x += Math.sin(time * 0.5 + p.phase) * 0.3;
+        p.y += Math.cos(time * 0.3 + p.phase) * 0.2;
+        const flicker = (Math.sin(time * 2 + p.phase) + 1) * 0.5;
+        pCtx.fillStyle = `rgba(200, 180, 100, ${p.opacity * flicker * 0.4})`;
+        pCtx.beginPath();
+        pCtx.arc(p.x, p.y, p.size * 1.5, 0, Math.PI * 2);
+        pCtx.fill();
+      } else if (particleType === 'embers') {
+        p.y -= p.speed * 0.5;
+        p.x += Math.sin(time + p.phase) * 0.4;
+        if (p.y < -5) { p.y = window.innerHeight + 5; p.x = Math.random() * window.innerWidth; }
+        const flicker = (Math.sin(time * 3 + p.phase) + 1) * 0.5;
+        pCtx.fillStyle = `rgba(255, ${80 + flicker * 80}, 20, ${p.opacity * flicker * 0.5})`;
+        pCtx.beginPath();
+        pCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        pCtx.fill();
+      } else if (particleType === 'stars') {
+        const twinkle = (Math.sin(time * 1.5 + p.phase) + 1) * 0.5;
+        pCtx.fillStyle = `rgba(255, 255, 240, ${p.opacity * twinkle * 0.6})`;
+        pCtx.beginPath();
+        pCtx.arc(p.x, p.y, p.size * 0.8, 0, Math.PI * 2);
+        pCtx.fill();
+      }
+    });
+
+    requestAnimationFrame(updateParticles);
+  }
+
+  createParticles('fireflies');
+  updateParticles();
+
+  // === Scene Management ===
+  function setTheme(themeName) {
+    const theme = THEMES[themeName] || THEMES.village;
+    sceneBg.style.background = theme.bg;
+    createParticles(theme.particles);
+  }
+
+  function getScene(chapter, sceneIndex) {
+    const ch = STORY[chapter];
+    if (!ch) return null;
+    return ch.scenes[sceneIndex] || null;
+  }
+
+  function getSceneById(chapter, id) {
+    const ch = STORY[chapter];
+    if (!ch) return null;
+    return ch.scenes.find(s => s.id === id);
+  }
+
+  // Find next non-id scene after given index
+  function getNextMainScene(chapter, afterIndex) {
+    const ch = STORY[chapter];
+    if (!ch) return -1;
+    for (let i = afterIndex + 1; i < ch.scenes.length; i++) {
+      if (!ch.scenes[i].id) return i;
+    }
+    return -1;
+  }
+
+  // === Typewriter ===
+  function typewrite(element, html, speed = 25) {
+    return new Promise(resolve => {
+      isTyping = true;
+      skipTyping = false;
+
+      // Parse HTML into segments
+      const segments = [];
+      const div = document.createElement('div');
+      div.innerHTML = html;
+
+      function extractText(node) {
+        if (node.nodeType === 3) {
+          segments.push({ type: 'text', content: node.textContent });
+        } else if (node.nodeType === 1) {
+          segments.push({ type: 'openTag', tag: node.tagName.toLowerCase(), classes: node.className, content: '' });
+          for (const child of node.childNodes) extractText(child);
+          segments.push({ type: 'closeTag', tag: node.tagName.toLowerCase() });
+        }
+      }
+
+      for (const child of div.childNodes) extractText(child);
+
+      let output = '';
+      let charIndex = 0;
+      let segIndex = 0;
+      let currentText = '';
+
+      function buildSegmentOpen(seg) {
+        let tag = `<${seg.tag}`;
+        if (seg.classes) tag += ` class="${seg.classes}"`;
+        tag += '>';
+        return tag;
+      }
+
+      function tick() {
+        if (skipTyping) {
+          element.innerHTML = html;
+          isTyping = false;
+          resolve();
+          return;
+        }
+
+        if (segIndex >= segments.length) {
+          element.innerHTML = html;
+          isTyping = false;
+          resolve();
+          return;
+        }
+
+        const seg = segments[segIndex];
+
+        if (seg.type === 'openTag') {
+          output += buildSegmentOpen(seg);
+          segIndex++;
+          tick();
+          return;
+        }
+
+        if (seg.type === 'closeTag') {
+          output += `</${seg.tag}>`;
+          segIndex++;
+          tick();
+          return;
+        }
+
+        // Text segment
+        if (charIndex < seg.content.length) {
+          output += seg.content[charIndex];
+          charIndex++;
+          element.innerHTML = output + '<span class="typewriter-cursor"></span>';
+          narratorBox.scrollTop = narratorBox.scrollHeight;
+          setTimeout(tick, speed);
+        } else {
+          charIndex = 0;
+          segIndex++;
+          tick();
+        }
+      }
+
+      tick();
+    });
+  }
+
+  // === Display Scene ===
+  async function displayScene(scene) {
+    if (!scene) return;
+
+    setTheme(scene.theme);
+
+    // Build HTML
+    let html = '';
+
+    if (scene.speaker) {
+      html += `<span class="speaker-name">${scene.speaker}</span>`;
+    }
+    if (scene.dialogue) {
+      html += `<p class="dialogue">${scene.dialogue}</p>`;
+    }
+    if (scene.text) {
+      html += scene.text.split('\n\n').map(p => `<p>${p}</p>`).join('');
+    }
+    if (scene.speaker2) {
+      html += `<span class="speaker-name">${scene.speaker2}</span>`;
+    }
+    if (scene.dialogue2) {
+      html += `<p class="dialogue">${scene.dialogue2}</p>`;
+    }
+    if (scene.text2) {
+      html += scene.text2.split('\n\n').map(p => `<p>${p}</p>`).join('');
+    }
+    if (scene.speaker3) {
+      html += `<span class="speaker-name">${scene.speaker3}</span>`;
+    }
+    if (scene.dialogue3) {
+      html += `<p class="dialogue">${scene.dialogue3}</p>`;
+    }
+
+    narratorText.innerHTML = '';
+    storyArea.style.display = 'flex';
+    storyArea.classList.remove('fade-in');
+    void storyArea.offsetWidth;
+    storyArea.classList.add('fade-in');
+
+    await typewrite(narratorText, html);
+
+    // Show choices or continue prompt
+    if (scene.choices) {
+      showChoices(scene.choices);
+    } else {
+      showContinue();
+    }
+  }
+
+  function showChoices(choices) {
+    choicesArea.innerHTML = '';
+    choicesArea.style.display = 'flex';
+    choicesArea.classList.remove('fade-in');
+    void choicesArea.offsetWidth;
+    choicesArea.classList.add('fade-in');
+
+    choices.forEach((choice, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = choice.text;
+      btn.style.animationDelay = `${i * 0.15}s`;
+      btn.addEventListener('click', () => handleChoice(choice));
+      choicesArea.appendChild(btn);
+    });
+  }
+
+  function showContinue() {
+    continuePrompt.style.display = 'block';
+    continuePrompt.classList.remove('fade-in');
+    void continuePrompt.offsetWidth;
+    continuePrompt.classList.add('fade-in');
+  }
+
+  function hideContinue() {
+    continuePrompt.style.display = 'none';
+  }
+
+  function hideChoices() {
+    choicesArea.style.display = 'none';
+    choicesArea.innerHTML = '';
+  }
+
+  // === Choice Handling ===
+  function handleChoice(choice) {
+    score += choice.score || 0;
+    updateScore();
+    hideChoices();
+
+    // Find the target scene by id
+    const targetScene = getSceneById(currentChapter, choice.next);
+    if (targetScene) {
+      displayScene(targetScene).then(() => {
+        // After showing the choice result, we need to continue to the next main scene
+        // The choice-target scenes don't have their own choices usually
+      });
+
+      // Store that we need to advance past the choice branch after
+      pendingAdvanceFromChoice = true;
+    }
+  }
+
+  let pendingAdvanceFromChoice = false;
+
+  // === Navigation ===
+  function advanceScene() {
+    if (isTyping) {
+      skipTyping = true;
+      return;
+    }
+
+    hideContinue();
+    hideChoices();
+    scenesVisited++;
+    updateProgress();
+
+    if (pendingAdvanceFromChoice) {
+      pendingAdvanceFromChoice = false;
+      // Find the next main scene after current
+      const nextIdx = getNextMainScene(currentChapter, currentScene);
+      if (nextIdx !== -1) {
+        currentScene = nextIdx;
+        displayScene(getScene(currentChapter, currentScene));
+      } else {
+        // Next chapter
+        nextChapter();
+      }
+      return;
+    }
+
+    // Normal advance
+    const nextIdx = getNextMainScene(currentChapter, currentScene);
+    if (nextIdx !== -1) {
+      currentScene = nextIdx;
+      displayScene(getScene(currentChapter, currentScene));
+    } else {
+      nextChapter();
+    }
+  }
+
+  function nextChapter() {
+    currentChapter++;
+    if (currentChapter >= STORY.length) {
+      showEnding();
+      return;
+    }
+    currentScene = -1; // Will be advanced to 0
+    showChapterIntro(STORY[currentChapter].chapter, STORY[currentChapter].title, () => {
+      const firstIdx = getNextMainScene(currentChapter, -1);
+      currentScene = firstIdx;
+      chapterIndicator.textContent = `Kapitel ${STORY[currentChapter].chapter}`;
+      displayScene(getScene(currentChapter, currentScene));
+    });
+  }
+
+  // === Chapter Intro ===
+  function showChapterIntro(num, title, callback) {
+    storyArea.style.display = 'none';
+    hideContinue();
+    hideChoices();
+
+    chNum.textContent = `Kapitel ${num}`;
+    chTitle.textContent = title;
+    chapterIntro.style.display = 'flex';
+
+    setTimeout(() => { chapterIntro.style.opacity = '1'; }, 50);
+
+    setTimeout(() => {
+      chapterIntro.style.opacity = '0';
+      setTimeout(() => {
+        chapterIntro.style.display = 'none';
+        callback();
+      }, 1000);
+    }, 2500);
+  }
+
+  // === Progress & Score ===
+  function updateProgress() {
+    const pct = Math.min((scenesVisited / totalScenes) * 100, 100);
+    progressFill.style.width = pct + '%';
+  }
+
+  function updateScore() {
+    scoreDisplay.textContent = `Mod: ${score}`;
+  }
+
+  // === Ending ===
+  function showEnding() {
+    storyArea.style.display = 'none';
+    hideContinue();
+    hideChoices();
+    chapterIndicator.style.display = 'none';
+    scoreDisplay.style.display = 'none';
+    progressFill.style.width = '100%';
+
+    setTheme('dawn');
+
+    let title, summary;
+    if (score >= 80) {
+      title = 'En sann hjälte';
+      summary = 'Dina modiga val ledde Svarta Rosorna genom faran. Du visade att även i historiens mörkaste stunder kan vanliga människor göra extraordinära saker. Svarta Rosen lever, och kampen fortsätter.';
+    } else if (score >= 50) {
+      title = 'Modig vän';
+      summary = 'Du valde oftast modets väg och hjälpte dina vänner genom uppdraget. Trots svåra stunder stod ni enade — och det räddade er alla.';
+    } else {
+      title = 'Överlevare';
+      summary = 'Du tog de försiktiga valen, men du tog dig igenom. Ibland är det modigaste man kan göra att överleva och berätta sin historia vidare.';
+    }
+
+    endTitle.textContent = title;
+    endSummary.textContent = summary;
+    endScore.textContent = `Mod-poäng: ${score}`;
+    endScreen.style.display = 'flex';
+    endScreen.classList.add('fade-in');
+
+    // Post score to parent
+    if (score > 0 && window.parent !== window) {
+      window.parent.postMessage({ type: 'game-score', score: score }, '*');
+    }
+  }
+
+  // === Input ===
+  function handleInput(e) {
+    if (e.type === 'touchstart') e.preventDefault();
+
+    if (titleScreen.style.display !== 'none') return;
+    if (endScreen.style.display === 'flex') return;
+    if (choicesArea.style.display === 'flex' && choicesArea.children.length > 0) {
+      if (isTyping) { skipTyping = true; }
+      return;
+    }
+
+    advanceScene();
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'Enter') {
+      e.preventDefault();
+      handleInput(e);
+    }
+  });
+
+  continuePrompt.addEventListener('click', handleInput);
+  continuePrompt.addEventListener('touchstart', handleInput, { passive: false });
+
+  // Also allow clicking narrator box to advance
+  narratorBox.addEventListener('click', handleInput);
+
+  // === Start Game ===
+  document.getElementById('start-btn').addEventListener('click', startGame);
+
+  function startGame() {
+    titleScreen.style.display = 'none';
+    chapterIndicator.style.display = 'block';
+    scoreDisplay.style.display = 'block';
+    updateScore();
+
+    currentChapter = 0;
+    currentScene = -1;
+    score = 0;
+    scenesVisited = 0;
+    pendingAdvanceFromChoice = false;
+
+    showChapterIntro(STORY[0].chapter, STORY[0].title, () => {
+      const firstIdx = getNextMainScene(0, -1);
+      currentScene = firstIdx;
+      chapterIndicator.textContent = `Kapitel ${STORY[0].chapter}`;
+      displayScene(getScene(0, currentScene));
+    });
+  }
+
+  // === Replay ===
+  document.getElementById('replay-btn').addEventListener('click', () => {
+    endScreen.style.display = 'none';
+    endScreen.classList.remove('fade-in');
+    storyArea.style.display = 'none';
+    titleScreen.style.display = 'flex';
+    setTheme('village');
+    progressFill.style.width = '0%';
+  });
+
+  // === Init ===
+  setTheme('village');
+})();
+</script>
+</body>
+</html>
