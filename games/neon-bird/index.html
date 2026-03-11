@@ -101,14 +101,32 @@
     'corny-havre':    { primary: '#D2B48C', secondary: '#6B3410', trail: '#C4A265', glow: '#D2B48C' }
   };
 
-  // Corny image
-  const cornyImg = new Image();
-  let cornyImgLoaded = false;
-  const cornyPaths = ['../../images/corny.jpg', '/images/corny.jpg', '../images/corny.jpg', 'images/corny.jpg'];
-  let cornyPathIdx = 0;
-  cornyImg.onload = () => { cornyImgLoaded = true; };
-  cornyImg.onerror = () => { cornyPathIdx++; if (cornyPathIdx < cornyPaths.length) cornyImg.src = cornyPaths[cornyPathIdx]; };
-  cornyImg.src = cornyPaths[0];
+  // Corny images
+  const cornyImages = {};
+  function loadCornyImg(id, filename) {
+    const img = new Image();
+    img._loaded = false;
+    const paths = ['../../images/' + filename, '/images/' + filename];
+    let idx = 0;
+    img.onload = () => { img._loaded = true; };
+    img.onerror = () => { idx++; if (idx < paths.length) img.src = paths[idx]; };
+    img.src = paths[0];
+    cornyImages[id] = img;
+  }
+  loadCornyImg('corny', 'corny.jpg');
+  loadCornyImg('corny-choklad', 'corny-choklad.png');
+  loadCornyImg('corny-mork', 'corny-mork.png');
+  loadCornyImg('corny-vit', 'corny-vit.png');
+  loadCornyImg('corny-kokos', 'corny-kokos.png');
+  loadCornyImg('corny-banan', 'corny-banan.png');
+  loadCornyImg('corny-jordnot', 'corny-jordnot.png');
+  loadCornyImg('corny-jordgubb', 'corny-jordgubb.png');
+  loadCornyImg('corny-brownie', 'corny-brownie.png');
+  loadCornyImg('corny-cookies', 'corny-cookies.png');
+  loadCornyImg('corny-karamell', 'corny-karamell.png');
+  loadCornyImg('corny-protein', 'corny-protein.png');
+  loadCornyImg('corny-havre', 'corny-havre.png');
+  let cornyImgLoaded = false; // compat
 
   let skinPrimary = NEON_BLUE;
   let skinSecondary = '#ffffff';
@@ -636,37 +654,22 @@
     ctx.translate(bird.x, bird.y);
 
     const r = BIRD_RADIUS;
-    const isCornyOrig = _equippedSkinId === 'corny' && cornyImgLoaded;
-    const isCornyFlavor = _equippedSkinId.startsWith('corny-');
+    const cornyImage = cornyImages[_equippedSkinId];
+    const isCorny = cornyImage && cornyImage._loaded;
 
-    if (isCornyOrig || isCornyFlavor) {
+    if (isCorny) {
       bird.rotation = Math.max(-10, Math.min(15, bird.vy * 1.5));
     } else {
       bird.rotation = Math.max(-30, Math.min(70, bird.vy * 4));
     }
     ctx.rotate(bird.rotation * Math.PI / 180);
 
-    if (isCornyOrig) {
-      // Draw Corny image as the bird
+    if (isCorny) {
       const imgH = r * 2;
       const imgW = imgH * 3.4;
-      ctx.shadowColor = '#D4A574';
-      ctx.shadowBlur = 15;
-      ctx.drawImage(cornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
-      ctx.shadowBlur = 0;
-    } else if (isCornyFlavor) {
-      // Draw Corny bar with flavor colors
-      const bw = r * 3;
-      const bh = r * 1.4;
       ctx.shadowColor = skinGlow;
       ctx.shadowBlur = 15;
-      ctx.fillStyle = skinPrimary;
-      ctx.beginPath(); ctx.roundRect(-bw / 2, -bh / 2, bw, bh, 4); ctx.fill();
-      ctx.fillStyle = skinSecondary;
-      ctx.beginPath(); ctx.roundRect(-bw / 2 + 3, -bh / 6, bw - 6, bh / 3, 2); ctx.fill();
-      ctx.strokeStyle = hexToRgba(skinGlow, 0.6);
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.roundRect(-bw / 2, -bh / 2, bw, bh, 4); ctx.stroke();
+      ctx.drawImage(cornyImage, -imgW / 2, -imgH / 2, imgW, imgH);
       ctx.shadowBlur = 0;
     } else {
       // Body
@@ -730,28 +733,15 @@
     // Glow
     drawGlow(0, 0, r * 3, skinGlow, 0.25);
 
-    const isCornyOrig = _equippedSkinId === 'corny' && cornyImgLoaded;
-    const isCornyFlavor = _equippedSkinId.startsWith('corny-');
+    const menuCornyImg = cornyImages[_equippedSkinId];
+    const isCornyMenu = menuCornyImg && menuCornyImg._loaded;
 
-    if (isCornyOrig) {
+    if (isCornyMenu) {
       const imgH = r * 2;
       const imgW = imgH * 3.4;
-      ctx.shadowColor = '#D4A574';
-      ctx.shadowBlur = 20;
-      ctx.drawImage(cornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
-      ctx.shadowBlur = 0;
-    } else if (isCornyFlavor) {
-      const bw = r * 3;
-      const bh = r * 1.4;
       ctx.shadowColor = skinGlow;
       ctx.shadowBlur = 20;
-      ctx.fillStyle = skinPrimary;
-      ctx.beginPath(); ctx.roundRect(-bw / 2, -bh / 2, bw, bh, 5); ctx.fill();
-      ctx.fillStyle = skinSecondary;
-      ctx.beginPath(); ctx.roundRect(-bw / 2 + 4, -bh / 6, bw - 8, bh / 3, 3); ctx.fill();
-      ctx.strokeStyle = hexToRgba(skinGlow, 0.6);
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.roundRect(-bw / 2, -bh / 2, bw, bh, 5); ctx.stroke();
+      ctx.drawImage(menuCornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
       ctx.shadowBlur = 0;
     } else {
     // Body

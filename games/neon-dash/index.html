@@ -74,18 +74,35 @@
     'corny-havre':    { primary: '#D2B48C', secondary: '#6B3410', trail: '#C4A265', glow: '#D2B48C', glowStyle: 'normal' },
   };
 
-  // --- Corny Image ---
-  const cornyImg = new Image();
+  // --- Corny Images ---
+  const cornyImages = {};
+  function loadCornyImg(id, filename) {
+    const img = new Image();
+    img._loaded = false;
+    const paths = ['../../images/' + filename, '/images/' + filename];
+    let idx = 0;
+    img.onload = () => { img._loaded = true; };
+    img.onerror = () => { idx++; if (idx < paths.length) img.src = paths[idx]; };
+    img.src = paths[0];
+    cornyImages[id] = img;
+  }
+  loadCornyImg('corny', 'corny.jpg');
+  loadCornyImg('corny-choklad', 'corny-choklad.png');
+  loadCornyImg('corny-mork', 'corny-mork.png');
+  loadCornyImg('corny-vit', 'corny-vit.png');
+  loadCornyImg('corny-kokos', 'corny-kokos.png');
+  loadCornyImg('corny-banan', 'corny-banan.png');
+  loadCornyImg('corny-jordnot', 'corny-jordnot.png');
+  loadCornyImg('corny-jordgubb', 'corny-jordgubb.png');
+  loadCornyImg('corny-brownie', 'corny-brownie.png');
+  loadCornyImg('corny-cookies', 'corny-cookies.png');
+  loadCornyImg('corny-karamell', 'corny-karamell.png');
+  loadCornyImg('corny-protein', 'corny-protein.png');
+  loadCornyImg('corny-havre', 'corny-havre.png');
+  // Compat alias
+  const cornyImg = { get _loaded() { return cornyImages['corny'] && cornyImages['corny']._loaded; } };
+  Object.defineProperty(cornyImg, 'src', { set(v) { cornyImages['corny'].src = v; } });
   let cornyImgLoaded = false;
-  cornyImg.onload = () => { cornyImgLoaded = true; };
-  cornyImg.onerror = () => {
-    // Retry with absolute path
-    if (!cornyImg._retried) {
-      cornyImg._retried = true;
-      cornyImg.src = '/images/corny.jpg';
-    }
-  };
-  cornyImg.src = '../../images/corny.jpg';
 
   let skinPrimary = NEON_BLUE;
   let skinSecondary = '#ffffff';
@@ -872,38 +889,15 @@
 
     const s = player.size;
     const skinId = getEquippedSkinId();
-    const isCornyOriginal = skinId === 'corny' && cornyImgLoaded;
-    const isCornyFlavor = skinId.startsWith('corny-');
+    const cornyImage = cornyImages[skinId];
+    const isCorny = cornyImage && cornyImage._loaded;
 
-    if (isCornyOriginal) {
+    if (isCorny) {
       ctx.shadowColor = skinGlow;
       ctx.shadowBlur = 15;
       const imgH = s * 2;
       const imgW = imgH * 3.4;
-      ctx.drawImage(cornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
-      ctx.shadowBlur = 0;
-    } else if (isCornyFlavor) {
-      // Draw a Corny bar shape with flavor colors
-      ctx.shadowColor = skinGlow;
-      ctx.shadowBlur = 15;
-      const bw = s * 3;
-      const bh = s * 1.4;
-      // Wrapper
-      ctx.fillStyle = skinPrimary;
-      ctx.beginPath();
-      ctx.roundRect(-bw / 2, -bh / 2, bw, bh, 4);
-      ctx.fill();
-      // Inner stripe
-      ctx.fillStyle = skinSecondary;
-      ctx.beginPath();
-      ctx.roundRect(-bw / 2 + 3, -bh / 6, bw - 6, bh / 3, 2);
-      ctx.fill();
-      // Outline glow
-      ctx.strokeStyle = hexToRgba(skinGlow, 0.6);
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(-bw / 2, -bh / 2, bw, bh, 4);
-      ctx.stroke();
+      ctx.drawImage(cornyImage, -imgW / 2, -imgH / 2, imgW, imgH);
       ctx.shadowBlur = 0;
     } else {
       ctx.shadowColor = skinGlow;
@@ -1070,27 +1064,19 @@
   // --- Chevron icon for menus ---
   function drawChevronIcon(cx, cy, scale) {
     const skinId = getEquippedSkinId();
-    const isCornyOrig = skinId === 'corny' && cornyImgLoaded;
-    const isCornyFlavor = skinId.startsWith('corny-');
+    const cornyImage = cornyImages[skinId];
+    const isCorny = cornyImage && cornyImage._loaded;
     ctx.save();
     ctx.translate(cx, cy);
     const sc = scale * (1 + 0.08 * Math.sin(menuPulse * 1.5));
     ctx.scale(sc, sc);
 
-    if (isCornyOrig) {
+    if (isCorny) {
       ctx.shadowColor = skinGlow;
       ctx.shadowBlur = 15;
       const imgH = 20;
       const imgW = imgH * 3.4;
-      ctx.drawImage(cornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
-      ctx.shadowBlur = 0;
-    } else if (isCornyFlavor) {
-      ctx.shadowColor = skinGlow;
-      ctx.shadowBlur = 15;
-      ctx.fillStyle = skinPrimary;
-      ctx.beginPath(); ctx.roundRect(-28, -9, 56, 18, 3); ctx.fill();
-      ctx.fillStyle = skinSecondary;
-      ctx.beginPath(); ctx.roundRect(-24, -3, 48, 6, 2); ctx.fill();
+      ctx.drawImage(cornyImage, -imgW / 2, -imgH / 2, imgW, imgH);
       ctx.shadowBlur = 0;
     } else {
       ctx.shadowColor = skinGlow;
