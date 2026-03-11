@@ -47,6 +47,18 @@ const ARROW_SKINS = [
   { id: 'void', name: 'Void', price: 300, primary: '#1a0033', secondary: '#6600cc', trail: '#3300aa', glow: '#6600cc', glowStyle: 'reverse' },
   { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', trail: 'rainbow', glow: 'rainbow', glowStyle: 'rainbow' },
   { id: 'corny', name: 'Corny Caramel', price: 0, primary: '#D4A574', secondary: '#FFF5E1', trail: '#B8860B', glow: '#D4A574', glowStyle: 'normal', exclusive: true },
+  { id: 'corny-choklad', name: 'Corny Choklad', price: 50, primary: '#6B3410', secondary: '#D4A574', trail: '#8B4513', glow: '#A0522D', glowStyle: 'normal', corny: true },
+  { id: 'corny-mork', name: 'Corny Mörk Choklad', price: 50, primary: '#3D1C00', secondary: '#8B6914', trail: '#5C2E00', glow: '#5C2E00', glowStyle: 'normal', corny: true },
+  { id: 'corny-vit', name: 'Corny Vit Choklad', price: 50, primary: '#FFF8DC', secondary: '#FFD700', trail: '#FAEBD7', glow: '#FFD700', glowStyle: 'normal', corny: true },
+  { id: 'corny-kokos', name: 'Corny Kokos', price: 50, primary: '#F5F5DC', secondary: '#8B7355', trail: '#FFDEAD', glow: '#DEB887', glowStyle: 'normal', corny: true },
+  { id: 'corny-banan', name: 'Corny Banan', price: 75, primary: '#FFD700', secondary: '#8B6914', trail: '#FFA500', glow: '#FFD700', glowStyle: 'normal', corny: true },
+  { id: 'corny-jordnot', name: 'Corny Jordnöt', price: 75, primary: '#C4A265', secondary: '#8B6914', trail: '#B8860B', glow: '#DAA520', glowStyle: 'normal', corny: true },
+  { id: 'corny-jordgubb', name: 'Corny Jordgubb', price: 75, primary: '#FF69B4', secondary: '#FFF0F5', trail: '#FF1493', glow: '#FF69B4', glowStyle: 'normal', corny: true },
+  { id: 'corny-brownie', name: 'Corny Brownie', price: 100, primary: '#4A2000', secondary: '#A0522D', trail: '#7B3F00', glow: '#8B4513', glowStyle: 'normal', corny: true },
+  { id: 'corny-cookies', name: 'Corny Cookies & Cream', price: 100, primary: '#1A1A1A', secondary: '#F5F5F5', trail: '#333333', glow: '#666666', glowStyle: 'normal', corny: true },
+  { id: 'corny-karamell', name: 'Corny Salted Caramel', price: 100, primary: '#DAA520', secondary: '#FFE4B5', trail: '#D4A574', glow: '#DAA520', glowStyle: 'normal', corny: true },
+  { id: 'corny-protein', name: 'Corny Protein', price: 150, primary: '#4A0000', secondary: '#CD853F', trail: '#8B0000', glow: '#8B0000', glowStyle: 'pulse', corny: true },
+  { id: 'corny-havre', name: 'Corny Havre', price: 75, primary: '#D2B48C', secondary: '#6B3410', trail: '#C4A265', glow: '#D2B48C', glowStyle: 'normal', corny: true },
 ];
 
 const BIRD_SKINS = [
@@ -61,6 +73,18 @@ const BIRD_SKINS = [
   { id: 'void', name: 'Void', price: 300, primary: '#6600cc', secondary: '#bb88ff', glow: '#6600cc' },
   { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', glow: 'rainbow' },
   { id: 'corny', name: 'Corny Caramel', price: 0, primary: '#D4A574', secondary: '#FFF5E1', glow: '#D4A574', exclusive: true },
+  { id: 'corny-choklad', name: 'Corny Choklad', price: 50, primary: '#6B3410', secondary: '#D4A574', glow: '#A0522D', corny: true },
+  { id: 'corny-mork', name: 'Corny Mörk Choklad', price: 50, primary: '#3D1C00', secondary: '#8B6914', glow: '#5C2E00', corny: true },
+  { id: 'corny-vit', name: 'Corny Vit Choklad', price: 50, primary: '#FFF8DC', secondary: '#FFD700', glow: '#FFD700', corny: true },
+  { id: 'corny-kokos', name: 'Corny Kokos', price: 50, primary: '#F5F5DC', secondary: '#8B7355', glow: '#DEB887', corny: true },
+  { id: 'corny-banan', name: 'Corny Banan', price: 75, primary: '#FFD700', secondary: '#8B6914', glow: '#FFD700', corny: true },
+  { id: 'corny-jordnot', name: 'Corny Jordnöt', price: 75, primary: '#C4A265', secondary: '#8B6914', glow: '#DAA520', corny: true },
+  { id: 'corny-jordgubb', name: 'Corny Jordgubb', price: 75, primary: '#FF69B4', secondary: '#FFF0F5', glow: '#FF69B4', corny: true },
+  { id: 'corny-brownie', name: 'Corny Brownie', price: 100, primary: '#4A2000', secondary: '#A0522D', glow: '#8B4513', corny: true },
+  { id: 'corny-cookies', name: 'Corny Cookies & Cream', price: 100, primary: '#1A1A1A', secondary: '#F5F5F5', glow: '#666666', corny: true },
+  { id: 'corny-karamell', name: 'Corny Salted Caramel', price: 100, primary: '#DAA520', secondary: '#FFE4B5', glow: '#DAA520', corny: true },
+  { id: 'corny-protein', name: 'Corny Protein', price: 150, primary: '#4A0000', secondary: '#CD853F', glow: '#8B0000', corny: true },
+  { id: 'corny-havre', name: 'Corny Havre', price: 75, primary: '#D2B48C', secondary: '#6B3410', glow: '#D2B48C', corny: true },
 ];
 
 const EMOJI_PACK_PRICE = 100;
@@ -977,9 +1001,9 @@ function renderShop(user) {
   });
   html += '</div>';
 
-  // Arrow Skins
+  // Arrow Skins (non-corny)
   html += '<h3 class="shop-category-title">🏹 Arrow Skins <span style="color:var(--text-muted);font-size:14px;">(Neon Dash)</span></h3><div class="shop-items">';
-  ARROW_SKINS.filter(s => s.price > 0 && !s.exclusive).forEach(skin => {
+  ARROW_SKINS.filter(s => s.price > 0 && !s.exclusive && !s.corny).forEach(skin => {
     const owned = (u.unlockedSkins || []).includes(skin.id);
     const equipped = u.arrowSkin === skin.id;
     const fillColor = skin.primary === 'rainbow' ? '#a855f7' : skin.primary;
@@ -1002,9 +1026,32 @@ function renderShop(user) {
   });
   html += '</div>';
 
-  // Bird Skins (Neon Bird)
+  // Corny Collection
+  html += '<h3 class="shop-category-title">🍫 Corny Collection <span style="color:var(--text-muted);font-size:14px;">(Neon Dash & Neon Bird)</span></h3><div class="shop-items">';
+  ARROW_SKINS.filter(s => s.corny).forEach(skin => {
+    const owned = (u.unlockedSkins || []).includes(skin.id);
+    const equipped = u.arrowSkin === skin.id;
+    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
+      <div class="skin-preview">
+        <svg viewBox="0 0 48 28" width="56" height="32" style="filter:drop-shadow(0 0 6px ${skin.glow});">
+          <rect x="2" y="2" width="44" height="24" rx="4" fill="${skin.primary}"/>
+          <rect x="6" y="9" width="36" height="10" rx="2" fill="${skin.secondary}"/>
+        </svg>
+      </div>
+      <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}</span>
+      ${owned
+        ? (equipped
+          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-skin">Utrustad ✓</button>'
+          : `<button class="shop-btn shop-btn-equip" data-action="equip-skin" data-id="${skin.id}">Använd</button>`)
+        : `<button class="shop-btn shop-btn-buy" data-action="buy-skin" data-id="${skin.id}" data-price="${skin.price}">🪙 ${skin.price}</button>`
+      }
+    </div>`;
+  });
+  html += '</div>';
+
+  // Bird Skins (Neon Bird, non-corny)
   html += '<h3 class="shop-category-title">🐦 Bird Skins <span style="color:var(--text-muted);font-size:14px;">(Neon Bird)</span></h3><div class="shop-items">';
-  BIRD_SKINS.filter(s => s.price > 0).forEach(skin => {
+  BIRD_SKINS.filter(s => s.price > 0 && !s.corny).forEach(skin => {
     const owned = (u.unlockedBirdSkins || []).includes(skin.id);
     const equipped = u.birdSkin === skin.id;
     const fillColor = skin.primary === 'rainbow' ? '#a855f7' : skin.primary;
@@ -1148,7 +1195,13 @@ function renderShop(user) {
         }
         if (action === 'buy-skin') {
           const skins = [...(currentUserData.unlockedSkins || []), id];
-          await updateUser({ unlockedSkins: skins, arrowSkin: id });
+          // Corny skins unlock for both Neon Dash and Neon Bird
+          if (id && id.startsWith('corny-')) {
+            const birdSkins = [...(currentUserData.unlockedBirdSkins || []), id];
+            await updateUser({ unlockedSkins: skins, arrowSkin: id, unlockedBirdSkins: birdSkins });
+          } else {
+            await updateUser({ unlockedSkins: skins, arrowSkin: id });
+          }
         }
         if (action === 'buy-bird-skin') {
           const skins = [...(currentUserData.unlockedBirdSkins || []), id];
