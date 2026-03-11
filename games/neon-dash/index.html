@@ -59,7 +59,6 @@
     inferno:  { primary: '#ff4400', secondary: '#ff8800', trail: '#ff2200', glow: '#ff4400', glowStyle: 'flicker' },
     void:     { primary: '#1a0033', secondary: '#6600cc', trail: '#3300aa', glow: '#6600cc', glowStyle: 'reverse' },
     rainbow:  { primary: 'rainbow', secondary: '#ffffff', trail: 'rainbow', glow: 'rainbow', glowStyle: 'rainbow' },
-    corny:            { primary: '#D4A574', secondary: '#FFF5E1', trail: '#B8860B', glow: '#D4A574', glowStyle: 'normal' },
     'corny-choklad':  { primary: '#6B3410', secondary: '#D4A574', trail: '#8B4513', glow: '#A0522D', glowStyle: 'normal' },
     'corny-mork':     { primary: '#3D1C00', secondary: '#8B6914', trail: '#5C2E00', glow: '#5C2E00', glowStyle: 'normal' },
     'corny-vit':      { primary: '#FFF8DC', secondary: '#FFD700', trail: '#FAEBD7', glow: '#FFD700', glowStyle: 'normal' },
@@ -68,10 +67,7 @@
     'corny-jordnot':  { primary: '#C4A265', secondary: '#8B6914', trail: '#B8860B', glow: '#DAA520', glowStyle: 'normal' },
     'corny-jordgubb': { primary: '#FF69B4', secondary: '#FFF0F5', trail: '#FF1493', glow: '#FF69B4', glowStyle: 'normal' },
     'corny-brownie':  { primary: '#4A2000', secondary: '#A0522D', trail: '#7B3F00', glow: '#8B4513', glowStyle: 'normal' },
-    'corny-cookies':  { primary: '#1A1A1A', secondary: '#F5F5F5', trail: '#333333', glow: '#666666', glowStyle: 'normal' },
     'corny-karamell': { primary: '#DAA520', secondary: '#FFE4B5', trail: '#D4A574', glow: '#DAA520', glowStyle: 'normal' },
-    'corny-protein':  { primary: '#4A0000', secondary: '#CD853F', trail: '#8B0000', glow: '#8B0000', glowStyle: 'pulse' },
-    'corny-havre':    { primary: '#D2B48C', secondary: '#6B3410', trail: '#C4A265', glow: '#D2B48C', glowStyle: 'normal' },
   };
 
   // --- Corny Images ---
@@ -86,7 +82,6 @@
     img.src = paths[0];
     cornyImages[id] = img;
   }
-  loadCornyImg('corny', 'corny.jpg');
   loadCornyImg('corny-choklad', 'corny-choklad.png');
   loadCornyImg('corny-mork', 'corny-mork.png');
   loadCornyImg('corny-vit', 'corny-vit.png');
@@ -95,14 +90,7 @@
   loadCornyImg('corny-jordnot', 'corny-jordnot.png');
   loadCornyImg('corny-jordgubb', 'corny-jordgubb.png');
   loadCornyImg('corny-brownie', 'corny-brownie.png');
-  loadCornyImg('corny-cookies', 'corny-cookies.png');
   loadCornyImg('corny-karamell', 'corny-karamell.png');
-  loadCornyImg('corny-protein', 'corny-protein.png');
-  loadCornyImg('corny-havre', 'corny-havre.png');
-  // Compat alias
-  const cornyImg = { get _loaded() { return cornyImages['corny'] && cornyImages['corny']._loaded; } };
-  Object.defineProperty(cornyImg, 'src', { set(v) { cornyImages['corny'].src = v; } });
-  let cornyImgLoaded = false;
 
   let skinPrimary = NEON_BLUE;
   let skinSecondary = '#ffffff';

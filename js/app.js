@@ -46,7 +46,6 @@ const ARROW_SKINS = [
   { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', trail: '#ff2200', glow: '#ff4400', glowStyle: 'flicker' },
   { id: 'void', name: 'Void', price: 300, primary: '#1a0033', secondary: '#6600cc', trail: '#3300aa', glow: '#6600cc', glowStyle: 'reverse' },
   { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', trail: 'rainbow', glow: 'rainbow', glowStyle: 'rainbow' },
-  { id: 'corny', name: 'Corny Caramel', price: 0, primary: '#D4A574', secondary: '#FFF5E1', trail: '#B8860B', glow: '#D4A574', glowStyle: 'normal', exclusive: true },
   { id: 'corny-choklad', name: 'Corny Choklad', price: 0, primary: '#6B3410', secondary: '#D4A574', trail: '#8B4513', glow: '#A0522D', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-choklad.png' },
   { id: 'corny-mork', name: 'Corny Mörk Choklad', price: 0, primary: '#3D1C00', secondary: '#8B6914', trail: '#5C2E00', glow: '#5C2E00', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-mork.png' },
   { id: 'corny-vit', name: 'Corny Vit Choklad', price: 0, primary: '#FFF8DC', secondary: '#FFD700', trail: '#FAEBD7', glow: '#FFD700', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-vit.png' },
@@ -55,10 +54,7 @@ const ARROW_SKINS = [
   { id: 'corny-jordnot', name: 'Corny Jordnöt', price: 0, primary: '#C4A265', secondary: '#8B6914', trail: '#B8860B', glow: '#DAA520', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-jordnot.png' },
   { id: 'corny-jordgubb', name: 'Corny Jordgubb', price: 0, primary: '#FF69B4', secondary: '#FFF0F5', trail: '#FF1493', glow: '#FF69B4', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-jordgubb.png' },
   { id: 'corny-brownie', name: 'Corny Brownie', price: 0, primary: '#4A2000', secondary: '#A0522D', trail: '#7B3F00', glow: '#8B4513', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-brownie.png' },
-  { id: 'corny-cookies', name: 'Corny Cookies & Cream', price: 0, primary: '#1A1A1A', secondary: '#F5F5F5', trail: '#333333', glow: '#666666', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-cookies.png' },
   { id: 'corny-karamell', name: 'Corny Salted Caramel', price: 0, primary: '#DAA520', secondary: '#FFE4B5', trail: '#D4A574', glow: '#DAA520', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-karamell.png' },
-  { id: 'corny-protein', name: 'Corny Protein', price: 0, primary: '#4A0000', secondary: '#CD853F', trail: '#8B0000', glow: '#8B0000', glowStyle: 'pulse', corny: true, exclusive: true, img: 'images/corny-protein.png' },
-  { id: 'corny-havre', name: 'Corny Havre', price: 0, primary: '#D2B48C', secondary: '#6B3410', trail: '#C4A265', glow: '#D2B48C', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-havre.png' },
 ];
 
 const BIRD_SKINS = [
@@ -72,7 +68,6 @@ const BIRD_SKINS = [
   { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', glow: '#ff4400' },
   { id: 'void', name: 'Void', price: 300, primary: '#6600cc', secondary: '#bb88ff', glow: '#6600cc' },
   { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', glow: 'rainbow' },
-  { id: 'corny', name: 'Corny Caramel', price: 0, primary: '#D4A574', secondary: '#FFF5E1', glow: '#D4A574', exclusive: true },
   { id: 'corny-choklad', name: 'Corny Choklad', price: 0, primary: '#6B3410', secondary: '#D4A574', glow: '#A0522D', corny: true, exclusive: true },
   { id: 'corny-mork', name: 'Corny Mörk Choklad', price: 0, primary: '#3D1C00', secondary: '#8B6914', glow: '#5C2E00', corny: true, exclusive: true },
   { id: 'corny-vit', name: 'Corny Vit Choklad', price: 0, primary: '#FFF8DC', secondary: '#FFD700', glow: '#FFD700', corny: true, exclusive: true },
@@ -81,10 +76,7 @@ const BIRD_SKINS = [
   { id: 'corny-jordnot', name: 'Corny Jordnöt', price: 0, primary: '#C4A265', secondary: '#8B6914', glow: '#DAA520', corny: true, exclusive: true },
   { id: 'corny-jordgubb', name: 'Corny Jordgubb', price: 0, primary: '#FF69B4', secondary: '#FFF0F5', glow: '#FF69B4', corny: true, exclusive: true },
   { id: 'corny-brownie', name: 'Corny Brownie', price: 0, primary: '#4A2000', secondary: '#A0522D', glow: '#8B4513', corny: true, exclusive: true },
-  { id: 'corny-cookies', name: 'Corny Cookies & Cream', price: 0, primary: '#1A1A1A', secondary: '#F5F5F5', glow: '#666666', corny: true, exclusive: true },
   { id: 'corny-karamell', name: 'Corny Salted Caramel', price: 0, primary: '#DAA520', secondary: '#FFE4B5', glow: '#DAA520', corny: true, exclusive: true },
-  { id: 'corny-protein', name: 'Corny Protein', price: 0, primary: '#4A0000', secondary: '#CD853F', glow: '#8B0000', corny: true, exclusive: true },
-  { id: 'corny-havre', name: 'Corny Havre', price: 0, primary: '#D2B48C', secondary: '#6B3410', glow: '#D2B48C', corny: true, exclusive: true },
 ];
 
 const EMOJI_PACK_PRICE = 100;
@@ -1072,20 +1064,25 @@ function renderShop(user) {
   });
   html += '</div>';
 
-  // Exclusive items (owner-granted) — always visible
-  const hasCornyAvatar = (u.unlockedEmojis || []).includes('corny');
-  html += '<h3 class="shop-category-title">⭐ Exclusive</h3><div class="shop-items">';
+  // Exclusive items — tabbed: Avatar, Neon Dash, Neon Bird
+  html += '<h3 class="shop-category-title">⭐ Exclusive</h3>';
+  html += `<div class="exclusive-tabs" style="display:flex;gap:0;margin-bottom:12px;">
+    <button class="exc-tab exc-tab-active" data-exc-tab="avatar" style="flex:1;padding:10px 0;border:1px solid rgba(168,85,247,0.3);background:rgba(168,85,247,0.15);color:#a855f7;font-weight:700;font-size:14px;cursor:pointer;border-radius:10px 0 0 10px;">Avatar</button>
+    <button class="exc-tab" data-exc-tab="dash" style="flex:1;padding:10px 0;border:1px solid rgba(168,85,247,0.15);background:rgba(255,255,255,0.03);color:var(--text-muted);font-weight:700;font-size:14px;cursor:pointer;border-radius:0;">Neon Dash</button>
+    <button class="exc-tab" data-exc-tab="bird" style="flex:1;padding:10px 0;border:1px solid rgba(168,85,247,0.15);background:rgba(255,255,255,0.03);color:var(--text-muted);font-weight:700;font-size:14px;cursor:pointer;border-radius:0 10px 10px 0;">Neon Bird</button>
+  </div>`;
 
-  // Corny Avatar
+  // --- Avatar tab ---
+  const hasCornyAvatar = (u.unlockedEmojis || []).includes('corny');
+  html += '<div class="exc-panel" data-exc-panel="avatar"><div class="shop-items">';
+  // Corny avatar
   if (hasCornyAvatar) {
-    const equippedAvatar = u.avatar === 'corny';
-    html += `<div class="shop-item ${equippedAvatar ? 'equipped' : ''}">
+    const eq = u.avatar === 'corny';
+    html += `<div class="shop-item ${eq ? 'equipped' : ''}">
       <span class="shop-item-preview"><img src="${CORNY_IMAGE_URL}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;"></span>
       <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Avatar</span>
-      ${equippedAvatar
-        ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-corny-avatar">Utrustad ✓</button>'
-        : '<button class="shop-btn shop-btn-equip" data-action="equip-corny-avatar">Använd</button>'
-      }
+      ${eq ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-corny-avatar">Utrustad ✓</button>'
+           : '<button class="shop-btn shop-btn-equip" data-action="equip-corny-avatar">Använd</button>'}
     </div>`;
   } else {
     html += `<div class="shop-item" style="opacity:0.5;">
@@ -1094,36 +1091,78 @@ function renderShop(user) {
       <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
     </div>`;
   }
+  html += '</div></div>';
 
-  // All Corny skins (original + flavors) — exclusive, with real images
-  ARROW_SKINS.filter(s => s.id === 'corny' || s.corny).forEach(skin => {
+  // --- Neon Dash tab ---
+  html += '<div class="exc-panel" data-exc-panel="dash" style="display:none;"><div class="shop-items">';
+  ARROW_SKINS.filter(s => s.corny).forEach(skin => {
     const imgSrc = skin.img || CORNY_IMAGE_URL;
     const owned = (u.unlockedSkins || []).includes(skin.id);
     const equipped = u.arrowSkin === skin.id;
     if (owned) {
       html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
-        <div class="skin-preview">
-          <img src="${imgSrc}" style="width:48px;height:58px;object-fit:contain;filter:drop-shadow(0 0 6px ${skin.glow});">
-        </div>
-        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}<br><span style="font-size:11px;color:var(--text-muted);">Neon Dash & Bird</span></span>
+        <div class="skin-preview"><img src="${imgSrc}" style="width:56px;height:auto;object-fit:contain;filter:drop-shadow(0 0 6px ${skin.glow});"></div>
+        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}</span>
         ${equipped
           ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-skin">Utrustad ✓</button>'
-          : `<button class="shop-btn shop-btn-equip" data-action="equip-skin" data-id="${skin.id}">Använd</button>`
-        }
+          : `<button class="shop-btn shop-btn-equip" data-action="equip-skin" data-id="${skin.id}">Använd</button>`}
       </div>`;
     } else {
       html += `<div class="shop-item" style="opacity:0.5;">
-        <div class="skin-preview">
-          <img src="${imgSrc}" style="width:48px;height:58px;object-fit:contain;filter:grayscale(1) drop-shadow(0 0 6px #888);">
-        </div>
-        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}<br><span style="font-size:11px;color:var(--text-muted);">Neon Dash & Bird</span></span>
+        <div class="skin-preview"><img src="${imgSrc}" style="width:56px;height:auto;object-fit:contain;filter:grayscale(1) drop-shadow(0 0 6px #888);"></div>
+        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}</span>
         <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
       </div>`;
     }
   });
-  html += '</div>';
+  html += '</div></div>';
+
+  // --- Neon Bird tab ---
+  html += '<div class="exc-panel" data-exc-panel="bird" style="display:none;"><div class="shop-items">';
+  BIRD_SKINS.filter(s => s.corny).forEach(skin => {
+    const arrowSkin = ARROW_SKINS.find(a => a.id === skin.id);
+    const imgSrc = (arrowSkin && arrowSkin.img) || CORNY_IMAGE_URL;
+    const owned = (u.unlockedBirdSkins || []).includes(skin.id);
+    const equipped = u.birdSkin === skin.id;
+    if (owned) {
+      html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
+        <div class="skin-preview"><img src="${imgSrc}" style="width:56px;height:auto;object-fit:contain;filter:drop-shadow(0 0 6px ${skin.glow});"></div>
+        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}</span>
+        ${equipped
+          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-bird-skin">Utrustad ✓</button>'
+          : `<button class="shop-btn shop-btn-equip" data-action="equip-bird-skin" data-id="${skin.id}">Använd</button>`}
+      </div>`;
+    } else {
+      html += `<div class="shop-item" style="opacity:0.5;">
+        <div class="skin-preview"><img src="${imgSrc}" style="width:56px;height:auto;object-fit:contain;filter:grayscale(1) drop-shadow(0 0 6px #888);"></div>
+        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}</span>
+        <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
+      </div>`;
+    }
+  });
+  html += '</div></div>';
 
   grid.innerHTML = html;
+
+  // Tab switching for exclusive section
+  grid.querySelectorAll('.exc-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.excTab;
+      grid.querySelectorAll('.exc-tab').forEach(t => {
+        t.classList.remove('exc-tab-active');
+        t.style.background = 'rgba(255,255,255,0.03)';
+        t.style.color = 'var(--text-muted)';
+        t.style.borderColor = 'rgba(168,85,247,0.15)';
+      });
+      tab.classList.add('exc-tab-active');
+      tab.style.background = 'rgba(168,85,247,0.15)';
+      tab.style.color = '#a855f7';
+      tab.style.borderColor = 'rgba(168,85,247,0.3)';
+      grid.querySelectorAll('.exc-panel').forEach(p => {
+        p.style.display = p.dataset.excPanel === target ? '' : 'none';
+      });
+    });
+  });
 
   // Event handlers
   grid.querySelectorAll('[data-action]').forEach(btn => {
