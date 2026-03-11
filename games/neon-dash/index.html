@@ -234,16 +234,56 @@
     const horizDist = x - lastObstacleX;
     const verticalReach = horizDist > 0 ? horizDist * 0.7 : tH;
 
-    const types = ['gap', 'spikes_top', 'spikes_bottom', 'spikes_both', 'pillars'];
     let type;
     const roll = Math.random();
 
-    if (difficulty < 0.2) {
-      type = roll < 0.55 ? 'gap' : (roll < 0.8 ? 'spikes_top' : 'spikes_bottom');
-    } else if (difficulty < 0.5) {
-      type = roll < 0.3 ? 'gap' : (roll < 0.5 ? 'spikes_top' : (roll < 0.7 ? 'spikes_bottom' : (roll < 0.85 ? 'spikes_both' : 'pillars')));
-    } else {
-      type = types[Math.floor(Math.random() * types.length)];
+    // Mode-specific obstacle distribution
+    switch (gameMode) {
+      case MODE.WAVE:
+        // Tight zigzag: lots of gaps and spikes
+        if (difficulty < 0.2) {
+          type = roll < 0.55 ? 'gap' : (roll < 0.8 ? 'spikes_top' : 'spikes_bottom');
+        } else if (difficulty < 0.5) {
+          type = roll < 0.3 ? 'gap' : (roll < 0.5 ? 'spikes_top' : (roll < 0.7 ? 'spikes_bottom' : (roll < 0.85 ? 'spikes_both' : 'pillars')));
+        } else {
+          const wt = ['gap', 'spikes_top', 'spikes_bottom', 'spikes_both', 'pillars'];
+          type = wt[Math.floor(Math.random() * wt.length)];
+        }
+        break;
+      case MODE.SHIP:
+        // Momentum flight: more open gaps, spikes on one side, pillars
+        if (difficulty < 0.3) {
+          type = roll < 0.4 ? 'gap' : (roll < 0.7 ? 'spikes_top' : 'spikes_bottom');
+        } else {
+          type = roll < 0.25 ? 'gap' : (roll < 0.45 ? 'spikes_top' : (roll < 0.65 ? 'spikes_bottom' : (roll < 0.8 ? 'pillars' : 'spikes_both')));
+        }
+        break;
+      case MODE.BALL:
+        // Floor/ceiling based: spikes on surfaces you need to avoid, pillars in middle
+        if (difficulty < 0.3) {
+          type = roll < 0.4 ? 'spikes_top' : (roll < 0.8 ? 'spikes_bottom' : 'pillars');
+        } else {
+          type = roll < 0.3 ? 'spikes_top' : (roll < 0.6 ? 'spikes_bottom' : (roll < 0.85 ? 'pillars' : 'spikes_both'));
+        }
+        break;
+      case MODE.UFO:
+        // Flappy-style: mostly vertical walls with gaps
+        if (difficulty < 0.3) {
+          type = roll < 0.7 ? 'gap' : (roll < 0.85 ? 'spikes_top' : 'spikes_bottom');
+        } else {
+          type = roll < 0.5 ? 'gap' : (roll < 0.65 ? 'spikes_top' : (roll < 0.8 ? 'spikes_bottom' : (roll < 0.9 ? 'pillars' : 'spikes_both')));
+        }
+        break;
+      case MODE.SWING:
+        // Pendulum: wider passages, more pillars to weave around
+        if (difficulty < 0.3) {
+          type = roll < 0.35 ? 'gap' : (roll < 0.65 ? 'pillars' : (roll < 0.85 ? 'spikes_top' : 'spikes_bottom'));
+        } else {
+          type = roll < 0.25 ? 'gap' : (roll < 0.55 ? 'pillars' : (roll < 0.7 ? 'spikes_top' : (roll < 0.85 ? 'spikes_bottom' : 'spikes_both')));
+        }
+        break;
+      default:
+        type = roll < 0.4 ? 'gap' : (roll < 0.6 ? 'spikes_top' : (roll < 0.8 ? 'spikes_bottom' : 'pillars'));
     }
 
     // Calculate reachable Y range from last safe position
@@ -254,7 +294,16 @@
 
     switch (type) {
       case 'gap': {
-        const gapSize = Math.max(MIN_GAP, 160 - 40 * difficulty);
+        // Mode-specific gap sizes
+        let baseGap = 160, gapShrink = 40;
+        switch (gameMode) {
+          case MODE.WAVE:  baseGap = 155; gapShrink = 38; break;
+          case MODE.SHIP:  baseGap = 180; gapShrink = 35; break;
+          case MODE.BALL:  baseGap = 190; gapShrink = 30; break;
+          case MODE.UFO:   baseGap = 170; gapShrink = 35; break;
+          case MODE.SWING: baseGap = 200; gapShrink = 30; break;
+        }
+        const gapSize = Math.max(MIN_GAP, baseGap - gapShrink * difficulty);
         // Place gap center within reachable range
         const gapMin = Math.max(tTop + gapSize / 2, reachMin);
         const gapMax = Math.min(tBot - gapSize / 2, reachMax);
@@ -345,13 +394,26 @@
     return ob;
   }
 
+  // Mode-specific obstacle spacing
+  function getModeSpacing() {
+    switch (gameMode) {
+      case MODE.WAVE:  return { base: 250, rand: 150, shrink: 0.003, maxShrink: 40, floor: 210 };
+      case MODE.SHIP:  return { base: 280, rand: 160, shrink: 0.002, maxShrink: 35, floor: 240 };
+      case MODE.BALL:  return { base: 220, rand: 120, shrink: 0.003, maxShrink: 30, floor: 190 };
+      case MODE.UFO:   return { base: 300, rand: 140, shrink: 0.002, maxShrink: 40, floor: 250 };
+      case MODE.SWING: return { base: 320, rand: 160, shrink: 0.002, maxShrink: 35, floor: 270 };
+      default: return { base: 250, rand: 150, shrink: 0.003, maxShrink: 40, floor: 210 };
+    }
+  }
+
   function generateInitialEndless() {
     lastSafeY = H() / 2;
     lastObstacleX = W() * 0.2;
+    const sp = getModeSpacing();
     let x = W() * 0.7;
     while (x < W() * 3) {
       obstacles.push(generateEndlessObstacle(x));
-      x += 250 + Math.random() * 150;
+      x += sp.base + Math.random() * sp.rand;
     }
   }
 
@@ -1257,10 +1319,16 @@
           break;
         }
         case MODE.BALL: {
-          // Tap = flip gravity. Ball sticks to surfaces.
-          if (tapped) {
+          // Tap = flip gravity, but ONLY when touching floor or ceiling
+          const onFloor = player.y + player.size >= tBot - 1;
+          const onCeil = player.y - player.size <= tTop + 1;
+          const grounded = onFloor || onCeil;
+          if (tapped && grounded) {
             gravityDir *= -1;
+            player.vy = 0;
             tapped = false;
+          } else {
+            tapped = false; // consume tap even if not grounded
           }
           player.vy += GRAVITY * 1.5 * gravityDir;
           player.vy = Math.max(-gameSpeed * 3, Math.min(gameSpeed * 3, player.vy));
@@ -1331,8 +1399,9 @@
       // Generate new obstacles
       const lastOb = obstacles[obstacles.length - 1];
       if (!lastOb || lastOb.x < W()) {
-        const spacing = 250 + Math.random() * 150 - Math.min(distance * 0.003, 40);
-        const newX = lastOb ? lastOb.x + (lastOb.width || 30) + Math.max(spacing, 210) : W() + 100;
+        const sp = getModeSpacing();
+        const spacing = sp.base + Math.random() * sp.rand - Math.min(distance * sp.shrink, sp.maxShrink);
+        const newX = lastOb ? lastOb.x + (lastOb.width || 30) + Math.max(spacing, sp.floor) : W() + 100;
         obstacles.push(generateEndlessObstacle(newX));
       }
 
