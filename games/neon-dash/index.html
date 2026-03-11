@@ -325,15 +325,15 @@
     const tTop = tunnelTop();
     const tBot = tunnelBottom();
     const ps = player.size;
+    const colPS = ps * 0.6; // collision radius (must match checkCollision)
 
     // Minimum safe gap the player can fit through (generous)
-    const MIN_GAP = ps * 6;
+    const MIN_GAP = ps * 7;
 
     // How far can the player move vertically between obstacles?
-    // Player moves at gameSpeed vertically, obstacles scroll at gameSpeed horizontally
-    // So vertical reach = horizontal distance between obstacles
+    // Use 0.7x because player may need to change direction mid-flight
     const horizDist = x - lastObstacleX;
-    const verticalReach = horizDist > 0 ? horizDist : tH;
+    const verticalReach = horizDist > 0 ? horizDist * 0.7 : tH;
 
     const types = ['gap', 'spikes_top', 'spikes_bottom', 'spikes_both', 'pillars'];
     let type;
@@ -348,14 +348,14 @@
     }
 
     // Calculate reachable Y range from last safe position
-    const reachMin = Math.max(tTop + ps, lastSafeY - verticalReach);
-    const reachMax = Math.min(tBot - ps, lastSafeY + verticalReach);
+    const reachMin = Math.max(tTop + colPS, lastSafeY - verticalReach);
+    const reachMax = Math.min(tBot - colPS, lastSafeY + verticalReach);
 
     let ob;
 
     switch (type) {
       case 'gap': {
-        const gapSize = Math.max(MIN_GAP, 160 - 45 * difficulty);
+        const gapSize = Math.max(MIN_GAP, 160 - 40 * difficulty);
         // Place gap center within reachable range
         const gapMin = Math.max(tTop + gapSize / 2, reachMin);
         const gapMax = Math.min(tBot - gapSize / 2, reachMax);
@@ -365,62 +365,76 @@
         break;
       }
       case 'spikes_top': {
-        // Max spike height so there's still room to pass underneath
-        const maxH = Math.min((0.15 + Math.random() * 0.2 * (1 + difficulty * 0.5)) * tH, tH - MIN_GAP);
-        const h = Math.max(20, maxH);
+        // Player survives when: py - colPS >= tTop + spikeHeight
+        // So safe zone starts at tTop + spikeHeight + colPS
+        // Max spike height: player must be able to reach below the spikes
+        const maxReachable = reachMax - colPS - tTop; // max spike height player can get below
+        const desiredH = (0.15 + Math.random() * 0.2 * (1 + difficulty * 0.5)) * tH;
+        const h = Math.max(20, Math.min(desiredH, tH - MIN_GAP, maxReachable));
         ob = { type: 'spikes_top', x, width: 45 + Math.random() * 25, spikeHeight: h, color: NEON_PINK };
-        // Safe zone is below the spikes
-        const safeCenter = tTop + h + (tBot - tTop - h) / 2;
-        // Clamp to reachable
-        lastSafeY = Math.max(reachMin, Math.min(reachMax, safeCenter));
+        // Safe position: just below the spikes (with margin)
+        lastSafeY = Math.max(reachMin, Math.min(reachMax, tTop + h + colPS + MIN_GAP / 3));
         break;
       }
       case 'spikes_bottom': {
-        const maxH = Math.min((0.15 + Math.random() * 0.2 * (1 + difficulty * 0.5)) * tH, tH - MIN_GAP);
-        const h = Math.max(20, maxH);
+        // Player survives when: py + colPS <= tBot - spikeHeight
+        // So safe zone ends at tBot - spikeHeight - colPS
+        const maxReachable = tBot - reachMin - colPS; // max spike height player can get above
+        const desiredH = (0.15 + Math.random() * 0.2 * (1 + difficulty * 0.5)) * tH;
+        const h = Math.max(20, Math.min(desiredH, tH - MIN_GAP, maxReachable));
         ob = { type: 'spikes_bottom', x, width: 45 + Math.random() * 25, spikeHeight: h, color: NEON_PINK };
-        // Safe zone is above the spikes
-        const safeCenter = tTop + (tBot - h - tTop) / 2;
-        lastSafeY = Math.max(reachMin, Math.min(reachMax, safeCenter));
+        // Safe position: just above the spikes (with margin)
+        lastSafeY = Math.max(reachMin, Math.min(reachMax, tBot - h - colPS - MIN_GAP / 3));
         break;
       }
       case 'spikes_both': {
-        // Ensure remaining gap is always passable
+        // Player survives when: py - colPS >= tTop + topH AND py + colPS <= tBot - botH
+        // Safe zone: [tTop + topH + colPS, tBot - botH - colPS]
         const maxEach = (tH - MIN_GAP) / 2;
-        const topH = Math.min((0.1 + Math.random() * 0.12 * (1 + difficulty * 0.3)) * tH, maxEach);
-        const botH = Math.min((0.1 + Math.random() * 0.12 * (1 + difficulty * 0.3)) * tH, maxEach);
+        let topH = Math.min((0.1 + Math.random() * 0.12 * (1 + difficulty * 0.3)) * tH, maxEach);
+        let botH = Math.min((0.1 + Math.random() * 0.12 * (1 + difficulty * 0.3)) * tH, maxEach);
+        // Ensure safe zone overlaps with reachable range
+        let safeTop = tTop + topH + colPS;
+        let safeBot = tBot - botH - colPS;
+        // If safe zone doesn't overlap with reachable range, shrink spikes
+        if (safeTop > reachMax || safeBot < reachMin) {
+          topH = Math.max(10, reachMin - tTop - colPS);
+          botH = Math.max(10, tBot - reachMax - colPS);
+          if (topH < 10) topH = 10;
+          if (botH < 10) botH = 10;
+          safeTop = tTop + topH + colPS;
+          safeBot = tBot - botH - colPS;
+        }
         // Double check: remaining gap
         const remaining = tH - topH - botH;
         if (remaining < MIN_GAP) {
-          // Shrink both proportionally
           const scale = (tH - MIN_GAP) / (topH + botH);
-          ob = { type: 'spikes_both', x, width: 45 + Math.random() * 20,
-            topHeight: topH * scale, bottomHeight: botH * scale, color: NEON_ORANGE };
-        } else {
-          ob = { type: 'spikes_both', x, width: 45 + Math.random() * 20,
-            topHeight: topH, bottomHeight: botH, color: NEON_ORANGE };
+          topH *= scale;
+          botH *= scale;
         }
+        ob = { type: 'spikes_both', x, width: 45 + Math.random() * 20,
+          topHeight: topH, bottomHeight: botH, color: NEON_ORANGE };
         // Safe zone is the middle of the gap
-        const gapCenter = tTop + (ob.topHeight) + (tH - ob.topHeight - ob.bottomHeight) / 2;
+        const gapCenter = tTop + ob.topHeight + colPS + (tH - ob.topHeight - ob.bottomHeight - colPS * 2) / 2;
         lastSafeY = Math.max(reachMin, Math.min(reachMax, gapCenter));
         break;
       }
       case 'pillars': {
-        // Single pillar that doesn't block the full tunnel
-        // Place it so there's a clear path above OR below within reach
         const pillarH = 35 + Math.random() * 30;
         const pillarW = 22 + Math.random() * 10;
 
-        // Decide: place pillar in upper or lower half based on where player is
+        // Place pillar so the safe passage is within reach
         let py;
         if (lastSafeY < tTop + tH / 2) {
-          // Player is in upper half — place pillar in upper area, safe zone below
-          py = tTop + 10 + Math.random() * (tH / 2 - pillarH - 10);
-          lastSafeY = Math.max(reachMin, Math.min(reachMax, py + pillarH + MIN_GAP / 2));
+          // Player is in upper half — place pillar below player, safe zone above
+          const minPy = Math.max(tTop + 10, lastSafeY + colPS + MIN_GAP / 2);
+          py = minPy + Math.random() * Math.max(0, tBot - pillarH - 10 - minPy);
+          lastSafeY = Math.max(reachMin, Math.min(reachMax, py - colPS - MIN_GAP / 3));
         } else {
-          // Player is in lower half — place pillar in lower area, safe zone above
-          py = tTop + tH / 2 + Math.random() * (tH / 2 - pillarH - 10);
-          lastSafeY = Math.max(reachMin, Math.min(reachMax, py - MIN_GAP / 2));
+          // Player is in lower half — place pillar above player, safe zone below
+          const maxPy = Math.min(tBot - pillarH - 10, lastSafeY - colPS - MIN_GAP / 2);
+          py = tTop + 10 + Math.random() * Math.max(0, maxPy - tTop - 10);
+          lastSafeY = Math.max(reachMin, Math.min(reachMax, py + pillarH + colPS + MIN_GAP / 3));
         }
 
         ob = { type: 'pillars', x, width: pillarW, pillars: [{ offsetX: 0, y: py, height: pillarH, width: pillarW }], color: NEON_BLUE };
@@ -438,7 +452,7 @@
     let x = W() * 0.7;
     while (x < W() * 3) {
       obstacles.push(generateEndlessObstacle(x));
-      x += 200 + Math.random() * 150;
+      x += 250 + Math.random() * 150;
     }
   }
 
@@ -1212,8 +1226,8 @@
         // Generate new obstacles
         const lastOb = obstacles[obstacles.length - 1];
         if (!lastOb || lastOb.x < W()) {
-          const spacing = 200 + Math.random() * 150 - Math.min(distance * 0.004, 50);
-          const newX = lastOb ? lastOb.x + (lastOb.width || 30) + Math.max(spacing, 130) : W() + 100;
+          const spacing = 250 + Math.random() * 150 - Math.min(distance * 0.003, 40);
+          const newX = lastOb ? lastOb.x + (lastOb.width || 30) + Math.max(spacing, 210) : W() + 100;
           obstacles.push(generateEndlessObstacle(newX));
         }
       }
