@@ -112,80 +112,29 @@
   }
 
   // ========== GAME STATES ==========
-  const STATE = { MENU: 0, MODE_SELECT: 1, PLAYING: 2, DEAD: 3, LEVEL_COMPLETE: 4 };
+  const STATE = { MENU: 0, MODE_SELECT: 1, PLAYING: 2, DEAD: 3 };
   let state = STATE.MENU;
 
   // ========== GAME MODES ==========
-  const MODE = { ENDLESS: 'endless', LEVEL: 'level' };
-  let gameMode = MODE.ENDLESS;
-  let currentLevel = 0;
+  const MODE = { WAVE: 'wave', SHIP: 'ship', BALL: 'ball', UFO: 'ufo', SWING: 'swing' };
+  let gameMode = MODE.WAVE;
   let selectedModeIndex = 0;
 
-  // Level definitions
-  const LEVELS = [
-    {
-      name: 'Neon Corridor',
-      color: NEON_GREEN,
-      speed: 3.2,
-      obstacles: [
-        { type: 'gap', offset: 0.4 },
-        { type: 'spikes_top', height: 0.25 },
-        { type: 'gap', offset: 0.6 },
-        { type: 'spikes_bottom', height: 0.25 },
-        { type: 'gap', offset: 0.35 },
-        { type: 'gap', offset: 0.65 },
-        { type: 'spikes_top', height: 0.3 },
-        { type: 'spikes_bottom', height: 0.2 },
-        { type: 'gap', offset: 0.5 },
-        { type: 'spikes_both', topH: 0.2, botH: 0.2 },
-        { type: 'gap', offset: 0.4 },
-        { type: 'gap', offset: 0.6 },
-        { type: 'spikes_top', height: 0.35 },
-        { type: 'gap', offset: 0.5 },
-        { type: 'spikes_bottom', height: 0.3 },
-      ]
-    },
-    {
-      name: 'Void Tunnel',
-      color: NEON_PURPLE,
-      speed: 3.8,
-      obstacles: [
-        { type: 'gap', offset: 0.5 },
-        { type: 'spikes_both', topH: 0.2, botH: 0.2 },
-        { type: 'gap', offset: 0.35 },
-        { type: 'pillar', pos: 0.4 },
-        { type: 'spikes_top', height: 0.35 },
-        { type: 'gap', offset: 0.65 },
-        { type: 'spikes_bottom', height: 0.35 },
-        { type: 'pillar', pos: 0.6 },
-        { type: 'gap', offset: 0.4 },
-        { type: 'spikes_both', topH: 0.25, botH: 0.25 },
-        { type: 'pillar', pos: 0.3 },
-        { type: 'gap', offset: 0.6 },
-        { type: 'spikes_top', height: 0.4 },
-        { type: 'spikes_bottom', height: 0.3 },
-        { type: 'gap', offset: 0.35 },
-        { type: 'spikes_both', topH: 0.3, botH: 0.25 },
-        { type: 'pillar', pos: 0.5 },
-        { type: 'gap', offset: 0.55 },
-        { type: 'spikes_both', topH: 0.25, botH: 0.3 },
-        { type: 'gap', offset: 0.45 },
-      ]
-    }
+  const MODE_LIST = [
+    { id: MODE.WAVE,  label: 'Wave',  icon: '〰', color: NEON_BLUE,   desc: 'Zigzag-kontroll' },
+    { id: MODE.SHIP,  label: 'Ship',  icon: '▲', color: NEON_GREEN,  desc: 'Flyg med momentum' },
+    { id: MODE.BALL,  label: 'Ball',  icon: '●', color: NEON_PURPLE, desc: 'Vänd gravitation' },
+    { id: MODE.UFO,   label: 'UFO',   icon: '◎', color: NEON_ORANGE, desc: 'Tryck för boost' },
+    { id: MODE.SWING, label: 'Swing', icon: '⌁', color: NEON_PINK,  desc: 'Pendel-fysik' },
   ];
-
-  // Menu items for mode select
-  function getModeItems() {
-    return [
-      { label: 'Endless', desc: 'Hur långt kan du nå?', icon: '∞' },
-      ...LEVELS.map((l, i) => ({ label: l.name, desc: `Level ${i + 1}`, icon: `${i + 1}`, color: l.color }))
-    ];
-  }
 
   // ========== GAME VARIABLES ==========
   let score = 0;
-  let highScore = parseInt(localStorage.getItem('neondash-highscore') || '0');
+  function getHighScoreKey() { return 'neondash-hs-' + gameMode; }
+  function getHighScore() { return parseInt(localStorage.getItem(getHighScoreKey()) || '0'); }
+  function setHighScore(v) { localStorage.setItem(getHighScoreKey(), v.toString()); }
   let holding = false;
+  let tapped = false; // single-tap detection for ball/ufo/swing
   let gameSpeed = 3.5;
   let baseSpeed = 3.5;
   let distance = 0;
@@ -193,9 +142,7 @@
   let flashTimer = 0;
   let deathParticles = [];
   let menuPulse = 0;
-  let levelProgress = 0;
-  let levelLength = 0;
-  let levelComplete = false;
+  let gravityDir = 1; // 1 = down, -1 = up (for ball/swing)
 
   // Player
   const player = {
@@ -267,54 +214,6 @@
   }
 
   // ========== OBSTACLE GENERATION ==========
-  const GAP_SIZE_ENDLESS = 140;
-
-  function buildLevelObstacles(levelIdx) {
-    const level = LEVELS[levelIdx];
-    const obs = [];
-    const spacing = 220;
-    const startX = W() * 0.6;
-    const tH = tunnelHeight();
-    const gapSize = GAP_SIZE_ENDLESS;
-
-    level.obstacles.forEach((def, i) => {
-      const x = startX + i * spacing;
-      switch (def.type) {
-        case 'gap': {
-          const gapY = tunnelTop() + gapSize / 2 + def.offset * (tH - gapSize);
-          obs.push({ type: 'gap', x, width: 30, gapY, gapSize, color: NEON_PURPLE });
-          break;
-        }
-        case 'spikes_top': {
-          const h = def.height * tH;
-          obs.push({ type: 'spikes_top', x, width: 50, spikeHeight: h, color: NEON_PINK });
-          break;
-        }
-        case 'spikes_bottom': {
-          const h = def.height * tH;
-          obs.push({ type: 'spikes_bottom', x, width: 50, spikeHeight: h, color: NEON_PINK });
-          break;
-        }
-        case 'spikes_both': {
-          obs.push({ type: 'spikes_both', x, width: 50, topHeight: def.topH * tH, bottomHeight: def.botH * tH, color: NEON_ORANGE });
-          break;
-        }
-        case 'pillar': {
-          const py = tunnelTop() + def.pos * tH - 25;
-          obs.push({ type: 'pillars', x, width: 25, pillars: [{ offsetX: 0, y: py, height: 50, width: 25 }], color: NEON_BLUE });
-          break;
-        }
-      }
-    });
-
-    // Finish line
-    const finishX = startX + level.obstacles.length * spacing + 100;
-    obs.push({ type: 'finish', x: finishX, width: 10 });
-    levelLength = finishX - startX;
-
-    return obs;
-  }
-
   // Track the last safe zone so next obstacle is always reachable
   let lastSafeY = 0;      // center of last safe passage
   let lastObstacleX = 0;  // x position of last obstacle
@@ -457,29 +356,35 @@
   }
 
   // ========== RESET ==========
-  function startGame(mode, levelIdx) {
+  function startGame(mode) {
     gameMode = mode;
-    currentLevel = levelIdx || 0;
     score = 0;
     distance = 0;
-    levelProgress = 0;
-    levelComplete = false;
     deathParticles = [];
     shakeTimer = 0;
     flashTimer = 0;
     obstacles = [];
+    gravityDir = 1;
+    tapped = false;
 
-    if (mode === MODE.LEVEL) {
-      baseSpeed = LEVELS[currentLevel].speed;
-      gameSpeed = baseSpeed;
-      obstacles = buildLevelObstacles(currentLevel);
-    } else {
-      baseSpeed = 3.5;
-      gameSpeed = baseSpeed;
-      generateInitialEndless();
+    // Mode-specific base speeds
+    switch (mode) {
+      case MODE.WAVE:  baseSpeed = 3.5; break;
+      case MODE.SHIP:  baseSpeed = 3.2; break;
+      case MODE.BALL:  baseSpeed = 3.8; break;
+      case MODE.UFO:   baseSpeed = 3.0; break;
+      case MODE.SWING: baseSpeed = 3.0; break;
+      default: baseSpeed = 3.5;
     }
+    gameSpeed = baseSpeed;
+    generateInitialEndless();
 
     initPlayer();
+    // Ball starts on the floor
+    if (mode === MODE.BALL) {
+      player.y = tunnelBottom() - player.size;
+      player.vy = 0;
+    }
     loadSkin();
     state = STATE.PLAYING;
   }
@@ -500,8 +405,7 @@
 
   function selectMode(idx) {
     selectedModeIndex = idx;
-    if (idx === 0) startGame(MODE.ENDLESS);
-    else startGame(MODE.LEVEL, idx - 1);
+    startGame(MODE_LIST[idx].id);
   }
 
   // Gameplay hold/release
@@ -509,6 +413,7 @@
     if (e) e.preventDefault();
     canvas.focus();
     holding = true;
+    tapped = true;
   }
 
   function onUp(e) {
@@ -535,22 +440,17 @@
       return;
     }
 
-    if (state === STATE.LEVEL_COMPLETE) {
-      goToModeSelect();
-      return;
-    }
-
     if (state === STATE.MODE_SELECT) {
-      const items = getModeItems();
-      const cardW = 150;
-      const cardGap = 20;
+      const items = MODE_LIST;
+      const cardW = 120;
+      const cardGap = 16;
       const totalW = items.length * cardW + (items.length - 1) * cardGap;
       const sx = W() / 2 - totalW / 2;
       const cy = H() / 2 + 10;
 
       for (let i = 0; i < items.length; i++) {
         const bx = sx + i * (cardW + cardGap);
-        if (clientX >= bx && clientX <= bx + cardW && clientY >= cy - 50 && clientY <= cy + 50) {
+        if (clientX >= bx && clientX <= bx + cardW && clientY >= cy - 55 && clientY <= cy + 55) {
           selectMode(i);
           return;
         }
@@ -586,7 +486,7 @@
     // Gameplay hold
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
       e.preventDefault();
-      if (!e.repeat) holding = true;
+      if (!e.repeat) { holding = true; tapped = true; }
     }
 
     if (!screenReady()) return;
@@ -595,12 +495,11 @@
     if (e.code === 'Space' || e.code === 'Enter') {
       if (state === STATE.MENU) { goToModeSelect(); return; }
       if (state === STATE.DEAD && shakeTimer <= 0) { goToModeSelect(); return; }
-      if (state === STATE.LEVEL_COMPLETE) { goToModeSelect(); return; }
     }
 
     // Mode select navigation
     if (state === STATE.MODE_SELECT) {
-      const items = getModeItems();
+      const items = MODE_LIST;
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         e.preventDefault();
         selectedModeIndex = (selectedModeIndex - 1 + items.length) % items.length;
@@ -675,9 +574,8 @@
     state = STATE.DEAD;
     shakeTimer = 20;
     flashTimer = 8;
-    if (gameMode === MODE.ENDLESS && score > highScore) {
-      highScore = score;
-      localStorage.setItem('neondash-highscore', highScore.toString());
+    if (score > getHighScore()) {
+      setHighScore(score);
     }
     // Send score to parent for coin rewards
     if (score > 0 && window.parent !== window) {
@@ -894,7 +792,7 @@
     }
     drawGlow(player.x, player.y, glowRadius, skinGlow, glowAlpha);
 
-    // Arrow shape — always pointing right, NO rotation
+    // Player shape — varies by mode
     ctx.save();
     ctx.translate(player.x, player.y);
 
@@ -902,7 +800,6 @@
     const isCorny = getEquippedSkinId() === 'corny' && cornyImgLoaded;
 
     if (isCorny) {
-      // Draw Corny package as the player (0.5x scale, 3.4:1 aspect ratio)
       ctx.shadowColor = skinGlow;
       ctx.shadowBlur = 15;
       const imgH = s * 2;
@@ -913,32 +810,124 @@
       ctx.shadowColor = skinGlow;
       ctx.shadowBlur = 20;
 
-      // Outer chevron
-      ctx.fillStyle = skinPrimary;
-      ctx.beginPath();
-      ctx.moveTo(s * 1.3, 0);
-      ctx.lineTo(-s, -s);
-      ctx.lineTo(-s * 0.3, 0);
-      ctx.lineTo(-s, s);
-      ctx.closePath();
-      ctx.fill();
-
-      // Outline
-      ctx.strokeStyle = hexToRgba(skinGlow, 0.6);
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Inner chevron
-      ctx.fillStyle = skinSecondary;
-      const r = 0.45;
-      ctx.beginPath();
-      ctx.moveTo(s * 1.3 * r, 0);
-      ctx.lineTo(-s * r, -s * r);
-      ctx.lineTo(-s * 0.3 * r, 0);
-      ctx.lineTo(-s * r, s * r);
-      ctx.closePath();
-      ctx.fill();
-
+      switch (gameMode) {
+        case MODE.WAVE:
+        default: {
+          // Chevron arrow
+          ctx.fillStyle = skinPrimary;
+          ctx.beginPath();
+          ctx.moveTo(s * 1.3, 0);
+          ctx.lineTo(-s, -s);
+          ctx.lineTo(-s * 0.3, 0);
+          ctx.lineTo(-s, s);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = hexToRgba(skinGlow, 0.6);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.fillStyle = skinSecondary;
+          const r = 0.45;
+          ctx.beginPath();
+          ctx.moveTo(s * 1.3 * r, 0);
+          ctx.lineTo(-s * r, -s * r);
+          ctx.lineTo(-s * 0.3 * r, 0);
+          ctx.lineTo(-s * r, s * r);
+          ctx.closePath();
+          ctx.fill();
+          break;
+        }
+        case MODE.SHIP: {
+          // Triangle rocket
+          ctx.fillStyle = skinPrimary;
+          ctx.beginPath();
+          ctx.moveTo(s * 1.2, 0);
+          ctx.lineTo(-s * 0.8, -s * 0.9);
+          ctx.lineTo(-s * 0.4, 0);
+          ctx.lineTo(-s * 0.8, s * 0.9);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = hexToRgba(skinGlow, 0.5);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          // Flame when thrusting
+          if (holding) {
+            ctx.fillStyle = NEON_ORANGE;
+            ctx.beginPath();
+            ctx.moveTo(-s * 0.4, -s * 0.3);
+            ctx.lineTo(-s * 1.2 - Math.random() * s * 0.3, 0);
+            ctx.lineTo(-s * 0.4, s * 0.3);
+            ctx.closePath();
+            ctx.fill();
+          }
+          // Inner detail
+          ctx.fillStyle = skinSecondary;
+          ctx.beginPath();
+          ctx.arc(0, 0, s * 0.25, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+        }
+        case MODE.BALL: {
+          // Circle with direction indicator
+          ctx.fillStyle = skinPrimary;
+          ctx.beginPath();
+          ctx.arc(0, 0, s * 0.85, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = hexToRgba(skinGlow, 0.6);
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          // Gravity arrow
+          ctx.fillStyle = skinSecondary;
+          const dir = gravityDir;
+          ctx.beginPath();
+          ctx.moveTo(0, dir * s * 0.4);
+          ctx.lineTo(-s * 0.3, -dir * s * 0.15);
+          ctx.lineTo(s * 0.3, -dir * s * 0.15);
+          ctx.closePath();
+          ctx.fill();
+          break;
+        }
+        case MODE.UFO: {
+          // UFO shape: dome + disc
+          ctx.fillStyle = skinPrimary;
+          // Disc
+          ctx.beginPath();
+          ctx.ellipse(0, s * 0.1, s * 1.1, s * 0.35, 0, 0, Math.PI * 2);
+          ctx.fill();
+          // Dome
+          ctx.fillStyle = skinSecondary;
+          ctx.beginPath();
+          ctx.arc(0, -s * 0.1, s * 0.5, Math.PI, 0);
+          ctx.fill();
+          ctx.strokeStyle = hexToRgba(skinGlow, 0.5);
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.ellipse(0, s * 0.1, s * 1.1, s * 0.35, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          break;
+        }
+        case MODE.SWING: {
+          // Pendulum bob with line
+          ctx.strokeStyle = hexToRgba(skinGlow, 0.3);
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(0, -s * 1.2);
+          ctx.lineTo(0, 0);
+          ctx.stroke();
+          ctx.fillStyle = skinPrimary;
+          ctx.beginPath();
+          ctx.arc(0, 0, s * 0.7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = hexToRgba(skinGlow, 0.6);
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          // Center dot
+          ctx.fillStyle = skinSecondary;
+          ctx.beginPath();
+          ctx.arc(0, 0, s * 0.25, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+        }
+      }
       ctx.shadowBlur = 0;
     }
 
@@ -960,35 +949,23 @@
   // --- UI ---
   function drawUI() {
     ctx.textAlign = 'center';
+    const modeInfo = MODE_LIST.find(m => m.id === gameMode);
+    const modeColor = modeInfo ? modeInfo.color : NEON_BLUE;
 
-    if (gameMode === MODE.ENDLESS) {
-      // Score
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 28px "Segoe UI", sans-serif';
-      ctx.shadowColor = NEON_BLUE;
-      ctx.shadowBlur = 10;
-      ctx.fillText(score.toString(), W() / 2, 38);
-      ctx.shadowBlur = 0;
-    } else {
-      // Level name + progress bar
-      const level = LEVELS[currentLevel];
-      ctx.fillStyle = hexToRgba(level.color, 0.8);
-      ctx.font = 'bold 16px "Segoe UI", sans-serif';
-      ctx.fillText(level.name, W() / 2, 28);
+    // Mode name (small, top left)
+    ctx.fillStyle = hexToRgba(modeColor, 0.6);
+    ctx.font = 'bold 13px "Segoe UI", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(modeInfo ? modeInfo.label.toUpperCase() : '', 15, 28);
+    ctx.textAlign = 'center';
 
-      // Progress bar
-      const barW = 200;
-      const barH = 6;
-      const barX = W() / 2 - barW / 2;
-      const barY = 38;
-      ctx.fillStyle = 'rgba(255,255,255,0.1)';
-      ctx.fillRect(barX, barY, barW, barH);
-      ctx.fillStyle = level.color;
-      ctx.shadowColor = level.color;
-      ctx.shadowBlur = 8;
-      ctx.fillRect(barX, barY, barW * Math.min(levelProgress, 1), barH);
-      ctx.shadowBlur = 0;
-    }
+    // Score
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px "Segoe UI", sans-serif';
+    ctx.shadowColor = modeColor;
+    ctx.shadowBlur = 10;
+    ctx.fillText(score.toString(), W() / 2, 38);
+    ctx.shadowBlur = 0;
   }
 
   // --- Chevron icon for menus ---
@@ -1046,15 +1023,96 @@
     ctx.fillStyle = hexToRgba('#ffffff', pulseAlpha);
     ctx.fillText('Tryck för att starta', W() / 2, H() / 2 + 35);
 
-    // High score
-    if (highScore > 0) {
+    // Best score across all modes
+    let bestTotal = 0;
+    for (const m of MODE_LIST) {
+      const v = parseInt(localStorage.getItem('neondash-hs-' + m.id) || '0');
+      if (v > bestTotal) bestTotal = v;
+    }
+    if (bestTotal > 0) {
       ctx.font = 'bold 16px "Segoe UI", sans-serif';
       ctx.fillStyle = hexToRgba(NEON_PURPLE, 0.9);
-      ctx.fillText(`Bästa: ${highScore}`, W() / 2, H() / 2 + 70);
+      ctx.fillText(`Bästa: ${bestTotal}`, W() / 2, H() / 2 + 70);
     }
   }
 
   // --- Mode Select ---
+  // Helper to draw mode icon shapes
+  function drawModeIcon(cx, cy, mode, size, color) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+
+    switch (mode) {
+      case MODE.WAVE: {
+        // Zigzag wave line
+        ctx.beginPath();
+        ctx.moveTo(-size, size * 0.4);
+        ctx.lineTo(-size * 0.4, -size * 0.5);
+        ctx.lineTo(size * 0.2, size * 0.4);
+        ctx.lineTo(size, -size * 0.5);
+        ctx.stroke();
+        break;
+      }
+      case MODE.SHIP: {
+        // Rocket/triangle pointing right
+        ctx.beginPath();
+        ctx.moveTo(size, 0);
+        ctx.lineTo(-size * 0.7, -size * 0.7);
+        ctx.lineTo(-size * 0.3, 0);
+        ctx.lineTo(-size * 0.7, size * 0.7);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      }
+      case MODE.BALL: {
+        // Circle
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        // Arrow inside showing gravity flip
+        ctx.fillStyle = '#0a0a1a';
+        ctx.beginPath();
+        ctx.moveTo(0, -size * 0.25);
+        ctx.lineTo(-size * 0.2, size * 0.1);
+        ctx.lineTo(size * 0.2, size * 0.1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(0, size * 0.25);
+        ctx.lineTo(-size * 0.2, -size * 0.1);
+        ctx.lineTo(size * 0.2, -size * 0.1);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      }
+      case MODE.UFO: {
+        // UFO dome + body
+        ctx.beginPath();
+        ctx.ellipse(0, size * 0.1, size * 0.8, size * 0.25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, -size * 0.05, size * 0.4, Math.PI, 0);
+        ctx.fill();
+        break;
+      }
+      case MODE.SWING: {
+        // Pendulum arc
+        ctx.beginPath();
+        ctx.arc(0, -size * 0.8, size * 1.2, Math.PI * 0.3, Math.PI * 0.7);
+        ctx.stroke();
+        // Bob at bottom
+        ctx.beginPath();
+        ctx.arc(0, size * 0.3, size * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+    }
+    ctx.restore();
+  }
+
   function drawModeSelect() {
     menuPulse += 0.03;
     loadSkin();
@@ -1065,14 +1123,14 @@
     ctx.shadowBlur = 20;
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 36px "Segoe UI", sans-serif';
-    ctx.fillText('VÄLJ LÄGE', W() / 2, H() / 2 - 70);
+    ctx.fillText('VÄLJ LÄGE', W() / 2, H() / 2 - 90);
     ctx.shadowBlur = 0;
 
     // Mode cards — sizes must match click handler!
-    const items = getModeItems();
-    const cardW = 150;
-    const cardH = 100;
-    const cardGap = 20;
+    const items = MODE_LIST;
+    const cardW = 120;
+    const cardH = 110;
+    const cardGap = 16;
     const totalW = items.length * cardW + (items.length - 1) * cardGap;
     const startX = W() / 2 - totalW / 2;
     const cy = H() / 2 + 10;
@@ -1081,46 +1139,56 @@
       const item = items[i];
       const bx = startX + i * (cardW + cardGap);
       const selected = i === selectedModeIndex;
-      const cardColor = item.color || NEON_BLUE;
+      const cardColor = item.color;
+      const hover = 1 + (selected ? 0.06 * Math.sin(menuPulse * 2) : 0);
 
       // Card background
+      ctx.save();
       if (selected) {
         ctx.shadowColor = cardColor;
-        ctx.shadowBlur = 15;
-        ctx.fillStyle = hexToRgba(cardColor, 0.15);
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = hexToRgba(cardColor, 0.18);
       } else {
         ctx.fillStyle = 'rgba(255,255,255,0.04)';
       }
       ctx.beginPath();
-      ctx.roundRect(bx, cy - cardH / 2, cardW, cardH, 12);
+      ctx.roundRect(bx, cy - cardH / 2, cardW, cardH, 14);
       ctx.fill();
 
       // Border
-      ctx.strokeStyle = selected ? cardColor : 'rgba(255,255,255,0.12)';
-      ctx.lineWidth = selected ? 2 : 1;
+      ctx.strokeStyle = selected ? cardColor : 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = selected ? 2.5 : 1;
       ctx.stroke();
       ctx.shadowBlur = 0;
+      ctx.restore();
 
       // Icon
-      ctx.fillStyle = selected ? cardColor : 'rgba(255,255,255,0.5)';
-      ctx.font = 'bold 28px "Segoe UI", sans-serif';
-      ctx.fillText(item.icon, bx + cardW / 2, cy - 10);
+      const iconColor = selected ? cardColor : 'rgba(180,180,200,0.5)';
+      drawModeIcon(bx + cardW / 2, cy - 18, item.id, 18 * hover, iconColor);
 
       // Label
-      ctx.fillStyle = selected ? '#ffffff' : 'rgba(255,255,255,0.6)';
-      ctx.font = `bold 15px "Segoe UI", sans-serif`;
-      ctx.fillText(item.label, bx + cardW / 2, cy + 18);
+      ctx.fillStyle = selected ? '#ffffff' : 'rgba(255,255,255,0.55)';
+      ctx.font = `bold 16px "Segoe UI", sans-serif`;
+      ctx.fillText(item.label, bx + cardW / 2, cy + 22);
 
       // Description
-      ctx.fillStyle = selected ? hexToRgba(cardColor, 0.8) : 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = selected ? hexToRgba(cardColor, 0.8) : 'rgba(255,255,255,0.25)';
       ctx.font = '11px "Segoe UI", sans-serif';
-      ctx.fillText(item.desc, bx + cardW / 2, cy + 32);
+      ctx.fillText(item.desc, bx + cardW / 2, cy + 38);
+
+      // High score for this mode
+      const modeHS = parseInt(localStorage.getItem('neondash-hs-' + item.id) || '0');
+      if (modeHS > 0) {
+        ctx.fillStyle = selected ? hexToRgba(cardColor, 0.5) : 'rgba(255,255,255,0.15)';
+        ctx.font = '10px "Segoe UI", sans-serif';
+        ctx.fillText(`★ ${modeHS}`, bx + cardW / 2, cy + 50);
+      }
     }
 
     // Hint
     ctx.font = '13px "Segoe UI", sans-serif';
     ctx.fillStyle = 'rgba(136,136,170,0.6)';
-    ctx.fillText('Klicka för att välja', W() / 2, H() / 2 + 80);
+    ctx.fillText('Klicka för att välja', W() / 2, H() / 2 + 85);
   }
 
   // --- Death Screen ---
@@ -1136,25 +1204,20 @@
     ctx.fillText('GAME OVER', W() / 2, H() / 2 - 40);
     ctx.shadowBlur = 0;
 
-    if (gameMode === MODE.ENDLESS) {
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 28px "Segoe UI", sans-serif';
-      ctx.fillText(`Poäng: ${score}`, W() / 2, H() / 2 + 10);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px "Segoe UI", sans-serif';
+    ctx.fillText(`Poäng: ${score}`, W() / 2, H() / 2 + 10);
 
-      ctx.fillStyle = hexToRgba(NEON_PURPLE, 0.9);
-      ctx.font = 'bold 16px "Segoe UI", sans-serif';
-      ctx.fillText(`Bästa: ${highScore}`, W() / 2, H() / 2 + 40);
+    const hs = getHighScore();
+    ctx.fillStyle = hexToRgba(NEON_PURPLE, 0.9);
+    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+    ctx.fillText(`Bästa: ${hs}`, W() / 2, H() / 2 + 40);
 
-      if (score === highScore && score > 0) {
-        const p = 0.7 + 0.3 * Math.sin(Date.now() * 0.005);
-        ctx.fillStyle = hexToRgba(NEON_GREEN, p);
-        ctx.font = 'bold 18px "Segoe UI", sans-serif';
-        ctx.fillText('NYTT REKORD!', W() / 2, H() / 2 + 65);
-      }
-    } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = '18px "Segoe UI", sans-serif';
-      ctx.fillText(LEVELS[currentLevel].name, W() / 2, H() / 2 + 10);
+    if (score >= hs && score > 0) {
+      const p = 0.7 + 0.3 * Math.sin(Date.now() * 0.005);
+      ctx.fillStyle = hexToRgba(NEON_GREEN, p);
+      ctx.font = 'bold 18px "Segoe UI", sans-serif';
+      ctx.fillText('NYTT REKORD!', W() / 2, H() / 2 + 65);
     }
 
     if (shakeTimer <= 0) {
@@ -1165,46 +1228,89 @@
     }
   }
 
-  // --- Level Complete ---
-  function drawLevelComplete() {
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(0, 0, W(), H());
-    ctx.textAlign = 'center';
-
-    const level = LEVELS[currentLevel];
-    const p = 0.7 + 0.3 * Math.sin(Date.now() * 0.003);
-
-    ctx.shadowColor = NEON_GREEN;
-    ctx.shadowBlur = 25;
-    ctx.fillStyle = hexToRgba(NEON_GREEN, p);
-    ctx.font = 'bold 44px "Segoe UI", sans-serif';
-    ctx.fillText('KLARAD!', W() / 2, H() / 2 - 30);
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '20px "Segoe UI", sans-serif';
-    ctx.fillText(level.name, W() / 2, H() / 2 + 10);
-
-    const pa = 0.5 + 0.5 * Math.sin(Date.now() * 0.004);
-    ctx.fillStyle = hexToRgba('#ffffff', pa);
-    ctx.font = '16px "Segoe UI", sans-serif';
-    ctx.fillText('Tryck för att fortsätta', W() / 2, H() / 2 + 60);
-  }
 
   // ========== UPDATE ==========
   function update() {
     if (state === STATE.PLAYING) {
-      // Wave movement — no angle change, just up/down
-      const moveSpeed = gameSpeed;
-      player.vy = holding ? -moveSpeed : moveSpeed;
-      player.y += player.vy;
+      const tTop = tunnelTop();
+      const tBot = tunnelBottom();
+      const GRAVITY = 0.35;
 
-      // Clamp to tunnel walls — don't die
-      if (player.y - player.size < tunnelTop()) {
-        player.y = tunnelTop() + player.size;
+      // === Mode-specific movement ===
+      switch (gameMode) {
+        case MODE.WAVE: {
+          // Instant diagonal: hold = up, release = down
+          const moveSpeed = gameSpeed;
+          player.vy = holding ? -moveSpeed : moveSpeed;
+          player.y += player.vy;
+          break;
+        }
+        case MODE.SHIP: {
+          // Hold = thrust up (acceleration), release = fall (gravity)
+          if (holding) {
+            player.vy -= GRAVITY * 1.3;
+          } else {
+            player.vy += GRAVITY;
+          }
+          player.vy = Math.max(-gameSpeed * 2.5, Math.min(gameSpeed * 2.5, player.vy));
+          player.y += player.vy;
+          break;
+        }
+        case MODE.BALL: {
+          // Tap = flip gravity. Ball sticks to surfaces.
+          if (tapped) {
+            gravityDir *= -1;
+            tapped = false;
+          }
+          player.vy += GRAVITY * 1.5 * gravityDir;
+          player.vy = Math.max(-gameSpeed * 3, Math.min(gameSpeed * 3, player.vy));
+          player.y += player.vy;
+          // Stick to surfaces
+          if (player.y - player.size < tTop) {
+            player.y = tTop + player.size;
+            player.vy = 0;
+          }
+          if (player.y + player.size > tBot) {
+            player.y = tBot - player.size;
+            player.vy = 0;
+          }
+          break;
+        }
+        case MODE.UFO: {
+          // Tap = fixed upward boost. Gravity always pulls down.
+          if (tapped) {
+            player.vy = -gameSpeed * 1.8;
+            tapped = false;
+          }
+          player.vy += GRAVITY * 0.9;
+          player.vy = Math.max(-gameSpeed * 2.5, Math.min(gameSpeed * 2.5, player.vy));
+          player.y += player.vy;
+          break;
+        }
+        case MODE.SWING: {
+          // Tap = flip gravity direction. Continuous flight with momentum.
+          if (tapped) {
+            gravityDir *= -1;
+            tapped = false;
+          }
+          player.vy += GRAVITY * 0.7 * gravityDir;
+          player.vy *= 0.97; // damping for smooth arcs
+          player.vy = Math.max(-gameSpeed * 2.2, Math.min(gameSpeed * 2.2, player.vy));
+          player.y += player.vy;
+          break;
+        }
       }
-      if (player.y + player.size > tunnelBottom()) {
-        player.y = tunnelBottom() - player.size;
+
+      // Clamp to tunnel walls (ball already handled above)
+      if (gameMode !== MODE.BALL) {
+        if (player.y - player.size < tTop) {
+          player.y = tTop + player.size;
+          if (gameMode !== MODE.WAVE) player.vy = 0;
+        }
+        if (player.y + player.size > tBot) {
+          player.y = tBot - player.size;
+          if (gameMode !== MODE.WAVE) player.vy = 0;
+        }
       }
 
       // Trail
@@ -1214,43 +1320,20 @@
       // Move obstacles
       for (const ob of obstacles) ob.x -= gameSpeed;
 
-      // Endless scoring
-      if (gameMode === MODE.ENDLESS) {
-        const prevLen = obstacles.length;
-        obstacles = obstacles.filter(ob => (ob.x + (ob.width || 100)) > -50);
-        score += prevLen - obstacles.length;
+      // Scoring
+      const prevLen = obstacles.length;
+      obstacles = obstacles.filter(ob => (ob.x + (ob.width || 100)) > -50);
+      score += prevLen - obstacles.length;
 
-        distance += gameSpeed;
-        gameSpeed = baseSpeed + distance * 0.00025;
+      distance += gameSpeed;
+      gameSpeed = baseSpeed + distance * 0.00025;
 
-        // Generate new obstacles
-        const lastOb = obstacles[obstacles.length - 1];
-        if (!lastOb || lastOb.x < W()) {
-          const spacing = 250 + Math.random() * 150 - Math.min(distance * 0.003, 40);
-          const newX = lastOb ? lastOb.x + (lastOb.width || 30) + Math.max(spacing, 210) : W() + 100;
-          obstacles.push(generateEndlessObstacle(newX));
-        }
-      }
-
-      // Level progress
-      if (gameMode === MODE.LEVEL && levelLength > 0) {
-        distance += gameSpeed;
-        levelProgress = distance / levelLength;
-
-        // Check finish
-        for (const ob of obstacles) {
-          if (ob.type === 'finish' && ob.x < player.x) {
-            levelComplete = true;
-            state = STATE.LEVEL_COMPLETE;
-            // Reward coins for completing a level
-            if (window.parent !== window) {
-              window.parent.postMessage({ type: 'game-score', score: 50 }, '*');
-            }
-            return;
-          }
-        }
-
-        obstacles = obstacles.filter(ob => (ob.x + (ob.width || 100)) > -50);
+      // Generate new obstacles
+      const lastOb = obstacles[obstacles.length - 1];
+      if (!lastOb || lastOb.x < W()) {
+        const spacing = 250 + Math.random() * 150 - Math.min(distance * 0.003, 40);
+        const newX = lastOb ? lastOb.x + (lastOb.width || 30) + Math.max(spacing, 210) : W() + 100;
+        obstacles.push(generateEndlessObstacle(newX));
       }
 
       // Collision
@@ -1286,10 +1369,6 @@
       drawDeathParticles();
       drawUI();
       drawDeathScreen();
-    } else if (state === STATE.LEVEL_COMPLETE) {
-      drawObstacles();
-      drawPlayer();
-      drawLevelComplete();
     } else if (state === STATE.MODE_SELECT) {
       drawModeSelect();
     } else {
