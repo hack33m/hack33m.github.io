@@ -323,11 +323,11 @@
         }
         break;
       case MODE.ROBOT:
-        // Jump from floor: only floor spikes and floor pillars
+        // Jump from floor: floor spikes, pillars, and ceiling spikes to force short hops
         if (difficulty < 0.3) {
-          type = roll < 0.55 ? 'spikes_bottom' : 'pillars';
+          type = roll < 0.5 ? 'spikes_bottom' : (roll < 0.85 ? 'pillars' : 'spikes_top');
         } else {
-          type = roll < 0.45 ? 'spikes_bottom' : 'pillars';
+          type = roll < 0.35 ? 'spikes_bottom' : (roll < 0.6 ? 'pillars' : 'spikes_top');
         }
         break;
       case MODE.CUBE:
@@ -1808,28 +1808,26 @@
           break;
         }
         case MODE.ROBOT: {
-          // Tap = instant jump, hold = boost higher while airborne
+          // Small tap = small hop, hold = keep boosting for big jump
           const onFloor = player.y + player.size >= tBot - 1;
           if (onFloor) {
             player.vy = 0;
-            if (tapped) {
-              // Instant jump on tap
-              player.vy = -gameSpeed * 1.8;
+            if (tapped || (holding && player.chargeTime === 0)) {
+              // Small initial hop
+              player.vy = -gameSpeed * 1.2;
               player.chargeTime = 1;
               tapped = false;
             }
           } else {
-            // While airborne and still holding, keep boosting upward
-            if (holding && player.chargeTime > 0 && player.chargeTime < 18) {
-              player.vy -= GRAVITY * 0.8;
+            // While airborne and holding, keep adding upward thrust
+            if (holding && player.chargeTime > 0 && player.chargeTime < 30) {
+              player.vy -= GRAVITY * 1.4;
               player.chargeTime++;
-            } else {
-              player.chargeTime = 0;
             }
             player.vy += GRAVITY * 1.1;
           }
-          if (!holding) player.chargeTime = 0;
-          player.vy = Math.max(-gameSpeed * 3, Math.min(gameSpeed * 3, player.vy));
+          if (!holding && player.chargeTime > 0) player.chargeTime = 0;
+          player.vy = Math.max(-gameSpeed * 3.5, Math.min(gameSpeed * 3.5, player.vy));
           player.y += player.vy;
           tapped = false;
           break;
@@ -1838,12 +1836,12 @@
           // Classic: tap to jump when on floor
           const onFloor = player.y + player.size >= tBot - 1;
           if (tapped && onFloor) {
-            player.vy = -gameSpeed * 2.8;
+            player.vy = -gameSpeed * 3.5;
             tapped = false;
           } else {
             tapped = false;
           }
-          player.vy += GRAVITY * 1.2;
+          player.vy += GRAVITY * 1.4;
           player.vy = Math.max(-gameSpeed * 3, Math.min(gameSpeed * 3, player.vy));
           player.y += player.vy;
           break;
