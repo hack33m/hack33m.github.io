@@ -292,11 +292,11 @@
         }
         break;
       case MODE.BALL:
-        // Floor/ceiling based: spikes on surfaces you need to avoid, pillars in middle
+        // Gravity flip: only spikes on one surface at a time (safe on the other)
         if (difficulty < 0.3) {
-          type = roll < 0.4 ? 'spikes_top' : (roll < 0.8 ? 'spikes_bottom' : 'pillars');
+          type = roll < 0.5 ? 'spikes_bottom' : 'spikes_top';
         } else {
-          type = roll < 0.3 ? 'spikes_top' : (roll < 0.6 ? 'spikes_bottom' : (roll < 0.85 ? 'pillars' : 'spikes_both'));
+          type = roll < 0.4 ? 'spikes_bottom' : (roll < 0.8 ? 'spikes_top' : 'pillars');
         }
         break;
       case MODE.UFO:
@@ -434,10 +434,11 @@
         break;
       }
       case 'pillars': {
-        // Ground modes: pillars grow up from floor so player jumps over them
+        // Ground/surface modes: pillars grow from floor or ceiling
         const isGroundPillar = (gameMode === MODE.CUBE || gameMode === MODE.ROBOT);
-        const pillarH = isGroundPillar ? 25 + Math.random() * 35 : 35 + Math.random() * 30;
-        const pillarW = isGroundPillar ? 18 + Math.random() * 12 : 22 + Math.random() * 10;
+        const isSurfacePillar = (gameMode === MODE.BALL || gameMode === MODE.SPIDER);
+        const pillarH = (isGroundPillar || isSurfacePillar) ? 25 + Math.random() * 35 : 35 + Math.random() * 30;
+        const pillarW = (isGroundPillar || isSurfacePillar) ? 18 + Math.random() * 12 : 22 + Math.random() * 10;
 
         // Place pillar so the safe passage is within reach
         let py;
@@ -445,6 +446,15 @@
           // Pillar rises from floor — player must jump over
           py = tBot - pillarH;
           lastSafeY = Math.max(reachMin, Math.min(reachMax, py - colPS - MIN_GAP / 3));
+        } else if (isSurfacePillar) {
+          // Pillar from floor or ceiling — player flips/teleports to other surface
+          if (Math.random() < 0.5) {
+            py = tBot - pillarH;
+            lastSafeY = Math.max(reachMin, Math.min(reachMax, tTop + colPS + MIN_GAP / 3));
+          } else {
+            py = tTop;
+            lastSafeY = Math.max(reachMin, Math.min(reachMax, tBot - colPS - MIN_GAP / 3));
+          }
         } else if (lastSafeY < tTop + tH / 2) {
           // Player is in upper half — place pillar below player, safe zone above
           const minPy = Math.max(tTop + 10, lastSafeY + colPS + MIN_GAP / 2);
