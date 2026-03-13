@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" rx="20" fill="#0a0a1a"/>
+  <!-- Field -->
+  <rect x="30" y="50" width="140" height="100" rx="4" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+  <!-- Center line -->
+  <line x1="100" y1="50" x2="100" y2="150" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+  <circle cx="100" cy="100" r="20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+  <!-- Left goal -->
+  <rect x="22" y="80" width="8" height="40" rx="2" fill="none" stroke="#00d4ff" stroke-width="2" opacity="0.7"/>
+  <!-- Right goal -->
+  <rect x="170" y="80" width="8" height="40" rx="2" fill="none" stroke="#ff6a00" stroke-width="2" opacity="0.7"/>
+  <!-- Blue car -->
+  <g transform="translate(65,90) rotate(20)">
+    <rect x="-14" y="-7" width="28" height="14" rx="3" fill="#00d4ff" opacity="0.9"/>
+  </g>
+  <!-- Orange car -->
+  <g transform="translate(135,105) rotate(200)">
+    <rect x="-14" y="-7" width="28" height="14" rx="3" fill="#ff6a00" opacity="0.9"/>
+  </g>
+  <!-- Ball -->
+  <circle cx="100" cy="98" r="8" fill="#39ff14" opacity="0.9"/>
+  <!-- Boost flames -->
+  <polygon points="48,86 42,90 48,94" fill="#ff6a00" opacity="0.6"/>
+</svg>

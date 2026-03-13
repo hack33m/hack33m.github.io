@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Neon League</title>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #fff;
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  let dpr = 1;
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
+  // ========== COLORS ==========
+  const NEON_BLUE = '#00d4ff';
+  const NEON_ORANGE = '#ff6a00';
+  const NEON_GREEN = '#39ff14';
+  const NEON_PINK = '#ff2d95';
+  const NEON_PURPLE = '#a855f7';
+  const NEON_YELLOW = '#ffe600';
+  const NEON_WHITE = '#ffffff';
+
+  const TEAM_COLORS = [NEON_BLUE, NEON_ORANGE];
+  const TEAM_NAMES = ['BL\u00c5', 'ORANGE'];
+
+  // ========== GAME CONSTANTS ==========
+  const FIELD_W = 1000;
+  const FIELD_H = 560;
+  const GOAL_W = 20;
+  const GOAL_H = 160;
+  const CAR_W = 40;
+  const CAR_H = 22;
+  const BALL_R = 14;
+  const MAX_SPEED = 5.5;
+  const ACCEL = 0.18;
+  const BRAKE = 0.12;
+  const FRICTION = 0.97;
+  const TURN_SPEED = 0.045;
+  const BOOST_ACCEL = 0.35;
+  const BOOST_MAX = 100;
+  const BOOST_DRAIN = 1.2;
+  const BOOST_REGEN = 0.12;
+  const BALL_FRICTION = 0.992;
+  const BALL_MAX_SPEED = 12;
+  const HIT_FORCE = 1.6;
+  const MATCH_TIME = 300 * 60; // 5 min at 60fps
+  const COUNTDOWN_TIME = 180;
+  const GOAL_PAUSE = 120;
+
+  // ========== STATE ==========
+  const STATE = { MENU: 0, LOBBY: 1, COUNTDOWN: 2, PLAYING: 3, GOAL_SCORED: 4, GAMEOVER: 5 };
+  let state = STATE.MENU;
+  let menuSelection = 0;
+  const menuOptions = [
+    { label: 'Lokal (2 spelare)', desc: 'Spela p\u00e5 samma tangentbord' },
+    { label: 'Online V\u00e4nner', desc: 'Skapa eller g\u00e5 med i ett rum' },
+    { label: 'Online Random', desc: 'Spela mot en slumpm\u00e4ssig motst\u00e5ndare' }
+  ];
+
+  // ========== MULTIPLAYER ==========
+  let isHost = false;
+  let isOnline = false;
+  let peer = null;
+  let connections = [];
+  let myPeerId = '';
+  let roomCode = '';
+  let lobbyStatus = '';
+  let roomInput = '';
+  let inputActive = false;
+  let lobbyPlayers = 1;
+  let localPlayerIndex = 0;
+
+  // ========== GAME OBJECTS ==========
+  let cars = [];
+  let ball = null;
+  let score = [0, 0];
+  let gameTimer = MATCH_TIME;
+  let countdownTimer = 0;
+  let goalPauseTimer = 0;
+  let lastScorer = -1;
+  let particles = [];
+  let boostPads = [];
+  let goalFlash = 0;
+  let goalFlashColor = '';
+  let frameCount = 0;
+
+  // ========== INPUT ==========
+  const keys = {};
+  document.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    if (state === STATE.LOBBY && inputActive) {
+      e.preventDefault();
+      if (e.key === 'Backspace') roomInput = roomInput.slice(0, -1);
+      else if (e.key === 'Enter' && roomInput.length > 0) joinRoom(roomInput.toUpperCase());
+      else if (e.key.length === 1 && roomInput.length < 6) roomInput += e.key.toUpperCase();
+    }
+    if (state === STATE.MENU) {
+      if (e.key === 'arrowup' || e.key === 'w') menuSelection = (menuSelection + 2) % 3;
+      if (e.key === 'arrowdown' || e.key === 's') menuSelection = (menuSelection + 1) % 3;
+      if (e.key === 'enter' || e.key === ' ') selectMenuOption();
+    }
+    if (state === STATE.GAMEOVER && e.key === 'enter') backToMenu();
+  });
+  document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+  let mouseX = 0, mouseY = 0;
+  document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+  document.addEventListener('mousedown', e => { handleClick(e.clientX, e.clientY); });
+  document.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    handleClick(t.clientX, t.clientY);
+  }, { passive: false });
+
+  function handleClick(cx, cy) {
+    if (state === STATE.MENU) {
+      const bw = Math.min(320, W() * 0.8);
+      const bh = 60;
+      const startY = H() / 2 - 20;
+      for (let i = 0; i < 3; i++) {
+        const bx = W() / 2 - bw / 2;
+        const by = startY + i * (bh + 16);
+        if (cx >= bx && cx <= bx + bw && cy >= by && cy <= by + bh) {
+          menuSelection = i;
+          selectMenuOption();
+          return;
+        }
+      }
+    }
+    if (state === STATE.LOBBY) {
+      const btnW = 220, btnH = 50;
+      const centerX = W() / 2;
+      if (!isOnline && menuSelection === 1) {
+        const by = H() / 2 - 10;
+        if (cx >= centerX - btnW / 2 && cx <= centerX + btnW / 2 && cy >= by && cy <= by + btnH) {
+          createRoom(); return;
+        }
+        const iy = by + btnH + 30;
+        if (cy >= iy && cy <= iy + btnH) { inputActive = true; return; }
+        const jy = iy + btnH + 10;
+        if (cx >= centerX - btnW / 2 && cx <= centerX + btnW / 2 && cy >= jy && cy <= jy + btnH) {
+          if (roomInput.length > 0) joinRoom(roomInput.toUpperCase()); return;
+        }
+      }
+      if (isHost && lobbyPlayers >= 2) {
+        const by = H() / 2 + 120;
+        if (cx >= centerX - btnW / 2 && cx <= centerX + btnW / 2 && cy >= by && cy <= by + btnH) {
+          startOnlineGame(); return;
+        }
+      }
+    }
+    if (state === STATE.GAMEOVER) backToMenu();
+  }
+
+  // ========== MENU ==========
+  function selectMenuOption() {
+    if (menuSelection === 0) startLocalGame();
+    else if (menuSelection === 1) {
+      state = STATE.LOBBY;
+      lobbyStatus = 'Skapa ett rum eller ange rumskod';
+      isOnline = false;
+      roomInput = '';
+      inputActive = false;
+    } else {
+      state = STATE.LOBBY;
+      lobbyStatus = 'S\u00f6ker motst\u00e5ndare...';
+      startRandomMatch();
+    }
+  }
+
+  function startLocalGame() {
+    isOnline = false;
+    isHost = true;
+    initGame();
+    state = STATE.COUNTDOWN;
+    countdownTimer = COUNTDOWN_TIME;
+  }
+
+  // ========== ONLINE ==========
+  function generateCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let c = '';
+    for (let i = 0; i < 5; i++) c += chars[Math.floor(Math.random() * chars.length)];
+    return c;
+  }
+
+  function initPeer(id) {
+    return new Promise((resolve, reject) => {
+      peer = new Peer(id, { debug: 0 });
+      peer.on('open', pid => { myPeerId = pid; resolve(pid); });
+      peer.on('error', err => {
+        if (err.type === 'unavailable-id') reject(err);
+        else lobbyStatus = 'Anslutningsfel: ' + err.type;
+      });
+    });
+  }
+
+  async function createRoom() {
+    roomCode = generateCode();
+    try {
+      lobbyStatus = 'Skapar rum...';
+      await initPeer('neonleague-' + roomCode);
+      isHost = true; isOnline = true; lobbyPlayers = 1;
+      lobbyStatus = 'Rum: ' + roomCode + ' - V\u00e4ntar p\u00e5 spelare...';
+      peer.on('connection', conn => setupConnection(conn));
+    } catch (e) { lobbyStatus = 'Kunde inte skapa rum, f\u00f6rs\u00f6k igen'; }
+  }
+
+  async function joinRoom(code) {
+    roomCode = code;
+    try {
+      lobbyStatus = 'Ansluter till rum ' + code + '...';
+      await initPeer('neonleague-' + generateCode() + '-p');
+      isHost = false; isOnline = true;
+      const conn = peer.connect('neonleague-' + code, { reliable: true });
+      setupConnection(conn);
+    } catch (e) { lobbyStatus = 'Kunde inte ansluta'; }
+  }
+
+  async function startRandomMatch() {
+    const matchCode = 'RND-' + Math.floor(Date.now() / 30000);
+    try {
+      await initPeer('neonleague-' + matchCode);
+      isHost = true; isOnline = true; roomCode = matchCode; lobbyPlayers = 1;
+      lobbyStatus = 'S\u00f6ker motst\u00e5ndare...';
+      peer.on('connection', conn => setupConnection(conn));
+      setTimeout(() => {
+        if (state === STATE.LOBBY && lobbyPlayers < 2) { peer.destroy(); startRandomJoin(); }
+      }, 5000);
+    } catch (e) { startRandomJoin(); }
+  }
+
+  async function startRandomJoin() {
+    const matchCode = 'RND-' + Math.floor(Date.now() / 30000);
+    try {
+      await initPeer('neonleague-rnd-' + generateCode());
+      isHost = false; isOnline = true; roomCode = matchCode;
+      lobbyStatus = 'Ansluter...';
+      const conn = peer.connect('neonleague-' + matchCode, { reliable: true });
+      setupConnection(conn);
+    } catch (e) {
+      lobbyStatus = 'Ingen hittad...';
+      setTimeout(() => { if (state === STATE.LOBBY) startRandomMatch(); }, 3000);
+    }
+  }
+
+  function setupConnection(conn) {
+    conn.on('open', () => {
+      connections.push(conn);
+      lobbyPlayers = connections.length + 1;
+      if (isHost) {
+        localPlayerIndex = 0;
+        conn._playerIndex = connections.length;
+        conn.send({ type: 'welcome', playerIndex: conn._playerIndex });
+        lobbyStatus = 'Rum: ' + roomCode + ' - ' + lobbyPlayers + ' spelare';
+        if (roomCode.startsWith('RND') && lobbyPlayers >= 2) setTimeout(() => startOnlineGame(), 1000);
+      }
+      conn.on('data', data => handleNetData(data, conn));
+      conn.on('close', () => { connections = connections.filter(c => c !== conn); lobbyPlayers = connections.length + 1; });
+    });
+  }
+
+  function handleNetData(data, conn) {
+    if (data.type === 'welcome') {
+      localPlayerIndex = data.playerIndex;
+      lobbyStatus = 'Ansluten! V\u00e4ntar p\u00e5 start...';
+    }
+    if (data.type === 'start') { initGame(); state = STATE.COUNTDOWN; countdownTimer = COUNTDOWN_TIME; }
+    if (data.type === 'state' && !isHost) applyNetState(data);
+    if (data.type === 'input' && isHost && data.pi < cars.length) cars[data.pi].netInput = data.inp;
+  }
+
+  function startOnlineGame() {
+    connections.forEach(c => c.send({ type: 'start' }));
+    initGame();
+    state = STATE.COUNTDOWN;
+    countdownTimer = COUNTDOWN_TIME;
+  }
+
+  function broadcastState() {
+    if (!isOnline || !isHost) return;
+    const d = {
+      type: 'state',
+      cars: cars.map(c => ({ x: c.x, y: c.y, angle: c.angle, vx: c.vx, vy: c.vy, boost: c.boost, boosting: c.boosting })),
+      ball: { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy },
+      score: score, gameTimer: gameTimer, state: state,
+      countdownTimer: countdownTimer, goalPauseTimer: goalPauseTimer
+    };
+    connections.forEach(c => c.send(d));
+  }
+
+  function applyNetState(d) {
+    if (d.cars) d.cars.forEach((cd, i) => { if (cars[i]) Object.assign(cars[i], cd); });
+    if (d.ball) Object.assign(ball, d.ball);
+    if (d.score) score = d.score;
+    if (d.gameTimer !== undefined) gameTimer = d.gameTimer;
+    if (d.state !== undefined) state = d.state;
+    if (d.countdownTimer !== undefined) countdownTimer = d.countdownTimer;
+    if (d.goalPauseTimer !== undefined) goalPauseTimer = d.goalPauseTimer;
+  }
+
+  function sendInput() {
+    if (!isOnline || isHost) return;
+    const inp = {
+      up: keys['w'] || keys['arrowup'],
+      down: keys['s'] || keys['arrowdown'],
+      left: keys['a'] || keys['arrowleft'],
+      right: keys['d'] || keys['arrowright'],
+      boost: keys['shift'] || keys[' ']
+    };
+    connections.forEach(c => c.send({ type: 'input', pi: localPlayerIndex, inp }));
+  }
+
+  // ========== INIT GAME ==========
+  function initGame() {
+    score = [0, 0];
+    gameTimer = MATCH_TIME;
+    particles = [];
+    goalPauseTimer = 0;
+    goalFlash = 0;
+    frameCount = 0;
+
+    cars = [
+      { x: FIELD_W * 0.25, y: FIELD_H / 2, angle: 0, vx: 0, vy: 0, speed: 0, team: 0, boost: BOOST_MAX, boosting: false, netInput: null },
+      { x: FIELD_W * 0.75, y: FIELD_H / 2, angle: Math.PI, vx: 0, vy: 0, speed: 0, team: 1, boost: BOOST_MAX, boosting: false, netInput: null }
+    ];
+
+    ball = { x: FIELD_W / 2, y: FIELD_H / 2, vx: 0, vy: 0 };
+
+    // Boost pads
+    boostPads = [];
+    const padPositions = [
+      { x: FIELD_W * 0.15, y: FIELD_H * 0.2 }, { x: FIELD_W * 0.15, y: FIELD_H * 0.8 },
+      { x: FIELD_W * 0.85, y: FIELD_H * 0.2 }, { x: FIELD_W * 0.85, y: FIELD_H * 0.8 },
+      { x: FIELD_W * 0.5, y: FIELD_H * 0.15 }, { x: FIELD_W * 0.5, y: FIELD_H * 0.85 },
+      { x: FIELD_W * 0.35, y: FIELD_H / 2 }, { x: FIELD_W * 0.65, y: FIELD_H / 2 }
+    ];
+    padPositions.forEach(p => boostPads.push({ x: p.x, y: p.y, active: true, timer: 0 }));
+  }
+
+  function resetPositions() {
+    cars[0].x = FIELD_W * 0.25; cars[0].y = FIELD_H / 2; cars[0].angle = 0;
+    cars[0].vx = 0; cars[0].vy = 0; cars[0].speed = 0;
+    cars[1].x = FIELD_W * 0.75; cars[1].y = FIELD_H / 2; cars[1].angle = Math.PI;
+    cars[1].vx = 0; cars[1].vy = 0; cars[1].speed = 0;
+    ball.x = FIELD_W / 2; ball.y = FIELD_H / 2; ball.vx = 0; ball.vy = 0;
+  }
+
+  // ========== PHYSICS ==========
+  function update() {
+    frameCount++;
+
+    if (state === STATE.COUNTDOWN) {
+      countdownTimer--;
+      if (countdownTimer <= 0) state = STATE.PLAYING;
+      return;
+    }
+    if (state === STATE.GOAL_SCORED) {
+      goalPauseTimer--;
+      goalFlash = Math.max(0, goalFlash - 0.02);
+      updateParticles();
+      if (goalPauseTimer <= 0) {
+        resetPositions();
+        state = STATE.COUNTDOWN;
+        countdownTimer = COUNTDOWN_TIME;
+      }
+      if (isOnline && isHost && frameCount % 3 === 0) broadcastState();
+      return;
+    }
+    if (state !== STATE.PLAYING) return;
+
+    // Timer
+    gameTimer--;
+    if (gameTimer <= 0) { state = STATE.GAMEOVER; return; }
+
+    // Update cars
+    cars.forEach((car, i) => {
+      let input;
+      if (isOnline && isHost && i !== localPlayerIndex) {
+        input = car.netInput || {};
+      } else if (isOnline && !isHost) {
+        if (i === localPlayerIndex) {
+          input = { up: keys['w'] || keys['arrowup'], down: keys['s'] || keys['arrowdown'],
+                    left: keys['a'] || keys['arrowleft'], right: keys['d'] || keys['arrowright'],
+                    boost: keys['shift'] || keys[' '] };
+        } else return;
+      } else {
+        // Local
+        if (i === 0) {
+          input = { up: keys['w'], down: keys['s'], left: keys['a'], right: keys['d'], boost: keys['shift'] };
+        } else {
+          input = { up: keys['arrowup'], down: keys['arrowdown'], left: keys['arrowleft'], right: keys['arrowright'], boost: keys['/'] || keys['.'] };
+        }
+      }
+
+      if (!input) return;
+
+      // Steering
+      const steerAmount = TURN_SPEED * (1 + Math.abs(car.speed) * 0.01);
+      if (input.left) car.angle -= steerAmount;
+      if (input.right) car.angle += steerAmount;
+
+      // Acceleration
+      car.boosting = input.boost && car.boost > 0;
+      const acc = car.boosting ? BOOST_ACCEL : ACCEL;
+      if (input.up) {
+        car.vx += Math.cos(car.angle) * acc;
+        car.vy += Math.sin(car.angle) * acc;
+      }
+      if (input.down) {
+        car.vx -= Math.cos(car.angle) * BRAKE;
+        car.vy -= Math.sin(car.angle) * BRAKE;
+      }
+
+      // Boost drain/regen
+      if (car.boosting) car.boost = Math.max(0, car.boost - BOOST_DRAIN);
+      else car.boost = Math.min(BOOST_MAX, car.boost + BOOST_REGEN);
+
+      // Friction
+      car.vx *= FRICTION;
+      car.vy *= FRICTION;
+
+      // Speed limit
+      const spd = Math.sqrt(car.vx * car.vx + car.vy * car.vy);
+      const maxSpd = car.boosting ? MAX_SPEED * 1.6 : MAX_SPEED;
+      if (spd > maxSpd) {
+        car.vx = (car.vx / spd) * maxSpd;
+        car.vy = (car.vy / spd) * maxSpd;
+      }
+      car.speed = spd;
+
+      // Move
+      car.x += car.vx;
+      car.y += car.vy;
+
+      // Wall collision
+      const hw = CAR_W / 2, hh = CAR_H / 2;
+      if (car.x < hw) { car.x = hw; car.vx *= -0.5; }
+      if (car.x > FIELD_W - hw) { car.x = FIELD_W - hw; car.vx *= -0.5; }
+      if (car.y < hh) { car.y = hh; car.vy *= -0.5; }
+      if (car.y > FIELD_H - hh) { car.y = FIELD_H - hh; car.vy *= -0.5; }
+
+      // Boost pad pickup
+      boostPads.forEach(pad => {
+        if (!pad.active) return;
+        const dist = Math.sqrt((car.x - pad.x) ** 2 + (car.y - pad.y) ** 2);
+        if (dist < 20) {
+          car.boost = Math.min(BOOST_MAX, car.boost + 35);
+          pad.active = false;
+          pad.timer = 600; // 10 sec respawn
+          for (let k = 0; k < 6; k++) {
+            particles.push({
+              x: pad.x, y: pad.y,
+              vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
+              life: 20, maxLife: 20, color: NEON_YELLOW, size: 3
+            });
+          }
+        }
+      });
+
+      // Boost trail particles
+      if (car.boosting && frameCount % 2 === 0) {
+        const bx = car.x - Math.cos(car.angle) * CAR_W / 2;
+        const by = car.y - Math.sin(car.angle) * CAR_W / 2;
+        particles.push({
+          x: bx + (Math.random() - 0.5) * 6, y: by + (Math.random() - 0.5) * 6,
+          vx: -Math.cos(car.angle) * 2 + (Math.random() - 0.5) * 2,
+          vy: -Math.sin(car.angle) * 2 + (Math.random() - 0.5) * 2,
+          life: 15, maxLife: 15, color: NEON_ORANGE, size: 4
+        });
+      }
+    });
+
+    // Car-car collision
+    for (let i = 0; i < cars.length; i++) {
+      for (let j = i + 1; j < cars.length; j++) {
+        const a = cars[i], b = cars[j];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = (CAR_W + CAR_H) / 2;
+        if (dist < minDist && dist > 0) {
+          const nx = dx / dist, ny = dy / dist;
+          const overlap = minDist - dist;
+          a.x -= nx * overlap / 2; a.y -= ny * overlap / 2;
+          b.x += nx * overlap / 2; b.y += ny * overlap / 2;
+          // Bounce
+          const relVx = a.vx - b.vx, relVy = a.vy - b.vy;
+          const dot = relVx * nx + relVy * ny;
+          a.vx -= dot * nx * 0.7; a.vy -= dot * ny * 0.7;
+          b.vx += dot * nx * 0.7; b.vy += dot * ny * 0.7;
+          // Spark particles
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          for (let k = 0; k < 4; k++) {
+            particles.push({
+              x: mx, y: my,
+              vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+              life: 12, maxLife: 12, color: NEON_WHITE, size: 2
+            });
+          }
+        }
+      }
+    }
+
+    // Ball physics
+    ball.vx *= BALL_FRICTION;
+    ball.vy *= BALL_FRICTION;
+    const bspd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+    if (bspd > BALL_MAX_SPEED) {
+      ball.vx = (ball.vx / bspd) * BALL_MAX_SPEED;
+      ball.vy = (ball.vy / bspd) * BALL_MAX_SPEED;
+    }
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // Ball-wall collision
+    const goalTop = FIELD_H / 2 - GOAL_H / 2;
+    const goalBot = FIELD_H / 2 + GOAL_H / 2;
+
+    // Top/bottom walls
+    if (ball.y < BALL_R) { ball.y = BALL_R; ball.vy *= -0.8; }
+    if (ball.y > FIELD_H - BALL_R) { ball.y = FIELD_H - BALL_R; ball.vy *= -0.8; }
+
+    // Left wall (except goal)
+    if (ball.x < BALL_R) {
+      if (ball.y >= goalTop && ball.y <= goalBot) {
+        // GOAL for team 1 (orange scores)
+        scoreGoal(1);
+        return;
+      }
+      ball.x = BALL_R; ball.vx *= -0.8;
+    }
+
+    // Right wall (except goal)
+    if (ball.x > FIELD_W - BALL_R) {
+      if (ball.y >= goalTop && ball.y <= goalBot) {
+        // GOAL for team 0 (blue scores)
+        scoreGoal(0);
+        return;
+      }
+      ball.x = FIELD_W - BALL_R; ball.vx *= -0.8;
+    }
+
+    // Goal post collision (top and bottom of each goal)
+    const goalPosts = [
+      { x: 0, y: goalTop }, { x: 0, y: goalBot },
+      { x: FIELD_W, y: goalTop }, { x: FIELD_W, y: goalBot }
+    ];
+    goalPosts.forEach(post => {
+      const dx = ball.x - post.x, dy = ball.y - post.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < BALL_R + 5) {
+        const nx = dx / dist, ny = dy / dist;
+        ball.x = post.x + nx * (BALL_R + 5);
+        ball.y = post.y + ny * (BALL_R + 5);
+        const dot = ball.vx * nx + ball.vy * ny;
+        ball.vx -= 2 * dot * nx * 0.8;
+        ball.vy -= 2 * dot * ny * 0.8;
+      }
+    });
+
+    // Ball-car collision
+    cars.forEach(car => {
+      const dx = ball.x - car.x, dy = ball.y - car.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const minDist = BALL_R + CAR_W * 0.4;
+      if (dist < minDist && dist > 0) {
+        const nx = dx / dist, ny = dy / dist;
+        ball.x = car.x + nx * minDist;
+        ball.y = car.y + ny * minDist;
+
+        // Transfer car momentum + hit force
+        const carSpd = Math.sqrt(car.vx * car.vx + car.vy * car.vy);
+        const hitMult = car.boosting ? HIT_FORCE * 1.8 : HIT_FORCE;
+        ball.vx = car.vx * hitMult + nx * (carSpd * 0.5 + 1.5);
+        ball.vy = car.vy * hitMult + ny * (carSpd * 0.5 + 1.5);
+
+        // Car bounces back slightly
+        car.vx *= 0.6;
+        car.vy *= 0.6;
+
+        // Hit particles
+        for (let k = 0; k < 6; k++) {
+          particles.push({
+            x: ball.x, y: ball.y,
+            vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
+            life: 15, maxLife: 15, color: car.boosting ? NEON_ORANGE : NEON_GREEN, size: 3
+          });
+        }
+      }
+    });
+
+    // Boost pad respawn
+    boostPads.forEach(pad => {
+      if (!pad.active) {
+        pad.timer--;
+        if (pad.timer <= 0) pad.active = true;
+      }
+    });
+
+    updateParticles();
+
+    // Network
+    if (isOnline) {
+      if (isHost && frameCount % 3 === 0) broadcastState();
+      if (!isHost) sendInput();
+    }
+  }
+
+  function scoreGoal(team) {
+    score[team]++;
+    lastScorer = team;
+    state = STATE.GOAL_SCORED;
+    goalPauseTimer = GOAL_PAUSE;
+    goalFlash = 1;
+    goalFlashColor = TEAM_COLORS[team];
+
+    // Goal explosion
+    for (let k = 0; k < 30; k++) {
+      particles.push({
+        x: ball.x, y: ball.y,
+        vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14,
+        life: 40, maxLife: 40, color: TEAM_COLORS[team], size: 5
+      });
+    }
+  }
+
+  function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+      p.vx *= 0.95; p.vy *= 0.95;
+      p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  // ========== DRAW ==========
+  function hexToRgba(hex, a) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W(), H());
+
+    if (state === STATE.MENU) return drawMenu();
+    if (state === STATE.LOBBY) return drawLobby();
+
+    // Calculate scale to fit field
+    const margin = 40;
+    const scaleX = (W() - margin * 2) / FIELD_W;
+    const scaleY = (H() - margin * 2) / FIELD_H;
+    const scale = Math.min(scaleX, scaleY);
+    const offX = (W() - FIELD_W * scale) / 2;
+    const offY = (H() - FIELD_H * scale) / 2;
+
+    ctx.save();
+    ctx.translate(offX, offY);
+    ctx.scale(scale, scale);
+
+    // Goal flash
+    if (goalFlash > 0) {
+      ctx.fillStyle = hexToRgba(goalFlashColor, goalFlash * 0.15);
+      ctx.fillRect(-50, -50, FIELD_W + 100, FIELD_H + 100);
+    }
+
+    drawField();
+    drawBoostPads();
+    drawParticles();
+    drawBall();
+    drawCars();
+
+    ctx.restore();
+
+    drawHUD(offX, offY, scale);
+
+    if (state === STATE.COUNTDOWN) drawCountdown();
+    if (state === STATE.GOAL_SCORED) drawGoalText();
+    if (state === STATE.GAMEOVER) drawGameOver();
+  }
+
+  function drawField() {
+    // Field background
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, FIELD_W, FIELD_H);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= FIELD_W; x += 50) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, FIELD_H); ctx.stroke();
+    }
+    for (let y = 0; y <= FIELD_H; y += 50) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(FIELD_W, y); ctx.stroke();
+    }
+
+    // Center circle
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(FIELD_W / 2, FIELD_H / 2, 70, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Center line
+    ctx.beginPath();
+    ctx.moveTo(FIELD_W / 2, 0);
+    ctx.lineTo(FIELD_W / 2, FIELD_H);
+    ctx.stroke();
+
+    // Field border
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(0, 0, FIELD_W, FIELD_H);
+
+    // Goals
+    const goalTop = FIELD_H / 2 - GOAL_H / 2;
+    const goalBot = FIELD_H / 2 + GOAL_H / 2;
+
+    // Left goal (blue team defends)
+    ctx.fillStyle = hexToRgba(NEON_BLUE, 0.1);
+    ctx.fillRect(-GOAL_W, goalTop, GOAL_W, GOAL_H);
+    ctx.strokeStyle = NEON_BLUE;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = NEON_BLUE;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(0, goalTop);
+    ctx.lineTo(-GOAL_W, goalTop);
+    ctx.lineTo(-GOAL_W, goalBot);
+    ctx.lineTo(0, goalBot);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Goal posts
+    ctx.fillStyle = NEON_BLUE;
+    ctx.beginPath(); ctx.arc(0, goalTop, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, goalBot, 5, 0, Math.PI * 2); ctx.fill();
+
+    // Right goal (orange team defends)
+    ctx.fillStyle = hexToRgba(NEON_ORANGE, 0.1);
+    ctx.fillRect(FIELD_W, goalTop, GOAL_W, GOAL_H);
+    ctx.strokeStyle = NEON_ORANGE;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = NEON_ORANGE;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(FIELD_W, goalTop);
+    ctx.lineTo(FIELD_W + GOAL_W, goalTop);
+    ctx.lineTo(FIELD_W + GOAL_W, goalBot);
+    ctx.lineTo(FIELD_W, goalBot);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = NEON_ORANGE;
+    ctx.beginPath(); ctx.arc(FIELD_W, goalTop, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(FIELD_W, goalBot, 5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawBoostPads() {
+    boostPads.forEach(pad => {
+      if (!pad.active) return;
+      const pulse = 0.7 + Math.sin(frameCount * 0.08 + pad.x) * 0.3;
+      ctx.save();
+      ctx.translate(pad.x, pad.y);
+      ctx.shadowColor = NEON_YELLOW;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = hexToRgba(NEON_YELLOW, 0.5 * pulse);
+      ctx.beginPath();
+      // Diamond shape
+      ctx.moveTo(0, -10);
+      ctx.lineTo(8, 0);
+      ctx.lineTo(0, 10);
+      ctx.lineTo(-8, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(NEON_YELLOW, 0.8);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    });
+  }
+
+  function drawBall() {
+    const bspd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+    const intensity = Math.min(1, bspd / 8);
+
+    // Ball trail
+    if (bspd > 2) {
+      ctx.fillStyle = hexToRgba(NEON_GREEN, 0.15 * intensity);
+      ctx.beginPath();
+      ctx.arc(ball.x - ball.vx * 0.8, ball.y - ball.vy * 0.8, BALL_R * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Ball glow
+    ctx.shadowColor = NEON_GREEN;
+    ctx.shadowBlur = 12 + intensity * 10;
+
+    // Ball body
+    ctx.fillStyle = NEON_GREEN;
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Inner highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(ball.x - 3, ball.y - 3, BALL_R * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawCars() {
+    cars.forEach((car, i) => {
+      ctx.save();
+      ctx.translate(car.x, car.y);
+      ctx.rotate(car.angle);
+
+      const color = TEAM_COLORS[car.team];
+
+      // Car shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.roundRect(-CAR_W / 2 + 2, -CAR_H / 2 + 2, CAR_W, CAR_H, 4);
+      ctx.fill();
+
+      // Car body
+      ctx.shadowColor = color;
+      ctx.shadowBlur = car.boosting ? 18 : 8;
+      ctx.fillStyle = hexToRgba(color, 0.9);
+      ctx.beginPath();
+      ctx.roundRect(-CAR_W / 2, -CAR_H / 2, CAR_W, CAR_H, 4);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Windshield
+      ctx.fillStyle = hexToRgba(color, 0.4);
+      ctx.beginPath();
+      ctx.roundRect(CAR_W * 0.1, -CAR_H * 0.3, CAR_W * 0.2, CAR_H * 0.6, 2);
+      ctx.fill();
+
+      // Nose
+      ctx.fillStyle = '#fff';
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(CAR_W / 2, -CAR_H / 4);
+      ctx.lineTo(CAR_W / 2 + 3, 0);
+      ctx.lineTo(CAR_W / 2, CAR_H / 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Wheels
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillRect(-CAR_W * 0.35, -CAR_H / 2 - 2, 8, 4);
+      ctx.fillRect(-CAR_W * 0.35, CAR_H / 2 - 2, 8, 4);
+      ctx.fillRect(CAR_W * 0.15, -CAR_H / 2 - 2, 8, 4);
+      ctx.fillRect(CAR_W * 0.15, CAR_H / 2 - 2, 8, 4);
+
+      // Boost flame
+      if (car.boosting) {
+        const flameLen = 10 + Math.random() * 8;
+        ctx.fillStyle = hexToRgba(NEON_ORANGE, 0.8);
+        ctx.beginPath();
+        ctx.moveTo(-CAR_W / 2, -5);
+        ctx.lineTo(-CAR_W / 2 - flameLen, 0);
+        ctx.lineTo(-CAR_W / 2, 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = hexToRgba(NEON_YELLOW, 0.6);
+        ctx.beginPath();
+        ctx.moveTo(-CAR_W / 2, -3);
+        ctx.lineTo(-CAR_W / 2 - flameLen * 0.6, 0);
+        ctx.lineTo(-CAR_W / 2, 3);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.restore();
+
+      // Player label
+      ctx.fillStyle = hexToRgba(color, 0.6);
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText((isOnline ? 'P' : 'Spelare ') + (i + 1), car.x, car.y - CAR_H / 2 - 8);
+    });
+  }
+
+  function drawParticles() {
+    particles.forEach(p => {
+      const alpha = p.life / p.maxLife;
+      ctx.fillStyle = hexToRgba(p.color, alpha);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function drawHUD(offX, offY, scale) {
+    if (state !== STATE.PLAYING && state !== STATE.COUNTDOWN && state !== STATE.GOAL_SCORED) return;
+
+    // Score
+    ctx.textAlign = 'center';
+    const scoreY = offY / 2 + 8;
+
+    ctx.shadowColor = NEON_BLUE;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = NEON_BLUE;
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText(score[0], W() / 2 - 40, scoreY + 10);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '20px sans-serif';
+    ctx.fillText('-', W() / 2, scoreY + 8);
+
+    ctx.shadowColor = NEON_ORANGE;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = NEON_ORANGE;
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText(score[1], W() / 2 + 40, scoreY + 10);
+    ctx.shadowBlur = 0;
+
+    // Timer
+    const secs = Math.ceil(gameTimer / 60);
+    const mins = Math.floor(secs / 60);
+    const s = secs % 60;
+    ctx.fillStyle = gameTimer < 1800 ? NEON_PINK : 'rgba(255,255,255,0.5)';
+    ctx.font = '14px sans-serif';
+    ctx.fillText(mins + ':' + String(s).padStart(2, '0'), W() / 2, scoreY + 30);
+
+    // Boost bars
+    cars.forEach((car, i) => {
+      const bw = 80;
+      const bh = 8;
+      const bx = i === 0 ? offX + 10 : W() - offX - bw - 10;
+      const by = H() - offY / 2 - 4;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(bx, by, bw, bh);
+      const frac = car.boost / BOOST_MAX;
+      ctx.fillStyle = frac > 0.3 ? NEON_YELLOW : NEON_PINK;
+      ctx.fillRect(bx, by, bw * frac, bh);
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx, by, bw, bh);
+
+      ctx.fillStyle = hexToRgba(TEAM_COLORS[i], 0.6);
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = i === 0 ? 'left' : 'right';
+      ctx.fillText('BOOST', i === 0 ? bx : bx + bw, by - 3);
+    });
+
+    // Controls hint
+    if (!isOnline && state === STATE.PLAYING && frameCount < 300) {
+      const alpha = Math.max(0, 1 - frameCount / 300);
+      ctx.fillStyle = hexToRgba('#ffffff', alpha * 0.3);
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('P1: WASD + Shift(boost)  |  P2: Pilar + .(boost)', W() / 2, H() - 8);
+    }
+  }
+
+  function drawCountdown() {
+    const sec = Math.ceil(countdownTimer / 60);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(0, 0, W(), H());
+    ctx.shadowColor = NEON_GREEN;
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 80px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sec, W() / 2, H() / 2);
+    ctx.shadowBlur = 0;
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  function drawGoalText() {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, 0, W(), H());
+    ctx.shadowColor = TEAM_COLORS[lastScorer];
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = TEAM_COLORS[lastScorer];
+    ctx.font = 'bold 56px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('M\u00c5L!', W() / 2, H() / 2);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '20px sans-serif';
+    ctx.fillText(TEAM_NAMES[lastScorer] + ' lag', W() / 2, H() / 2 + 40);
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  function drawGameOver() {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W(), H());
+    ctx.textAlign = 'center';
+
+    let winText, winColor;
+    if (score[0] > score[1]) { winText = 'BL\u00c5 VINNER!'; winColor = NEON_BLUE; }
+    else if (score[1] > score[0]) { winText = 'ORANGE VINNER!'; winColor = NEON_ORANGE; }
+    else { winText = 'OAVGJORT!'; winColor = NEON_PURPLE; }
+
+    ctx.shadowColor = winColor;
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = winColor;
+    ctx.font = 'bold 42px sans-serif';
+    ctx.fillText(winText, W() / 2, H() / 2 - 40);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 60px sans-serif';
+    ctx.fillText(score[0] + ' - ' + score[1], W() / 2, H() / 2 + 25);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Tryck Enter eller klicka f\u00f6r att forts\u00e4tta', W() / 2, H() / 2 + 70);
+  }
+
+  function drawMenu() {
+    ctx.textAlign = 'center';
+    ctx.shadowColor = NEON_GREEN;
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = NEON_GREEN;
+    ctx.font = 'bold 48px sans-serif';
+    ctx.fillText('NEON LEAGUE', W() / 2, H() / 2 - 120);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Bilfotboll \u2022 Boost \u2022 M\u00e5l!', W() / 2, H() / 2 - 80);
+
+    const bw = Math.min(320, W() * 0.8);
+    const bh = 60;
+    const startY = H() / 2 - 20;
+    menuOptions.forEach((opt, i) => {
+      const bx = W() / 2 - bw / 2;
+      const by = startY + i * (bh + 16);
+      const sel = i === menuSelection;
+      ctx.fillStyle = sel ? hexToRgba(NEON_GREEN, 0.2) : 'rgba(255,255,255,0.05)';
+      ctx.strokeStyle = sel ? NEON_GREEN : 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = sel ? 2 : 1;
+      if (sel) { ctx.shadowColor = NEON_GREEN; ctx.shadowBlur = 10; }
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 10);
+      ctx.fill(); ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = sel ? '#fff' : 'rgba(255,255,255,0.7)';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText(opt.label, W() / 2, by + 26);
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(opt.desc, W() / 2, by + 44);
+    });
+
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '11px sans-serif';
+    ctx.fillText('P1: WASD + Shift(boost)  |  P2: Pilar + .(boost)', W() / 2, H() - 30);
+  }
+
+  function drawLobby() {
+    ctx.textAlign = 'center';
+    ctx.shadowColor = NEON_GREEN;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = NEON_GREEN;
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText('LOBBY', W() / 2, H() / 2 - 140);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '16px sans-serif';
+    ctx.fillText(lobbyStatus, W() / 2, H() / 2 - 90);
+
+    const btnW = 220, btnH = 50, cx = W() / 2;
+
+    if (!isOnline && menuSelection === 1) {
+      const by = H() / 2 - 10;
+      ctx.fillStyle = hexToRgba(NEON_GREEN, 0.15);
+      ctx.strokeStyle = NEON_GREEN; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(cx - btnW / 2, by, btnW, btnH, 8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif';
+      ctx.fillText('Skapa Rum', cx, by + 30);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '13px sans-serif';
+      ctx.fillText('eller ange rumskod:', cx, by + btnH + 20);
+
+      const iy = by + btnH + 30;
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.strokeStyle = inputActive ? NEON_GREEN : 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = inputActive ? 2 : 1;
+      ctx.beginPath(); ctx.roundRect(cx - btnW / 2, iy, btnW, btnH, 8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = roomInput ? '#fff' : 'rgba(255,255,255,0.3)';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText(roomInput || 'KLICKA H\u00c4R', cx, iy + 32);
+
+      const jy = iy + btnH + 10;
+      ctx.fillStyle = roomInput ? hexToRgba(NEON_GREEN, 0.15) : 'rgba(255,255,255,0.03)';
+      ctx.strokeStyle = roomInput ? NEON_GREEN : 'rgba(255,255,255,0.1)';
+      ctx.beginPath(); ctx.roundRect(cx - btnW / 2, jy, btnW, btnH, 8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = roomInput ? '#fff' : 'rgba(255,255,255,0.3)';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText('G\u00e5 Med', cx, jy + 30);
+    }
+
+    if (isOnline) {
+      if (roomCode && !roomCode.startsWith('RND')) {
+        ctx.shadowColor = NEON_GREEN; ctx.shadowBlur = 15;
+        ctx.fillStyle = NEON_GREEN; ctx.font = 'bold 36px monospace';
+        ctx.fillText(roomCode, cx, H() / 2 - 30);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '13px sans-serif';
+        ctx.fillText('Dela koden med din v\u00e4n', cx, H() / 2);
+      }
+
+      ctx.fillStyle = '#fff'; ctx.font = '18px sans-serif';
+      ctx.fillText(lobbyPlayers + ' spelare anslutna', cx, H() / 2 + 50);
+
+      for (let i = 0; i < lobbyPlayers; i++) {
+        ctx.fillStyle = TEAM_COLORS[i];
+        ctx.shadowColor = TEAM_COLORS[i]; ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(cx - (lobbyPlayers - 1) * 20 + i * 40, H() / 2 + 80, 10, 0, Math.PI * 2);
+        ctx.fill(); ctx.shadowBlur = 0;
+      }
+
+      if (isHost && lobbyPlayers >= 2) {
+        const by = H() / 2 + 120;
+        ctx.fillStyle = hexToRgba(NEON_GREEN, 0.2);
+        ctx.strokeStyle = NEON_GREEN; ctx.lineWidth = 2;
+        ctx.shadowColor = NEON_GREEN; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.roundRect(cx - btnW / 2, by, btnW, btnH, 8); ctx.fill(); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('Starta Spel', cx, by + 30);
+      }
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '12px sans-serif';
+    ctx.fillText('Tryck Escape f\u00f6r att g\u00e5 tillbaka', cx, H() - 30);
+  }
+
+  function backToMenu() {
+    state = STATE.MENU;
+    if (peer) { peer.destroy(); peer = null; }
+    connections = []; isOnline = false; isHost = false;
+    lobbyPlayers = 1; roomInput = ''; inputActive = false;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && (state === STATE.LOBBY || state === STATE.GAMEOVER)) backToMenu();
+  });
+
+  // ========== GAME LOOP ==========
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  if (window.parent !== window) {
+    window.parent.postMessage({ type: 'gameReady' }, '*');
+  }
+})();
+</script>
+</body>
+</html>

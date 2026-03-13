@@ -43,5 +43,14 @@
     "thumbnail": "assets/images/neon-royale.svg",
     "path": "games/neon-royale/index.html",
     "featured": true
+  },
+  {
+    "id": "neon-league",
+    "title": "Neon League",
+    "description": "Bilfotboll med boost! Spela lokalt, online med v\u00e4nner eller mot random. K\u00f6r bollen i m\u00e5l!",
+    "category": "Multiplayer",
+    "thumbnail": "assets/images/neon-league.svg",
+    "path": "games/neon-league/index.html",
+    "featured": true
   }
 ]
