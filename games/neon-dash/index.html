@@ -893,50 +893,128 @@
       }
 
       if (ob.type === 'portal') {
-        // Portal: glowing vertical line with mode icon
-        const pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.006);
-        const tTop = tunnelTop();
-        const tBot = tunnelBottom();
+        const t = Date.now();
+        const pulse = 0.6 + 0.4 * Math.sin(t * 0.005);
         const cx = ob.x + ob.width / 2;
+        const cy = (tunnelTop() + tunnelBottom()) / 2;
+        const r = 28;
+        const col = ob.color;
 
-        // Glow background
-        const grad = ctx.createLinearGradient(cx - 30, 0, cx + 30, 0);
-        grad.addColorStop(0, hexToRgba(ob.color, 0));
-        grad.addColorStop(0.5, hexToRgba(ob.color, 0.15 * pulse));
-        grad.addColorStop(1, hexToRgba(ob.color, 0));
-        ctx.fillStyle = grad;
-        ctx.fillRect(cx - 30, tTop, 60, tBot - tTop);
+        ctx.save();
+        ctx.translate(cx, cy);
 
-        // Vertical lines
-        ctx.shadowColor = ob.color;
-        ctx.shadowBlur = 20;
-        ctx.strokeStyle = hexToRgba(ob.color, pulse);
-        ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(cx - 5, tTop); ctx.lineTo(cx - 5, tBot); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(cx + 5, tTop); ctx.lineTo(cx + 5, tBot); ctx.stroke();
-        ctx.shadowBlur = 0;
+        // Subtle glow behind
+        ctx.shadowColor = col;
+        ctx.shadowBlur = 12;
 
-        // Spinning particles around portal
-        for (let j = 0; j < 5; j++) {
-          const angle = Date.now() * 0.004 + j * Math.PI * 2 / 5;
-          const radius = 18 + 5 * Math.sin(Date.now() * 0.003 + j);
-          const py = (tTop + tBot) / 2 + Math.sin(angle) * radius * 2;
-          const px = cx + Math.cos(angle) * radius;
-          ctx.fillStyle = hexToRgba(ob.color, 0.7);
-          ctx.beginPath();
-          ctx.arc(px, py, 2.5, 0, Math.PI * 2);
-          ctx.fill();
+        switch (ob.targetMode) {
+          case MODE.WAVE: {
+            // Zigzag gate
+            ctx.strokeStyle = hexToRgba(col, pulse * 0.8);
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(-8, -r); ctx.lineTo(8, -r * 0.5); ctx.lineTo(-8, 0); ctx.lineTo(8, r * 0.5); ctx.lineTo(-8, r);
+            ctx.stroke();
+            break;
+          }
+          case MODE.SHIP: {
+            // Rocket/triangle portal
+            ctx.fillStyle = hexToRgba(col, pulse * 0.25);
+            ctx.beginPath();
+            ctx.moveTo(r * 0.8, 0); ctx.lineTo(-r * 0.6, -r); ctx.lineTo(-r * 0.6, r); ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = hexToRgba(col, pulse * 0.9);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            break;
+          }
+          case MODE.BALL: {
+            // Double circle (gravity flip)
+            ctx.strokeStyle = hexToRgba(col, pulse * 0.9);
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(0, -r * 0.35, r * 0.45, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, r * 0.35, r * 0.45, 0, Math.PI * 2); ctx.stroke();
+            // Arrow between
+            ctx.fillStyle = hexToRgba(col, pulse * 0.7);
+            ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.lineTo(0, -6); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.lineTo(0, 6); ctx.closePath(); ctx.fill();
+            break;
+          }
+          case MODE.UFO: {
+            // UFO dome shape
+            ctx.fillStyle = hexToRgba(col, pulse * 0.2);
+            ctx.beginPath(); ctx.ellipse(0, 4, r * 0.9, r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = hexToRgba(col, pulse * 0.9);
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.ellipse(0, 4, r * 0.9, r * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, -4, r * 0.45, Math.PI, 0); ctx.stroke();
+            break;
+          }
+          case MODE.SWING: {
+            // Pendulum arc
+            ctx.strokeStyle = hexToRgba(col, pulse * 0.9);
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(0, -r * 1.2, r * 1.5, Math.PI * 0.35, Math.PI * 0.65); ctx.stroke();
+            ctx.fillStyle = hexToRgba(col, pulse * 0.8);
+            ctx.beginPath(); ctx.arc(0, r * 0.4, 5, 0, Math.PI * 2); ctx.fill();
+            // String
+            ctx.strokeStyle = hexToRgba(col, pulse * 0.4);
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(0, -r * 0.3); ctx.lineTo(0, r * 0.35); ctx.stroke();
+            break;
+          }
+          case MODE.SPIDER: {
+            // Web/X shape
+            ctx.strokeStyle = hexToRgba(col, pulse * 0.8);
+            ctx.lineWidth = 2;
+            for (let a = 0; a < 4; a++) {
+              const ang = a * Math.PI / 4 + Math.PI / 8;
+              ctx.beginPath();
+              ctx.moveTo(0, 0);
+              ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+              ctx.stroke();
+            }
+            // Inner ring
+            ctx.beginPath(); ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2); ctx.stroke();
+            break;
+          }
+          case MODE.ROBOT: {
+            // Square with antenna
+            ctx.strokeStyle = hexToRgba(col, pulse * 0.9);
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-r * 0.55, -r * 0.4, r * 1.1, r * 0.9);
+            ctx.beginPath(); ctx.moveTo(0, -r * 0.4); ctx.lineTo(0, -r * 0.75); ctx.stroke();
+            ctx.fillStyle = hexToRgba(col, pulse);
+            ctx.beginPath(); ctx.arc(0, -r * 0.8, 3, 0, Math.PI * 2); ctx.fill();
+            break;
+          }
+          case MODE.CUBE: {
+            // Square outline
+            ctx.strokeStyle = hexToRgba(col, pulse * 0.9);
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1);
+            // Inner dot
+            ctx.fillStyle = hexToRgba(col, pulse * 0.6);
+            ctx.fillRect(-4, -4, 8, 8);
+            break;
+          }
+          default: {
+            // Fallback: simple ring
+            ctx.strokeStyle = hexToRgba(col, pulse * 0.9);
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2); ctx.stroke();
+          }
         }
 
-        // Mode icon/label
-        ctx.fillStyle = hexToRgba(ob.color, pulse);
-        ctx.font = 'bold 22px "Segoe UI", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(ob.label, cx, tTop - 12);
+        ctx.shadowBlur = 0;
 
-        // Mode name below icon
-        ctx.font = 'bold 11px "Segoe UI", sans-serif';
-        ctx.fillText(ob.modeName, cx, tBot + 16);
+        // Mode name below portal
+        ctx.fillStyle = hexToRgba(col, pulse * 0.7);
+        ctx.font = 'bold 10px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(ob.modeName, 0, r + 14);
+
+        ctx.restore();
         continue;
       }
 
