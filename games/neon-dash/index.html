@@ -1730,33 +1730,37 @@
           break;
         }
         case MODE.ROBOT: {
-          // Hold = charge jump (higher the longer you hold), release = jump
+          // Tap = instant jump, hold = boost higher while airborne
           const onFloor = player.y + player.size >= tBot - 1;
           if (onFloor) {
             player.vy = 0;
-            if (holding) {
-              // Charge jump power
-              if (!player.chargeTime) player.chargeTime = 0;
-              player.chargeTime = Math.min((player.chargeTime || 0) + 1, 25);
-            } else if (player.chargeTime > 0) {
-              // Release = jump with charged power
-              const power = 1.2 + (player.chargeTime / 25) * 1.8;
-              player.vy = -gameSpeed * power;
-              player.chargeTime = 0;
+            if (tapped) {
+              // Instant jump on tap
+              player.vy = -gameSpeed * 1.8;
+              player.chargeTime = 1;
+              tapped = false;
             }
           } else {
-            player.chargeTime = 0;
+            // While airborne and still holding, keep boosting upward
+            if (holding && player.chargeTime > 0 && player.chargeTime < 18) {
+              player.vy -= GRAVITY * 0.8;
+              player.chargeTime++;
+            } else {
+              player.chargeTime = 0;
+            }
             player.vy += GRAVITY * 1.1;
           }
+          if (!holding) player.chargeTime = 0;
           player.vy = Math.max(-gameSpeed * 3, Math.min(gameSpeed * 3, player.vy));
           player.y += player.vy;
+          tapped = false;
           break;
         }
         case MODE.CUBE: {
           // Classic: tap to jump when on floor
           const onFloor = player.y + player.size >= tBot - 1;
           if (tapped && onFloor) {
-            player.vy = -gameSpeed * 2.2;
+            player.vy = -gameSpeed * 2.8;
             tapped = false;
           } else {
             tapped = false;
