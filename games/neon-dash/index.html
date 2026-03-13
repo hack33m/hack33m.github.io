@@ -558,6 +558,9 @@
     const tBot = tunnelBottom();
     gameMode = newMode;
 
+    // Clear obstacles ahead of player so old mode's obstacles don't block new mode
+    obstacles = obstacles.filter(ob => ob.x < player.x + 50);
+
     // Reset gravity for non-gravity modes
     gravityDir = 1;
     player.vy = 0;
