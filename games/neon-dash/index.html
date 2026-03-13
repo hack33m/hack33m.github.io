@@ -174,6 +174,7 @@
   let mixedObstacleCount = 0; // obstacles since last portal
   let portalFlashTimer = 0;
   let portalFlashMode = ''; // mode label to show on portal switch
+  let mixedTargetSpeed = 0; // speed to ramp back up to after portal switch
 
   // Player
   const player = {
@@ -572,6 +573,10 @@
       case MODE.ROBOT:  baseSpeed = 3.2; break;
       case MODE.CUBE:   baseSpeed = 3.5; break;
     }
+
+    // Slow down on portal switch, then ramp back up
+    mixedTargetSpeed = gameSpeed;
+    gameSpeed = baseSpeed;
 
     // Flash the mode name
     portalFlashTimer = 60;
@@ -1874,7 +1879,14 @@
       score += prevLen - newLen;
 
       distance += gameSpeed;
-      gameSpeed = baseSpeed + distance * 0.00025;
+      const normalSpeed = baseSpeed + distance * 0.00025;
+      if (isMixedMode && mixedTargetSpeed > 0 && gameSpeed < mixedTargetSpeed) {
+        // Ramp up ~0.5x per second (60fps) after portal switch
+        gameSpeed = Math.min(mixedTargetSpeed, gameSpeed + 0.5 / 60);
+        if (gameSpeed >= mixedTargetSpeed) mixedTargetSpeed = 0;
+      } else {
+        gameSpeed = normalSpeed;
+      }
 
       // Generate new obstacles
       const lastOb = obstacles[obstacles.length - 1];
