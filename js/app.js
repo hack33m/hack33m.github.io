@@ -79,6 +79,19 @@ const BIRD_SKINS = [
   { id: 'corny-karamell', name: 'Corny Salted Caramel', price: 0, primary: '#DAA520', secondary: '#FFE4B5', glow: '#DAA520', corny: true, exclusive: true },
 ];
 
+const CAR_SKINS = [
+  { id: 'default', name: 'Standard', price: 0, primary: '#00d4ff', secondary: '#ffffff', glow: '#00d4ff', boost: '#ff6a00' },
+  { id: 'crimson', name: 'Crimson', price: 75, primary: '#ff2d55', secondary: '#ffaacc', glow: '#ff2d55', boost: '#ff2d55' },
+  { id: 'emerald', name: 'Emerald', price: 75, primary: '#39ff14', secondary: '#ccffcc', glow: '#39ff14', boost: '#39ff14' },
+  { id: 'sunset', name: 'Sunset', price: 100, primary: '#ff6a00', secondary: '#ffdd44', glow: '#ff6a00', boost: '#ffdd44' },
+  { id: 'phantom', name: 'Phantom', price: 150, primary: '#a855f7', secondary: '#e0ccff', glow: '#a855f7', boost: '#a855f7' },
+  { id: 'arctic', name: 'Arctic', price: 150, primary: '#88eeff', secondary: '#ffffff', glow: '#88eeff', boost: '#88eeff' },
+  { id: 'golden', name: 'Golden', price: 200, primary: '#fbbf24', secondary: '#fff8e0', glow: '#fbbf24', boost: '#fbbf24' },
+  { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', glow: '#ff4400', boost: '#ff2200' },
+  { id: 'void', name: 'Void', price: 300, primary: '#1a0033', secondary: '#6600cc', glow: '#6600cc', boost: '#6600cc' },
+  { id: 'rainbow', name: 'Regnb\u00e5ge', price: 500, primary: 'rainbow', secondary: '#ffffff', glow: 'rainbow', boost: 'rainbow' },
+];
+
 const EMOJI_PACK_PRICE = 100;
 
 let allGames = [];
@@ -111,8 +124,10 @@ function mapProfile(row) {
     unlockedEmojis: row.unlocked_emojis || [],
     unlockedSkins: row.unlocked_skins || [],
     unlockedBirdSkins: row.unlocked_bird_skins || [],
+    unlockedCarSkins: row.unlocked_car_skins || [],
     arrowSkin: row.arrow_skin,
     birdSkin: row.bird_skin,
+    carSkin: row.car_skin,
     joined: row.joined_at,
   };
 }
@@ -127,8 +142,10 @@ function mapToDb(updates) {
     unlockedEmojis: 'unlocked_emojis',
     unlockedSkins: 'unlocked_skins',
     unlockedBirdSkins: 'unlocked_bird_skins',
+    unlockedCarSkins: 'unlocked_car_skins',
     arrowSkin: 'arrow_skin',
     birdSkin: 'bird_skin',
+    carSkin: 'car_skin',
     bannedUntil: 'banned_until',
   };
   const result = {};
@@ -248,7 +265,9 @@ async function registerUser(username, password, avatar) {
     unlocked_effects: [],
     unlocked_emojis: [],
     unlocked_skins: [],
+    unlocked_car_skins: [],
     arrow_skin: null,
+    car_skin: null,
     joined_at: new Date().toISOString(),
   });
 
@@ -824,7 +843,7 @@ function initGamePage() {
     // Send skin data to game iframe
     const user = getCurrentUser();
     if (user) {
-      const skinId = gameId === 'neon-bird' ? user.birdSkin : user.arrowSkin;
+      const skinId = gameId === 'neon-bird' ? user.birdSkin : gameId === 'neon-league' ? user.carSkin : user.arrowSkin;
       if (skinId) iframe.contentWindow.postMessage({ type: 'skin-data', skinId }, '*');
     }
   });
@@ -1050,6 +1069,36 @@ function renderShop(user) {
   });
   html += '</div>';
 
+  // Car Skins (Neon League)
+  html += '<h3 class="shop-category-title">\ud83c\udfce\ufe0f Car Skins <span style="color:var(--text-muted);font-size:14px;">(Neon League)</span></h3><div class="shop-items">';
+  CAR_SKINS.filter(s => s.price > 0).forEach(skin => {
+    const owned = (u.unlockedCarSkins || []).includes(skin.id);
+    const equipped = u.carSkin === skin.id;
+    const fillColor = skin.primary === 'rainbow' ? '#a855f7' : skin.primary;
+    const glowColor = skin.glow === 'rainbow' ? '#a855f7' : skin.glow;
+    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
+      <div class="skin-preview">
+        <svg viewBox="0 0 56 32" width="56" height="32" style="filter:drop-shadow(0 0 6px ${glowColor});">
+          <rect x="4" y="4" width="40" height="22" rx="4" fill="${fillColor}"/>
+          <rect x="26" y="8" width="10" height="14" rx="2" fill="${skin.secondary}" opacity="0.5"/>
+          <polygon points="44,9 48,15 44,21" fill="#fff" opacity="0.5"/>
+          <rect x="8" y="2" width="8" height="4" rx="1" fill="rgba(255,255,255,0.2)"/>
+          <rect x="8" y="24" width="8" height="4" rx="1" fill="rgba(255,255,255,0.2)"/>
+          <rect x="28" y="2" width="8" height="4" rx="1" fill="rgba(255,255,255,0.2)"/>
+          <rect x="28" y="24" width="8" height="4" rx="1" fill="rgba(255,255,255,0.2)"/>
+        </svg>
+      </div>
+      <span class="shop-item-name" style="font-weight:700;font-size:14px;">${skin.name}</span>
+      ${owned
+        ? (equipped
+          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-car-skin">Utrustad \u2713</button>'
+          : `<button class="shop-btn shop-btn-equip" data-action="equip-car-skin" data-id="${skin.id}">Anv\u00e4nd</button>`)
+        : `<button class="shop-btn shop-btn-buy" data-action="buy-car-skin" data-id="${skin.id}" data-price="${skin.price}">\ud83e\ude99 ${skin.price}</button>`
+      }
+    </div>`;
+  });
+  html += '</div>';
+
   // Extra Emojis
   html += `<h3 class="shop-category-title">😈 Extra Avatarer <span style="color:var(--text-muted);font-size:14px;">(${EMOJI_PACK_PRICE} coins styck)</span></h3><div class="shop-items emoji-items">`;
   AVATARS_LOCKED.forEach(emoji => {
@@ -1199,6 +1248,10 @@ function renderShop(user) {
           const skins = [...(currentUserData.unlockedBirdSkins || []), id];
           await updateUser({ unlockedBirdSkins: skins, birdSkin: id });
         }
+        if (action === 'buy-car-skin') {
+          const skins = [...(currentUserData.unlockedCarSkins || []), id];
+          await updateUser({ unlockedCarSkins: skins, carSkin: id });
+        }
       }
       if (action === 'equip-corny-avatar') await updateUser({ avatar: 'corny' });
       if (action === 'unequip-corny-avatar') await updateUser({ avatar: '😀' });
@@ -1212,6 +1265,8 @@ function renderShop(user) {
       if (action === 'unequip-skin') await updateUser({ arrowSkin: null });
       if (action === 'equip-bird-skin') await updateUser({ birdSkin: id });
       if (action === 'unequip-bird-skin') await updateUser({ birdSkin: null });
+      if (action === 'equip-car-skin') await updateUser({ carSkin: id });
+      if (action === 'unequip-car-skin') await updateUser({ carSkin: null });
 
       renderShop(getCurrentUser());
       renderHeaderAuth();

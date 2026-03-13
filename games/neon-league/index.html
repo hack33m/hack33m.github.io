@@ -368,6 +368,9 @@
       { x: FIELD_W * 0.35, y: FIELD_H / 2 }, { x: FIELD_W * 0.65, y: FIELD_H / 2 }
     ];
     padPositions.forEach(p => boostPads.push({ x: p.x, y: p.y, active: true, timer: 0 }));
+
+    // Apply skin if set
+    if (mySkinId) applySkin(mySkinId);
   }
 
   function resetPositions() {
@@ -851,7 +854,16 @@
       ctx.translate(car.x, car.y);
       ctx.rotate(car.angle);
 
-      const color = TEAM_COLORS[car.team];
+      let color = TEAM_COLORS[car.team];
+      let secColor = '#ffffff';
+      if (car._rainbow) {
+        const hue = (frameCount * 3 + i * 120) % 360;
+        color = `hsl(${hue}, 100%, 60%)`;
+        secColor = `hsl(${(hue + 60) % 360}, 100%, 80%)`;
+      } else if (car._skin) {
+        color = car._skin.primary;
+        secColor = car._skin.secondary;
+      }
 
       // Car shadow
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -862,17 +874,21 @@
       // Car body
       ctx.shadowColor = color;
       ctx.shadowBlur = car.boosting ? 18 : 8;
-      ctx.fillStyle = hexToRgba(color, 0.9);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.9;
       ctx.beginPath();
       ctx.roundRect(-CAR_W / 2, -CAR_H / 2, CAR_W, CAR_H, 4);
       ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
 
       // Windshield
-      ctx.fillStyle = hexToRgba(color, 0.4);
+      ctx.fillStyle = secColor;
+      ctx.globalAlpha = 0.4;
       ctx.beginPath();
       ctx.roundRect(CAR_W * 0.1, -CAR_H * 0.3, CAR_W * 0.2, CAR_H * 0.6, 2);
       ctx.fill();
+      ctx.globalAlpha = 1;
 
       // Nose
       ctx.fillStyle = '#fff';
@@ -914,10 +930,12 @@
       ctx.restore();
 
       // Player label
-      ctx.fillStyle = hexToRgba(color, 0.6);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.6;
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText((isOnline ? 'P' : 'Spelare ') + (i + 1), car.x, car.y - CAR_H / 2 - 8);
+      ctx.globalAlpha = 1;
     });
   }
 
@@ -1196,6 +1214,43 @@
     requestAnimationFrame(loop);
   }
   loop();
+
+  // ========== SKIN SYSTEM ==========
+  const SKIN_COLORS = {
+    'default': { primary: '#00d4ff', secondary: '#ffffff', glow: '#00d4ff', boost: '#ff6a00' },
+    'crimson': { primary: '#ff2d55', secondary: '#ffaacc', glow: '#ff2d55', boost: '#ff2d55' },
+    'emerald': { primary: '#39ff14', secondary: '#ccffcc', glow: '#39ff14', boost: '#39ff14' },
+    'sunset': { primary: '#ff6a00', secondary: '#ffdd44', glow: '#ff6a00', boost: '#ffdd44' },
+    'phantom': { primary: '#a855f7', secondary: '#e0ccff', glow: '#a855f7', boost: '#a855f7' },
+    'arctic': { primary: '#88eeff', secondary: '#ffffff', glow: '#88eeff', boost: '#88eeff' },
+    'golden': { primary: '#fbbf24', secondary: '#fff8e0', glow: '#fbbf24', boost: '#fbbf24' },
+    'inferno': { primary: '#ff4400', secondary: '#ff8800', glow: '#ff4400', boost: '#ff2200' },
+    'void': { primary: '#1a0033', secondary: '#6600cc', glow: '#6600cc', boost: '#6600cc' },
+    'rainbow': { primary: 'rainbow', secondary: '#ffffff', glow: '#a855f7', boost: '#a855f7' }
+  };
+  let mySkinId = null;
+
+  function applySkin(skinId) {
+    mySkinId = skinId;
+    const skin = SKIN_COLORS[skinId];
+    if (!skin || !cars[localPlayerIndex]) return;
+    const car = cars[localPlayerIndex];
+    if (skin.primary === 'rainbow') {
+      // Rainbow gets applied per-frame in draw
+      car._rainbow = true;
+    } else {
+      car._rainbow = false;
+      TEAM_COLORS[car.team] = skin.primary;
+    }
+    car._skin = skin;
+  }
+
+  window.addEventListener('message', e => {
+    if (e.data && e.data.type === 'skin-data' && e.data.skinId) {
+      mySkinId = e.data.skinId;
+      // Will be applied when game starts
+    }
+  });
 
   if (window.parent !== window) {
     window.parent.postMessage({ type: 'gameReady' }, '*');
