@@ -828,7 +828,7 @@ function initGamePage() {
       if (skinId) iframe.contentWindow.postMessage({ type: 'skin-data', skinId }, '*');
     }
   });
-  iframe.src = game.path;
+  iframe.src = game.path + '?v=' + Date.now();
   saveRecentlyPlayed(game.id);
 
   // Listen for score-based coin rewards from game iframe
