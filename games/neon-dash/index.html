@@ -315,27 +315,27 @@
         }
         break;
       case MODE.SPIDER:
-        // Surface teleport: spikes on the surface you're on, pillars to dodge mid-teleport
+        // Surface teleport: only spikes on one surface at a time (always safe on the other)
         if (difficulty < 0.3) {
-          type = roll < 0.3 ? 'spikes_top' : (roll < 0.6 ? 'spikes_bottom' : (roll < 0.85 ? 'pillars' : 'spikes_both'));
+          type = roll < 0.5 ? 'spikes_bottom' : 'spikes_top';
         } else {
-          type = roll < 0.2 ? 'spikes_top' : (roll < 0.4 ? 'spikes_bottom' : (roll < 0.6 ? 'spikes_both' : 'pillars'));
+          type = roll < 0.4 ? 'spikes_bottom' : (roll < 0.8 ? 'spikes_top' : 'pillars');
         }
         break;
       case MODE.ROBOT:
-        // Jump from floor: floor spikes to jump over, pillars to clear, no top spikes early
-        if (difficulty < 0.3) {
-          type = roll < 0.6 ? 'spikes_bottom' : 'pillars';
-        } else {
-          type = roll < 0.4 ? 'spikes_bottom' : (roll < 0.7 ? 'pillars' : (roll < 0.85 ? 'gap' : 'spikes_both'));
-        }
-        break;
-      case MODE.CUBE:
-        // Classic jump from floor: floor spikes and pillars, no flying needed
+        // Jump from floor: only floor spikes and floor pillars
         if (difficulty < 0.3) {
           type = roll < 0.55 ? 'spikes_bottom' : 'pillars';
         } else {
-          type = roll < 0.35 ? 'spikes_bottom' : (roll < 0.65 ? 'pillars' : (roll < 0.85 ? 'gap' : 'spikes_both'));
+          type = roll < 0.45 ? 'spikes_bottom' : 'pillars';
+        }
+        break;
+      case MODE.CUBE:
+        // Classic jump: only floor spikes and floor pillars
+        if (difficulty < 0.3) {
+          type = roll < 0.55 ? 'spikes_bottom' : 'pillars';
+        } else {
+          type = roll < 0.45 ? 'spikes_bottom' : 'pillars';
         }
         break;
       default:
