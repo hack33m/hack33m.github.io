@@ -25,5 +25,14 @@
     "thumbnail": "assets/images/uppdraget.svg",
     "path": "games/uppdraget/index.html",
     "featured": true
+  },
+  {
+    "id": "block-blast",
+    "title": "Block Blast",
+    "description": "Placera block på rutnätet och rensa rader och kolumner! Hur många poäng kan du få?",
+    "category": "Pussel",
+    "thumbnail": "assets/images/block-blast.svg",
+    "path": "games/block-blast/index.html",
+    "featured": true
   }
 ]
