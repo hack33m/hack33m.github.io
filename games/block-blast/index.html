@@ -58,6 +58,28 @@
 
   const BLOCK_COLORS = [NEON_BLUE, NEON_PURPLE, NEON_PINK, NEON_GREEN, NEON_ORANGE, NEON_YELLOW, NEON_RED, NEON_CYAN];
 
+  // Corny flavors
+  const CORNY_FLAVORS = [
+    { id: 'choklad',   name: 'Choklad',         color: '#6B3410', glow: '#A0522D', img: '../../images/corny-choklad.png' },
+    { id: 'mork',      name: 'Mörk Choklad',    color: '#3D1C00', glow: '#5C2E00', img: '../../images/corny-mork.png' },
+    { id: 'vit',       name: 'Vit Choklad',      color: '#FFF8DC', glow: '#FFD700', img: '../../images/corny-vit.png' },
+    { id: 'kokos',     name: 'Kokos',            color: '#F5F5DC', glow: '#DEB887', img: '../../images/corny-kokos.png' },
+    { id: 'banan',     name: 'Banan',            color: '#FFD700', glow: '#FFD700', img: '../../images/corny-banan.png' },
+    { id: 'jordnot',   name: 'Jordnöt',          color: '#C4A265', glow: '#DAA520', img: '../../images/corny-jordnot.png' },
+    { id: 'jordgubb',  name: 'Jordgubb',         color: '#FF69B4', glow: '#FF69B4', img: '../../images/corny-jordgubb.png' },
+    { id: 'brownie',   name: 'Brownie',          color: '#4A2000', glow: '#8B4513', img: '../../images/corny-brownie.png' },
+    { id: 'karamell',  name: 'Salted Caramel',   color: '#DAA520', glow: '#DAA520', img: '../../images/corny-karamell.png' },
+  ];
+
+  // Preload corny images
+  const cornyImages = {};
+  for (const flavor of CORNY_FLAVORS) {
+    const img = new Image();
+    img.src = flavor.img;
+    img.onload = () => { img._loaded = true; };
+    cornyImages[flavor.id] = img;
+  }
+
   // ========== PIECE SHAPES ==========
   // Each shape is array of [row, col] offsets
   const SHAPES = [
@@ -145,8 +167,8 @@
 
   function randomPiece() {
     const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
-    const color = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
-    return { cells: shape.cells.map(c => [...c]), color };
+    const flavor = CORNY_FLAVORS[Math.floor(Math.random() * CORNY_FLAVORS.length)];
+    return { cells: shape.cells.map(c => [...c]), color: flavor.color, glow: flavor.glow, flavorId: flavor.id };
   }
 
   function spawnPieces() {
@@ -177,7 +199,7 @@
 
   function placePiece(piece, gridRow, gridCol) {
     for (const [r, c] of piece.cells) {
-      grid[gridRow + r][gridCol + c] = piece.color;
+      grid[gridRow + r][gridCol + c] = piece.flavorId;
     }
   }
 
@@ -328,21 +350,38 @@
     }
   }
 
-  function drawBlock(x, y, size, color, alpha) {
+  function drawBlock(x, y, size, flavorId, alpha) {
     const pad = 2;
-    ctx.fillStyle = hexToRgba(color, alpha * 0.85);
-    ctx.shadowColor = color;
+    const flavor = CORNY_FLAVORS.find(f => f.id === flavorId);
+    const color = flavor ? flavor.color : flavorId; // fallback to raw color
+    const glow = flavor ? flavor.glow : color;
+    const img = flavor ? cornyImages[flavor.id] : null;
+
+    // Background rounded rect
+    ctx.fillStyle = hexToRgba(glow, alpha * 0.3);
+    ctx.shadowColor = glow;
     ctx.shadowBlur = 6;
     ctx.beginPath();
     ctx.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, 4);
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Inner highlight
-    ctx.fillStyle = hexToRgba(color, alpha * 0.25);
-    ctx.beginPath();
-    ctx.roundRect(x + pad + 3, y + pad + 3, size - pad * 2 - 6, (size - pad * 2) * 0.35, 3);
-    ctx.fill();
+    // Draw corny image if loaded
+    if (img && img._loaded) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.roundRect(x + pad + 1, y + pad + 1, size - pad * 2 - 2, size - pad * 2 - 2, 3);
+      ctx.clip();
+      ctx.drawImage(img, x + pad + 1, y + pad + 1, size - pad * 2 - 2, size - pad * 2 - 2);
+      ctx.restore();
+    } else {
+      // Fallback: solid color block
+      ctx.fillStyle = hexToRgba(color, alpha * 0.85);
+      ctx.beginPath();
+      ctx.roundRect(x + pad + 1, y + pad + 1, size - pad * 2 - 2, size - pad * 2 - 2, 3);
+      ctx.fill();
+    }
   }
 
   function drawPieces() {
@@ -380,7 +419,7 @@
       const oy = cy - ph / 2;
 
       for (const [r, c] of piece.cells) {
-        drawBlock(ox + (c - minC) * pieceCell, oy + (r - minR) * pieceCell, pieceCell, piece.color, 0.8);
+        drawBlock(ox + (c - minC) * pieceCell, oy + (r - minR) * pieceCell, pieceCell, piece.flavorId, 0.8);
       }
     }
   }
@@ -414,7 +453,8 @@
       if (gr >= 0 && gr < ROWS && gc >= 0 && gc < COLS) {
         const gx = origin.x + gc * cell;
         const gy = origin.y + gr * cell;
-        ctx.fillStyle = hexToRgba(piece.color, valid ? 0.35 : 0.15);
+        const ghostFlavor = CORNY_FLAVORS.find(f => f.id === piece.flavorId);
+        ctx.fillStyle = hexToRgba(ghostFlavor ? ghostFlavor.glow : '#ffffff', valid ? 0.35 : 0.15);
         ctx.beginPath();
         ctx.roundRect(gx + 2, gy + 2, cell - 4, cell - 4, 4);
         ctx.fill();
@@ -425,7 +465,7 @@
     const pieceX = dragging.x - dragging.offsetX;
     const pieceY = dragging.y - dragging.offsetY - cell * 1.5;
     for (const [r, c] of piece.cells) {
-      drawBlock(pieceX + c * cell, pieceY + r * cell, cell, piece.color, valid ? 1 : 0.5);
+      drawBlock(pieceX + c * cell, pieceY + r * cell, cell, piece.flavorId, valid ? 1 : 0.5);
     }
   }
 
@@ -436,14 +476,16 @@
     for (const anim of clearAnimations) {
       const alpha = anim.timer / 20;
       const scale = 1 + (1 - alpha) * 0.3;
-      for (const { r, c, color } of anim.cells) {
+      for (const { r, c, color: fId } of anim.cells) {
+        const fl = CORNY_FLAVORS.find(f => f.id === fId);
+        const glowCol = fl ? fl.glow : '#ffffff';
         const cx = origin.x + c * cell + cell / 2;
         const cy = origin.y + r * cell + cell / 2;
         ctx.save();
         ctx.translate(cx, cy);
         ctx.scale(scale, scale);
-        ctx.fillStyle = hexToRgba(color, alpha * 0.8);
-        ctx.shadowColor = color;
+        ctx.fillStyle = hexToRgba(glowCol, alpha * 0.8);
+        ctx.shadowColor = glowCol;
         ctx.shadowBlur = 15 * alpha;
         ctx.beginPath();
         ctx.roundRect(-cell / 2 + 2, -cell / 2 + 2, cell - 4, cell - 4, 4);
