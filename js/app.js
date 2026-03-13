@@ -419,20 +419,40 @@ function escapeHtml(str) {
 }
 
 // ===== Render Avatar =====
+const CORNY_AVATAR_FLAVORS = [
+  { id: 'corny-choklad', name: 'Corny Choklad', img: 'images/corny-choklad.png' },
+  { id: 'corny-mork', name: 'Corny M\u00f6rk Choklad', img: 'images/corny-mork.png' },
+  { id: 'corny-vit', name: 'Corny Vit Choklad', img: 'images/corny-vit.png' },
+  { id: 'corny-kokos', name: 'Corny Kokos', img: 'images/corny-kokos.png' },
+  { id: 'corny-banan', name: 'Corny Banan', img: 'images/corny-banan.png' },
+  { id: 'corny-jordnot', name: 'Corny Jordn\u00f6t', img: 'images/corny-jordnot.png' },
+  { id: 'corny-jordgubb', name: 'Corny Jordgubb', img: 'images/corny-jordgubb.png' },
+  { id: 'corny-brownie', name: 'Corny Brownie', img: 'images/corny-brownie.png' },
+  { id: 'corny-karamell', name: 'Corny Salted Caramel', img: 'images/corny-karamell.png' },
+];
+
+function getCornyAvatarImg(avatar) {
+  if (avatar === 'corny') return CORNY_IMAGE_URL;
+  const f = CORNY_AVATAR_FLAVORS.find(f => f.id === avatar);
+  return f ? f.img : null;
+}
+
 function renderAvatar(avatar, size) {
-  if (avatar === 'corny') {
+  const cornyImg = getCornyAvatarImg(avatar);
+  if (cornyImg) {
     const s = size || 32;
-    return `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:contain;background:#1a1a2e;vertical-align:middle;">`;
+    return `<img src="${cornyImg}" alt="Corny" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:contain;background:#1a1a2e;vertical-align:middle;">`;
   }
-  return avatar || '😀';
+  return avatar || '\ud83d\ude00';
 }
 
 // ===== Available Avatars =====
 function getAvailableAvatars(user) {
-  const extra = user ? (user.unlockedEmojis || []).filter(e => e !== 'corny') : [];
+  const extra = user ? (user.unlockedEmojis || []).filter(e => e !== 'corny' && !e.startsWith('corny-')) : [];
   const avatars = [...AVATARS_FREE, ...extra];
   if (user && (user.unlockedEmojis || []).includes('corny')) {
     avatars.push('corny');
+    CORNY_AVATAR_FLAVORS.forEach(f => avatars.push(f.id));
   }
   return avatars;
 }
@@ -565,8 +585,9 @@ function renderAvatarPicker(container, selected, list) {
     btn.type = 'button';
     btn.className = 'avatar-option' + (avatar === selected ? ' selected' : '');
     btn.dataset.avatar = avatar;
-    if (avatar === 'corny') {
-      btn.innerHTML = `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:100%;height:100%;border-radius:50%;object-fit:contain;background:#1a1a2e;">`;
+    const cornyImg = getCornyAvatarImg(avatar);
+    if (cornyImg) {
+      btn.innerHTML = `<img src="${cornyImg}" alt="Corny" style="width:100%;height:100%;border-radius:50%;object-fit:contain;background:#1a1a2e;">`;
     } else {
       btn.textContent = avatar;
     }
@@ -1124,22 +1145,23 @@ function renderShop(user) {
   // --- Avatar tab ---
   const hasCornyAvatar = (u.unlockedEmojis || []).includes('corny');
   html += '<div class="exc-panel" data-exc-panel="avatar"><div class="shop-items">';
-  // Corny avatar
-  if (hasCornyAvatar) {
-    const eq = u.avatar === 'corny';
-    html += `<div class="shop-item ${eq ? 'equipped' : ''}">
-      <span class="shop-item-preview"><img src="${CORNY_IMAGE_URL}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;"></span>
-      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Avatar</span>
-      ${eq ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-corny-avatar">Utrustad ✓</button>'
-           : '<button class="shop-btn shop-btn-equip" data-action="equip-corny-avatar">Använd</button>'}
-    </div>`;
-  } else {
-    html += `<div class="shop-item" style="opacity:0.5;">
-      <span class="shop-item-preview"><img src="${CORNY_IMAGE_URL}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;filter:grayscale(1);"></span>
-      <span class="shop-item-name" style="font-weight:700;font-size:14px;">Corny Avatar</span>
-      <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
-    </div>`;
-  }
+  CORNY_AVATAR_FLAVORS.forEach(flavor => {
+    if (hasCornyAvatar) {
+      const eq = u.avatar === flavor.id;
+      html += `<div class="shop-item ${eq ? 'equipped' : ''}">
+        <span class="shop-item-preview"><img src="${flavor.img}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;"></span>
+        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${flavor.name}</span>
+        ${eq ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-corny-avatar">Utrustad \u2713</button>'
+             : `<button class="shop-btn shop-btn-equip" data-action="equip-corny-avatar" data-id="${flavor.id}">Anv\u00e4nd</button>`}
+      </div>`;
+    } else {
+      html += `<div class="shop-item" style="opacity:0.5;">
+        <span class="shop-item-preview"><img src="${flavor.img}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;filter:grayscale(1);"></span>
+        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${flavor.name}</span>
+        <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt \u2b50</span>
+      </div>`;
+    }
+  });
   html += '</div></div>';
 
   // --- Neon Dash tab ---
@@ -1253,8 +1275,8 @@ function renderShop(user) {
           await updateUser({ unlockedCarSkins: skins, carSkin: id });
         }
       }
-      if (action === 'equip-corny-avatar') await updateUser({ avatar: 'corny' });
-      if (action === 'unequip-corny-avatar') await updateUser({ avatar: '😀' });
+      if (action === 'equip-corny-avatar') await updateUser({ avatar: id || 'corny' });
+      if (action === 'unequip-corny-avatar') await updateUser({ avatar: '\ud83d\ude00' });
       if (action === 'equip-color') await updateUser({ nameColor: color });
       if (action === 'unequip-color') await updateUser({ nameColor: null });
       if (action === 'equip-title') await updateUser({ title: id });
