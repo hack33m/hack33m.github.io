@@ -385,6 +385,18 @@
     }
   }
 
+  function getDragGridPos() {
+    // Returns the grid row/col where the piece's top-left cell would be placed
+    const cell = getCellSize();
+    const origin = getGridOrigin();
+    // Top-left of dragged piece in screen coords
+    const pieceX = dragging.x - dragging.offsetX;
+    const pieceY = dragging.y - dragging.offsetY - cell * 1.5; // lift above finger
+    const gridCol = Math.round((pieceX - origin.x) / cell);
+    const gridRow = Math.round((pieceY - origin.y) / cell);
+    return { gridRow, gridCol };
+  }
+
   function drawDragging() {
     if (!dragging) return;
     const piece = pieces[dragging.pieceIndex];
@@ -392,33 +404,28 @@
 
     const cell = getCellSize();
     const origin = getGridOrigin();
-
-    // Calculate grid position under drag
-    const gridCol = Math.round((dragging.x - origin.x) / cell - 0.5);
-    const gridRow = Math.round((dragging.y - origin.y - cell * 1.5) / cell - 0.5);
+    const { gridRow, gridCol } = getDragGridPos();
     const valid = canPlace(piece, gridRow, gridCol);
 
     // Draw ghost on grid
-    if (gridRow >= -2 && gridRow < ROWS + 2 && gridCol >= -2 && gridCol < COLS + 2) {
-      for (const [r, c] of piece.cells) {
-        const gr = gridRow + r;
-        const gc = gridCol + c;
-        if (gr >= 0 && gr < ROWS && gc >= 0 && gc < COLS) {
-          const gx = origin.x + gc * cell;
-          const gy = origin.y + gr * cell;
-          ctx.fillStyle = hexToRgba(piece.color, valid ? 0.35 : 0.15);
-          ctx.beginPath();
-          ctx.roundRect(gx + 2, gy + 2, cell - 4, cell - 4, 4);
-          ctx.fill();
-        }
+    for (const [r, c] of piece.cells) {
+      const gr = gridRow + r;
+      const gc = gridCol + c;
+      if (gr >= 0 && gr < ROWS && gc >= 0 && gc < COLS) {
+        const gx = origin.x + gc * cell;
+        const gy = origin.y + gr * cell;
+        ctx.fillStyle = hexToRgba(piece.color, valid ? 0.35 : 0.15);
+        ctx.beginPath();
+        ctx.roundRect(gx + 2, gy + 2, cell - 4, cell - 4, 4);
+        ctx.fill();
       }
     }
 
-    // Draw piece at cursor
+    // Draw piece at cursor (lifted above finger/cursor)
+    const pieceX = dragging.x - dragging.offsetX;
+    const pieceY = dragging.y - dragging.offsetY - cell * 1.5;
     for (const [r, c] of piece.cells) {
-      const bx = dragging.x + c * cell - dragging.offsetX;
-      const by = dragging.y + r * cell - dragging.offsetY - cell * 1.5;
-      drawBlock(bx, by, cell, piece.color, valid ? 1 : 0.5);
+      drawBlock(pieceX + c * cell, pieceY + r * cell, cell, piece.color, valid ? 1 : 0.5);
     }
   }
 
@@ -520,32 +527,44 @@
     return { x: t.clientX, y: t.clientY };
   }
 
-  function findPieceAt(x, y) {
+  // Get the top-left origin of a piece in the piece tray
+  function getPieceOrigin(i) {
     const cell = getCellSize();
     const pieceCell = cell * 0.6;
     const areaY = getPieceAreaY();
     const areaH = H() - areaY - 10;
     const slotW = W() * 0.9 / 3;
+    const piece = pieces[i];
+    if (!piece) return null;
+
+    let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
+    for (const [r, c] of piece.cells) {
+      minR = Math.min(minR, r); maxR = Math.max(maxR, r);
+      minC = Math.min(minC, c); maxC = Math.max(maxC, c);
+    }
+    const pw = (maxC - minC + 1) * pieceCell;
+    const ph = (maxR - minR + 1) * pieceCell;
+    const cx = W() * 0.05 + slotW * i + slotW / 2;
+    const cy = areaY + areaH / 2;
+    return { ox: cx - pw / 2, oy: cy - ph / 2, minR, minC, pw, ph };
+  }
+
+  function findPieceAt(x, y) {
+    const cell = getCellSize();
+    const pieceCell = cell * 0.6;
 
     for (let i = 0; i < pieces.length; i++) {
-      const piece = pieces[i];
-      if (!piece) continue;
+      if (!pieces[i]) continue;
+      const info = getPieceOrigin(i);
+      if (!info) continue;
 
-      let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
-      for (const [r, c] of piece.cells) {
-        minR = Math.min(minR, r); maxR = Math.max(maxR, r);
-        minC = Math.min(minC, c); maxC = Math.max(maxC, c);
-      }
-      const pw = (maxC - minC + 1) * pieceCell;
-      const ph = (maxR - minR + 1) * pieceCell;
-
-      const cx = W() * 0.05 + slotW * i + slotW / 2;
-      const cy = areaY + areaH / 2;
-      const ox = cx - pw / 2;
-      const oy = cy - ph / 2;
-
-      if (x >= ox - 10 && x <= ox + pw + 10 && y >= oy - 10 && y <= oy + ph + 10) {
-        return { pieceIndex: i, offsetX: (maxC - minC + 1) * cell / 2, offsetY: (maxR - minR + 1) * cell / 2 };
+      if (x >= info.ox - 15 && x <= info.ox + info.pw + 15 && y >= info.oy - 15 && y <= info.oy + info.ph + 15) {
+        // Offset = distance from click to the piece's top-left corner (in grid-cell coords)
+        // Scale from pieceCell to full cell size
+        const scale = cell / pieceCell;
+        const offsetX = (x - info.ox) * scale;
+        const offsetY = (y - info.oy) * scale;
+        return { pieceIndex: i, offsetX, offsetY, minR: info.minR, minC: info.minC };
       }
     }
     return null;
@@ -584,10 +603,7 @@
 
     const piece = pieces[dragging.pieceIndex];
     if (piece) {
-      const cell = getCellSize();
-      const origin = getGridOrigin();
-      const gridCol = Math.round((dragging.x - origin.x) / cell - 0.5);
-      const gridRow = Math.round((dragging.y - origin.y - cell * 1.5) / cell - 0.5);
+      const { gridRow, gridCol } = getDragGridPos();
 
       if (canPlace(piece, gridRow, gridCol)) {
         placePiece(piece, gridRow, gridCol);
