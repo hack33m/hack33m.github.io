@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" rx="20" fill="#0a0a1a"/>
+  <!-- Arena circle -->
+  <circle cx="100" cy="100" r="75" fill="none" stroke="#a855f7" stroke-width="2" opacity="0.5"/>
+  <circle cx="100" cy="100" r="55" fill="none" stroke="#a855f7" stroke-width="1.5" opacity="0.3" stroke-dasharray="6 4"/>
+  <!-- Player 1 - blue -->
+  <circle cx="75" cy="80" r="12" fill="#00d4ff" opacity="0.9"/>
+  <line x1="75" y1="80" x2="88" y2="75" stroke="#00d4ff" stroke-width="3" stroke-linecap="round"/>
+  <!-- Player 2 - pink -->
+  <circle cx="130" cy="110" r="12" fill="#ff2d95" opacity="0.9"/>
+  <line x1="130" y1="110" x2="117" y2="115" stroke="#ff2d95" stroke-width="3" stroke-linecap="round"/>
+  <!-- Player 3 - green -->
+  <circle cx="90" cy="135" r="12" fill="#39ff14" opacity="0.9"/>
+  <line x1="90" y1="135" x2="103" y2="130" stroke="#39ff14" stroke-width="3" stroke-linecap="round"/>
+  <!-- Bullets -->
+  <circle cx="92" cy="77" r="3" fill="#00d4ff" opacity="0.8"/>
+  <circle cx="113" cy="117" r="3" fill="#ff2d95" opacity="0.8"/>
+  <!-- Crosshair -->
+  <circle cx="100" cy="100" r="6" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <line x1="100" y1="92" x2="100" y2="96" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <line x1="100" y1="104" x2="100" y2="108" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <line x1="92" y1="100" x2="96" y2="100" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <line x1="104" y1="100" x2="108" y2="100" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <!-- Title -->
+  <text x="100" y="35" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="14" fill="#a855f7">ROYALE</text>
+</svg>

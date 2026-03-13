@@ -34,5 +34,14 @@
     "thumbnail": "assets/images/block-blast.svg",
     "path": "games/block-blast/index.html",
     "featured": true
+  },
+  {
+    "id": "neon-royale",
+    "title": "Neon Royale",
+    "description": "Battle Royale! Spela lokalt, med v\u00e4nner online eller mot random. Sista spelaren vinner!",
+    "category": "Multiplayer",
+    "thumbnail": "assets/images/neon-royale.svg",
+    "path": "games/neon-royale/index.html",
+    "featured": true
   }
 ]

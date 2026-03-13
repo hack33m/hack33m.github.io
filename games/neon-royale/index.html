@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Neon Royale</title>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #fff;
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  // ========== HI-DPI ==========
+  let dpr = 1;
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
+  // ========== COLORS ==========
+  const NEON_BLUE = '#00d4ff';
+  const NEON_PINK = '#ff2d95';
+  const NEON_GREEN = '#39ff14';
+  const NEON_ORANGE = '#ff6a00';
+  const NEON_PURPLE = '#a855f7';
+  const NEON_YELLOW = '#ffe600';
+
+  const PLAYER_COLORS = [NEON_BLUE, NEON_PINK, NEON_GREEN, NEON_ORANGE];
+  const PLAYER_NAMES = ['Spelare 1', 'Spelare 2', 'Spelare 3', 'Spelare 4'];
+
+  // ========== GAME STATE ==========
+  const STATE = { MENU: 0, LOBBY: 1, COUNTDOWN: 2, PLAYING: 3, GAMEOVER: 4 };
+  let state = STATE.MENU;
+  let menuSelection = 0; // 0=local, 1=online friends, 2=online random
+  const menuOptions = [
+    { label: 'Lokal (2 spelare)', desc: 'Spela p\u00e5 samma tangentbord' },
+    { label: 'Online V\u00e4nner', desc: 'Skapa eller g\u00e5 med i ett rum' },
+    { label: 'Online Random', desc: 'Spela mot en slumpm\u00e4ssig motst\u00e5ndare' }
+  ];
+
+  // ========== MULTIPLAYER STATE ==========
+  let isHost = false;
+  let isOnline = false;
+  let peer = null;
+  let connections = [];
+  let myPeerId = '';
+  let roomCode = '';
+  let lobbyStatus = '';
+  let roomInput = '';
+  let inputActive = false;
+  let lobbyPlayers = 1;
+  let localPlayerIndex = 0;
+
+  // ========== ARENA ==========
+  const ARENA_SIZE = 2000;
+  const ARENA_SHRINK_RATE = 0.15; // pixels per frame
+  const ARENA_MIN = 300;
+  let arenaRadius = ARENA_SIZE / 2;
+  let arenaCenter = { x: ARENA_SIZE / 2, y: ARENA_SIZE / 2 };
+
+  // ========== GAME OBJECTS ==========
+  let players = [];
+  let bullets = [];
+  let powerups = [];
+  let particles = [];
+  let gameTime = 0;
+  let countdownTimer = 0;
+  let winner = -1;
+
+  // ========== INPUT ==========
+  const keys = {};
+  let mouseX = 0, mouseY = 0;
+  let mouseDown = false;
+  let touchAimX = 0, touchAimY = 0;
+
+  document.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    if (state === STATE.LOBBY && inputActive) {
+      e.preventDefault();
+      if (e.key === 'Backspace') {
+        roomInput = roomInput.slice(0, -1);
+      } else if (e.key === 'Enter') {
+        if (roomInput.length > 0) joinRoom(roomInput.toUpperCase());
+      } else if (e.key.length === 1 && roomInput.length < 6) {
+        roomInput += e.key.toUpperCase();
+      }
+    }
+    if (state === STATE.MENU) {
+      if (e.key === 'arrowup' || e.key === 'w') menuSelection = (menuSelection + 2) % 3;
+      if (e.key === 'arrowdown' || e.key === 's') menuSelection = (menuSelection + 1) % 3;
+      if (e.key === 'enter' || e.key === ' ') selectMenuOption();
+    }
+    if (state === STATE.GAMEOVER && e.key === 'enter') backToMenu();
+  });
+  document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+  document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+  document.addEventListener('mousedown', e => { mouseDown = true; handleClick(e.clientX, e.clientY); });
+  document.addEventListener('mouseup', () => { mouseDown = false; });
+  document.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    mouseX = t.clientX; mouseY = t.clientY;
+    mouseDown = true;
+    handleClick(t.clientX, t.clientY);
+  }, { passive: false });
+  document.addEventListener('touchmove', e => {
+    const t = e.touches[0];
+    mouseX = t.clientX; mouseY = t.clientY;
+    e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('touchend', () => { mouseDown = false; });
+
+  function handleClick(cx, cy) {
+    if (state === STATE.MENU) {
+      const bw = Math.min(320, W() * 0.8);
+      const bh = 60;
+      const startY = H() / 2 - 20;
+      for (let i = 0; i < 3; i++) {
+        const bx = W() / 2 - bw / 2;
+        const by = startY + i * (bh + 16);
+        if (cx >= bx && cx <= bx + bw && cy >= by && cy <= by + bh) {
+          menuSelection = i;
+          selectMenuOption();
+          return;
+        }
+      }
+    }
+    if (state === STATE.LOBBY) {
+      // Check buttons
+      const btnW = 220, btnH = 50;
+      const centerX = W() / 2;
+      // Create room button
+      if (!isOnline && menuSelection === 1) {
+        const bx = centerX - btnW / 2;
+        const by = H() / 2 - 10;
+        if (cx >= bx && cx <= bx + btnW && cy >= by && cy <= by + btnH) {
+          createRoom();
+          return;
+        }
+        // Join input area
+        const iy = by + btnH + 30;
+        if (cy >= iy && cy <= iy + btnH) {
+          inputActive = true;
+          return;
+        }
+        // Join button
+        const jy = iy + btnH + 10;
+        if (cx >= bx && cx <= bx + btnW && cy >= jy && cy <= jy + btnH) {
+          if (roomInput.length > 0) joinRoom(roomInput.toUpperCase());
+          return;
+        }
+      }
+      // Start game button (host)
+      if (isHost && lobbyPlayers >= 2) {
+        const bx = centerX - btnW / 2;
+        const by = H() / 2 + 120;
+        if (cx >= bx && cx <= bx + btnW && cy >= by && cy <= by + btnH) {
+          startOnlineGame();
+          return;
+        }
+      }
+    }
+    if (state === STATE.GAMEOVER) {
+      backToMenu();
+    }
+  }
+
+  // ========== MENU ==========
+  function selectMenuOption() {
+    if (menuSelection === 0) {
+      startLocalGame();
+    } else if (menuSelection === 1) {
+      state = STATE.LOBBY;
+      lobbyStatus = 'Skapa ett rum eller ange rumskod';
+      isOnline = false;
+      roomInput = '';
+      inputActive = false;
+    } else if (menuSelection === 2) {
+      state = STATE.LOBBY;
+      lobbyStatus = 'S\u00f6ker motst\u00e5ndare...';
+      startRandomMatch();
+    }
+  }
+
+  // ========== LOCAL GAME ==========
+  function startLocalGame() {
+    isOnline = false;
+    isHost = true;
+    initGame(2);
+    state = STATE.COUNTDOWN;
+    countdownTimer = 180; // 3 seconds
+  }
+
+  // ========== ONLINE - PEERJS ==========
+  function generateCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  }
+
+  function initPeer(id) {
+    return new Promise((resolve, reject) => {
+      peer = new Peer(id, { debug: 0 });
+      peer.on('open', peerId => {
+        myPeerId = peerId;
+        resolve(peerId);
+      });
+      peer.on('error', err => {
+        console.error('Peer error:', err);
+        if (err.type === 'unavailable-id') {
+          reject(err);
+        } else {
+          lobbyStatus = 'Anslutningsfel: ' + err.type;
+        }
+      });
+    });
+  }
+
+  async function createRoom() {
+    roomCode = generateCode();
+    const peerId = 'neonroyale-' + roomCode;
+    try {
+      lobbyStatus = 'Skapar rum...';
+      await initPeer(peerId);
+      isHost = true;
+      isOnline = true;
+      lobbyPlayers = 1;
+      lobbyStatus = 'Rum: ' + roomCode + ' - V\u00e4ntar p\u00e5 spelare...';
+
+      peer.on('connection', conn => {
+        setupConnection(conn);
+      });
+    } catch (e) {
+      lobbyStatus = 'Kunde inte skapa rum, f\u00f6rs\u00f6k igen';
+    }
+  }
+
+  async function joinRoom(code) {
+    roomCode = code;
+    const peerId = 'neonroyale-' + code;
+    try {
+      lobbyStatus = 'Ansluter till rum ' + code + '...';
+      const myId = 'neonroyale-' + generateCode() + '-p';
+      await initPeer(myId);
+      isHost = false;
+      isOnline = true;
+
+      const conn = peer.connect(peerId, { reliable: true });
+      setupConnection(conn);
+    } catch (e) {
+      lobbyStatus = 'Kunde inte ansluta, f\u00f6rs\u00f6k igen';
+    }
+  }
+
+  async function startRandomMatch() {
+    // Try to join existing room first, then create one
+    const matchCode = 'RANDOM-' + Math.floor(Date.now() / 30000); // 30sec windows
+    const peerId = 'neonroyale-' + matchCode;
+    try {
+      // Try to be host first
+      await initPeer(peerId);
+      isHost = true;
+      isOnline = true;
+      roomCode = matchCode;
+      lobbyPlayers = 1;
+      lobbyStatus = 'S\u00f6ker motst\u00e5ndare...';
+
+      peer.on('connection', conn => {
+        setupConnection(conn);
+      });
+
+      // Auto-start when someone joins
+      setTimeout(() => {
+        if (state === STATE.LOBBY && lobbyPlayers < 2) {
+          // Nobody joined, try next window
+          peer.destroy();
+          startRandomMatchJoin();
+        }
+      }, 5000);
+    } catch (e) {
+      // ID taken = someone is hosting, try to join
+      startRandomMatchJoin();
+    }
+  }
+
+  async function startRandomMatchJoin() {
+    const matchCode = 'RANDOM-' + Math.floor(Date.now() / 30000);
+    const peerId = 'neonroyale-' + matchCode;
+    try {
+      const myId = 'neonroyale-rnd-' + generateCode();
+      await initPeer(myId);
+      isHost = false;
+      isOnline = true;
+      roomCode = matchCode;
+      lobbyStatus = 'Ansluter till motst\u00e5ndare...';
+
+      const conn = peer.connect(peerId, { reliable: true });
+      setupConnection(conn);
+    } catch (e) {
+      lobbyStatus = 'Ingen hittad, f\u00f6rs\u00f6k igen';
+      setTimeout(() => { if (state === STATE.LOBBY) startRandomMatch(); }, 3000);
+    }
+  }
+
+  function setupConnection(conn) {
+    conn.on('open', () => {
+      connections.push(conn);
+      lobbyPlayers = connections.length + 1;
+      if (isHost) {
+        localPlayerIndex = 0;
+        conn._playerIndex = connections.length;
+        conn.send({ type: 'welcome', playerIndex: conn._playerIndex, roomCode: roomCode });
+        lobbyStatus = 'Rum: ' + roomCode + ' - ' + lobbyPlayers + ' spelare anslutna';
+        // Auto-start for random matches
+        if (roomCode.startsWith('RANDOM') && lobbyPlayers >= 2) {
+          setTimeout(() => startOnlineGame(), 1000);
+        }
+      }
+      conn.on('data', data => handleNetData(data, conn));
+      conn.on('close', () => {
+        connections = connections.filter(c => c !== conn);
+        lobbyPlayers = connections.length + 1;
+      });
+    });
+    conn.on('error', err => {
+      console.error('Connection error:', err);
+      lobbyStatus = 'Anslutningsfel';
+    });
+  }
+
+  function handleNetData(data, conn) {
+    if (data.type === 'welcome') {
+      localPlayerIndex = data.playerIndex;
+      lobbyStatus = 'Ansluten! V\u00e4ntar p\u00e5 att v\u00e4rden startar...';
+    }
+    if (data.type === 'start') {
+      initGame(data.playerCount);
+      state = STATE.COUNTDOWN;
+      countdownTimer = 180;
+    }
+    if (data.type === 'state' && !isHost) {
+      // Receive game state from host
+      applyNetState(data);
+    }
+    if (data.type === 'input' && isHost) {
+      // Receive input from client
+      if (data.playerIndex >= 0 && data.playerIndex < players.length) {
+        players[data.playerIndex].netInput = data.input;
+      }
+    }
+  }
+
+  function startOnlineGame() {
+    const playerCount = lobbyPlayers;
+    connections.forEach(conn => {
+      conn.send({ type: 'start', playerCount: playerCount });
+    });
+    initGame(playerCount);
+    state = STATE.COUNTDOWN;
+    countdownTimer = 180;
+  }
+
+  function sendInput() {
+    if (!isOnline || isHost) return;
+    const p = players[localPlayerIndex];
+    if (!p) return;
+    const input = {
+      left: keys['a'] || keys['arrowleft'],
+      right: keys['d'] || keys['arrowright'],
+      up: keys['w'] || keys['arrowup'],
+      down: keys['s'] || keys['arrowdown'],
+      shoot: mouseDown,
+      aimX: mouseX,
+      aimY: mouseY
+    };
+    connections.forEach(conn => {
+      conn.send({ type: 'input', playerIndex: localPlayerIndex, input: input });
+    });
+  }
+
+  function broadcastState() {
+    if (!isOnline || !isHost) return;
+    const stateData = {
+      type: 'state',
+      players: players.map(p => ({
+        x: p.x, y: p.y, hp: p.hp, alive: p.alive, angle: p.angle,
+        vx: p.vx, vy: p.vy, shootCooldown: p.shootCooldown,
+        shield: p.shield, speedBoost: p.speedBoost, rapidFire: p.rapidFire
+      })),
+      bullets: bullets.map(b => ({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, owner: b.owner, life: b.life })),
+      powerups: powerups.map(p => ({ x: p.x, y: p.y, type: p.type })),
+      arenaRadius: arenaRadius,
+      gameTime: gameTime,
+      state: state,
+      winner: winner,
+      countdownTimer: countdownTimer
+    };
+    connections.forEach(conn => {
+      conn.send(stateData);
+    });
+  }
+
+  function applyNetState(data) {
+    if (data.players) {
+      data.players.forEach((pd, i) => {
+        if (players[i]) {
+          Object.assign(players[i], pd);
+        }
+      });
+    }
+    bullets = (data.bullets || []).map(b => ({ ...b }));
+    powerups = (data.powerups || []).map(p => ({ ...p }));
+    arenaRadius = data.arenaRadius || arenaRadius;
+    gameTime = data.gameTime || gameTime;
+    if (data.state !== undefined) state = data.state;
+    if (data.winner !== undefined) winner = data.winner;
+    if (data.countdownTimer !== undefined) countdownTimer = data.countdownTimer;
+  }
+
+  // ========== GAME INIT ==========
+  function initGame(playerCount) {
+    players = [];
+    bullets = [];
+    powerups = [];
+    particles = [];
+    arenaRadius = ARENA_SIZE / 2;
+    gameTime = 0;
+    winner = -1;
+
+    const spawnDist = ARENA_SIZE * 0.3;
+    for (let i = 0; i < playerCount; i++) {
+      const angle = (i / playerCount) * Math.PI * 2 - Math.PI / 2;
+      players.push({
+        x: arenaCenter.x + Math.cos(angle) * spawnDist,
+        y: arenaCenter.y + Math.sin(angle) * spawnDist,
+        vx: 0, vy: 0,
+        angle: 0,
+        hp: 100,
+        alive: true,
+        color: PLAYER_COLORS[i],
+        name: PLAYER_NAMES[i],
+        shootCooldown: 0,
+        shield: 0,
+        speedBoost: 0,
+        rapidFire: 0,
+        netInput: null,
+        radius: 16,
+        dashCooldown: 0,
+        dashTimer: 0,
+        dashVx: 0,
+        dashVy: 0,
+        kills: 0
+      });
+    }
+
+    // Initial powerups
+    for (let i = 0; i < 8; i++) spawnPowerup();
+  }
+
+  // ========== POWERUPS ==========
+  const POWERUP_TYPES = ['heal', 'shield', 'speed', 'rapid'];
+  const POWERUP_COLORS = { heal: NEON_GREEN, shield: NEON_BLUE, speed: NEON_YELLOW, rapid: NEON_ORANGE };
+
+  function spawnPowerup() {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * (arenaRadius * 0.8);
+    powerups.push({
+      x: arenaCenter.x + Math.cos(angle) * dist,
+      y: arenaCenter.y + Math.sin(angle) * dist,
+      type: POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)],
+      pulse: Math.random() * Math.PI * 2
+    });
+  }
+
+  // ========== UPDATE ==========
+  function update() {
+    if (state === STATE.COUNTDOWN) {
+      countdownTimer--;
+      if (countdownTimer <= 0) state = STATE.PLAYING;
+      return;
+    }
+    if (state !== STATE.PLAYING) return;
+
+    gameTime++;
+
+    // Shrink arena
+    if (arenaRadius > ARENA_MIN) {
+      arenaRadius -= ARENA_SHRINK_RATE;
+    }
+
+    // Spawn powerups periodically
+    if (gameTime % 300 === 0 && powerups.length < 10) spawnPowerup();
+
+    // Update players
+    const speed = 3.2;
+    players.forEach((p, i) => {
+      if (!p.alive) return;
+
+      // Decrease timers
+      if (p.shootCooldown > 0) p.shootCooldown--;
+      if (p.shield > 0) p.shield--;
+      if (p.speedBoost > 0) p.speedBoost--;
+      if (p.rapidFire > 0) p.rapidFire--;
+      if (p.dashCooldown > 0) p.dashCooldown--;
+      if (p.dashTimer > 0) {
+        p.dashTimer--;
+        p.x += p.dashVx;
+        p.y += p.dashVy;
+        return; // Skip normal movement during dash
+      }
+
+      let input = null;
+
+      if (isOnline && i !== localPlayerIndex && !isHost) return; // Controlled by host
+
+      if (isOnline && isHost && i !== localPlayerIndex) {
+        // Use net input for remote players
+        input = p.netInput;
+      } else if (!isOnline) {
+        // Local controls
+        if (i === 0) {
+          input = {
+            left: keys['a'], right: keys['d'], up: keys['w'], down: keys['s'],
+            shoot: keys['q'] || keys['e'],
+            aimAngle: p.angle // Keep current angle, rotate with keys
+          };
+          // Player 1 aims with Q/E or mouse
+          if (mouseDown && !keys['q'] && !keys['e']) {
+            input.shoot = true;
+          }
+        } else if (i === 1) {
+          input = {
+            left: keys['arrowleft'], right: keys['arrowright'],
+            up: keys['arrowup'], down: keys['arrowdown'],
+            shoot: keys['/'] || keys['.'],
+            aimAngle: p.angle
+          };
+        }
+      } else {
+        // Local player online
+        input = {
+          left: keys['a'] || keys['arrowleft'],
+          right: keys['d'] || keys['arrowright'],
+          up: keys['w'] || keys['arrowup'],
+          down: keys['s'] || keys['arrowdown'],
+          shoot: mouseDown,
+          aimX: mouseX, aimY: mouseY
+        };
+      }
+
+      if (!input) return;
+
+      // Movement
+      let mx = 0, my = 0;
+      if (input.left) mx -= 1;
+      if (input.right) mx += 1;
+      if (input.up) my -= 1;
+      if (input.down) my += 1;
+      const len = Math.sqrt(mx * mx + my * my);
+      if (len > 0) {
+        mx /= len; my /= len;
+      }
+
+      const spd = speed * (p.speedBoost > 0 ? 1.6 : 1);
+      p.vx = mx * spd;
+      p.vy = my * spd;
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Dash (shift for local, space for online)
+      const dashKey = isOnline ? (keys[' ']) : (i === 0 ? keys['shift'] : keys['0']);
+      if (dashKey && p.dashCooldown <= 0 && len > 0) {
+        p.dashCooldown = 90;
+        p.dashTimer = 8;
+        p.dashVx = mx * 12;
+        p.dashVy = my * 12;
+        for (let j = 0; j < 6; j++) {
+          particles.push({
+            x: p.x, y: p.y,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4,
+            life: 20, maxLife: 20,
+            color: p.color, size: 4
+          });
+        }
+      }
+
+      // Aim
+      if (input.aimX !== undefined && isOnline) {
+        const cam = getCamera(localPlayerIndex);
+        const worldX = input.aimX + cam.ox;
+        const worldY = input.aimY + cam.oy;
+        p.angle = Math.atan2(worldY - p.y, worldX - p.x);
+      } else if (!isOnline) {
+        if (i === 0) {
+          // Player 1 aims with mouse
+          const cam = getCamera(0);
+          const worldX = mouseX + cam.ox;
+          const worldY = mouseY + cam.oy;
+          p.angle = Math.atan2(worldY - p.y, worldX - p.x);
+        } else {
+          // Player 2 aims in movement direction
+          if (len > 0) p.angle = Math.atan2(my, mx);
+        }
+      }
+
+      // Shoot
+      const fireRate = p.rapidFire > 0 ? 6 : 15;
+      if (input.shoot && p.shootCooldown <= 0) {
+        p.shootCooldown = fireRate;
+        const bSpeed = 8;
+        bullets.push({
+          x: p.x + Math.cos(p.angle) * 20,
+          y: p.y + Math.sin(p.angle) * 20,
+          vx: Math.cos(p.angle) * bSpeed,
+          vy: Math.sin(p.angle) * bSpeed,
+          owner: i,
+          life: 60,
+          color: p.color
+        });
+      }
+
+      // Arena boundary
+      const distFromCenter = Math.sqrt(
+        (p.x - arenaCenter.x) ** 2 + (p.y - arenaCenter.y) ** 2
+      );
+      if (distFromCenter > arenaRadius - p.radius) {
+        const angle = Math.atan2(p.y - arenaCenter.y, p.x - arenaCenter.x);
+        p.x = arenaCenter.x + Math.cos(angle) * (arenaRadius - p.radius);
+        p.y = arenaCenter.y + Math.sin(angle) * (arenaRadius - p.radius);
+        // Storm damage
+        p.hp -= 0.3;
+      }
+
+      // Powerup pickup
+      for (let j = powerups.length - 1; j >= 0; j--) {
+        const pw = powerups[j];
+        const dist = Math.sqrt((p.x - pw.x) ** 2 + (p.y - pw.y) ** 2);
+        if (dist < 24) {
+          if (pw.type === 'heal') p.hp = Math.min(100, p.hp + 30);
+          if (pw.type === 'shield') p.shield = 300;
+          if (pw.type === 'speed') p.speedBoost = 300;
+          if (pw.type === 'rapid') p.rapidFire = 300;
+          // Pickup particles
+          for (let k = 0; k < 8; k++) {
+            particles.push({
+              x: pw.x, y: pw.y,
+              vx: (Math.random() - 0.5) * 6,
+              vy: (Math.random() - 0.5) * 6,
+              life: 20, maxLife: 20,
+              color: POWERUP_COLORS[pw.type], size: 3
+            });
+          }
+          powerups.splice(j, 1);
+        }
+      }
+    });
+
+    // Update bullets
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.x += b.vx;
+      b.y += b.vy;
+      b.life--;
+
+      // Remove if out of arena or expired
+      const distFromCenter = Math.sqrt(
+        (b.x - arenaCenter.x) ** 2 + (b.y - arenaCenter.y) ** 2
+      );
+      if (b.life <= 0 || distFromCenter > arenaRadius + 20) {
+        bullets.splice(i, 1);
+        continue;
+      }
+
+      // Hit detection
+      for (let j = 0; j < players.length; j++) {
+        if (j === b.owner || !players[j].alive) continue;
+        const p = players[j];
+        const dist = Math.sqrt((b.x - p.x) ** 2 + (b.y - p.y) ** 2);
+        if (dist < p.radius + 5) {
+          // Hit!
+          const dmg = p.shield > 0 ? 5 : 15;
+          p.hp -= dmg;
+          // Hit particles
+          for (let k = 0; k < 5; k++) {
+            particles.push({
+              x: b.x, y: b.y,
+              vx: (Math.random() - 0.5) * 8,
+              vy: (Math.random() - 0.5) * 8,
+              life: 15, maxLife: 15,
+              color: p.shield > 0 ? NEON_BLUE : NEON_PINK, size: 3
+            });
+          }
+          bullets.splice(i, 1);
+
+          if (p.hp <= 0) {
+            p.alive = false;
+            p.hp = 0;
+            players[b.owner].kills++;
+            // Death explosion
+            for (let k = 0; k < 20; k++) {
+              particles.push({
+                x: p.x, y: p.y,
+                vx: (Math.random() - 0.5) * 12,
+                vy: (Math.random() - 0.5) * 12,
+                life: 30, maxLife: 30,
+                color: p.color, size: 5
+              });
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    // Update particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.95;
+      p.vy *= 0.95;
+      p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // Check win condition
+    const alivePlayers = players.filter(p => p.alive);
+    if (alivePlayers.length <= 1 && players.length > 1) {
+      if (alivePlayers.length === 1) {
+        winner = players.indexOf(alivePlayers[0]);
+      } else {
+        winner = -1; // draw
+      }
+      state = STATE.GAMEOVER;
+    }
+
+    // Storm damage for players outside arena
+    players.forEach(p => {
+      if (!p.alive) return;
+      const dist = Math.sqrt((p.x - arenaCenter.x) ** 2 + (p.y - arenaCenter.y) ** 2);
+      if (dist > arenaRadius) {
+        p.hp -= 0.5;
+        if (p.hp <= 0) {
+          p.alive = false;
+          p.hp = 0;
+        }
+      }
+    });
+
+    // Network sync
+    if (isOnline) {
+      if (isHost && gameTime % 2 === 0) broadcastState();
+      if (!isHost) sendInput();
+    }
+  }
+
+  // ========== CAMERA ==========
+  function getCamera(playerIdx) {
+    const p = players[playerIdx];
+    if (!p) return { ox: 0, oy: 0 };
+    const viewW = isOnline ? W() : W() / 2;
+    const viewH = H();
+    return {
+      ox: p.x - viewW / 2,
+      oy: p.y - viewH / 2
+    };
+  }
+
+  // ========== DRAW ==========
+  function hexToRgba(hex, a) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W(), H());
+
+    if (state === STATE.MENU) return drawMenu();
+    if (state === STATE.LOBBY) return drawLobby();
+
+    if (isOnline || players.length <= 1) {
+      // Single viewport
+      drawViewport(0, 0, W(), H(), localPlayerIndex);
+    } else {
+      // Split screen for local
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, W() / 2, H());
+      ctx.clip();
+      drawViewport(0, 0, W() / 2, H(), 0);
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(W() / 2, 0, W() / 2, H());
+      ctx.clip();
+      drawViewport(W() / 2, 0, W() / 2, H(), 1);
+      ctx.restore();
+
+      // Divider
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(W() / 2, 0);
+      ctx.lineTo(W() / 2, H());
+      ctx.stroke();
+    }
+
+    // HUD
+    drawHUD();
+
+    if (state === STATE.COUNTDOWN) drawCountdown();
+    if (state === STATE.GAMEOVER) drawGameOver();
+  }
+
+  function drawViewport(vx, vy, vw, vh, playerIdx) {
+    const p = players[playerIdx];
+    if (!p) return;
+    const cam = {
+      ox: p.x - vw / 2,
+      oy: p.y - vh / 2
+    };
+
+    ctx.save();
+    ctx.translate(vx, vy);
+
+    // Background grid
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, vw, vh);
+
+    const gridSize = 60;
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    const startGx = -((cam.ox % gridSize) + gridSize) % gridSize;
+    const startGy = -((cam.oy % gridSize) + gridSize) % gridSize;
+    for (let gx = startGx; gx < vw; gx += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, vh);
+      ctx.stroke();
+    }
+    for (let gy = startGy; gy < vh; gy += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(vw, gy);
+      ctx.stroke();
+    }
+
+    // Arena circle (storm boundary)
+    const acx = arenaCenter.x - cam.ox;
+    const acy = arenaCenter.y - cam.oy;
+
+    // Storm effect outside arena
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, vw, vh);
+    ctx.arc(acx, acy, arenaRadius, 0, Math.PI * 2, true);
+    ctx.fillStyle = hexToRgba(NEON_PURPLE, 0.15 + Math.sin(gameTime * 0.05) * 0.05);
+    ctx.fill();
+    ctx.restore();
+
+    // Arena border
+    ctx.strokeStyle = hexToRgba(NEON_PURPLE, 0.6);
+    ctx.lineWidth = 3;
+    ctx.shadowColor = NEON_PURPLE;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(acx, acy, arenaRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Powerups
+    powerups.forEach(pw => {
+      const sx = pw.x - cam.ox;
+      const sy = pw.y - cam.oy;
+      if (sx < -30 || sx > vw + 30 || sy < -30 || sy > vh + 30) return;
+
+      pw.pulse = (pw.pulse || 0) + 0.05;
+      const scale = 1 + Math.sin(pw.pulse) * 0.15;
+      const color = POWERUP_COLORS[pw.type];
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.scale(scale, scale);
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
+
+      if (pw.type === 'heal') {
+        // Cross
+        ctx.fillStyle = color;
+        ctx.fillRect(-3, -9, 6, 18);
+        ctx.fillRect(-9, -3, 18, 6);
+      } else if (pw.type === 'shield') {
+        // Shield shape
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -10);
+        ctx.lineTo(8, -5);
+        ctx.lineTo(8, 3);
+        ctx.lineTo(0, 10);
+        ctx.lineTo(-8, 3);
+        ctx.lineTo(-8, -5);
+        ctx.closePath();
+        ctx.stroke();
+      } else if (pw.type === 'speed') {
+        // Lightning bolt
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(2, -10);
+        ctx.lineTo(-4, 1);
+        ctx.lineTo(0, 1);
+        ctx.lineTo(-2, 10);
+        ctx.lineTo(4, -1);
+        ctx.lineTo(0, -1);
+        ctx.closePath();
+        ctx.fill();
+      } else if (pw.type === 'rapid') {
+        // Triple bullets
+        ctx.fillStyle = color;
+        for (let j = -1; j <= 1; j++) {
+          ctx.beginPath();
+          ctx.arc(j * 5, 0, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    });
+
+    // Bullets
+    bullets.forEach(b => {
+      const sx = b.x - cam.ox;
+      const sy = b.y - cam.oy;
+      if (sx < -10 || sx > vw + 10 || sy < -10 || sy > vh + 10) return;
+
+      const color = b.color || PLAYER_COLORS[b.owner] || NEON_BLUE;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Trail
+      ctx.fillStyle = hexToRgba(color, 0.3);
+      ctx.beginPath();
+      ctx.arc(sx - b.vx * 0.5, sy - b.vy * 0.5, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+
+    // Particles
+    particles.forEach(pt => {
+      const sx = pt.x - cam.ox;
+      const sy = pt.y - cam.oy;
+      if (sx < -10 || sx > vw + 10 || sy < -10 || sy > vh + 10) return;
+      const alpha = pt.life / pt.maxLife;
+      ctx.fillStyle = hexToRgba(pt.color, alpha);
+      ctx.beginPath();
+      ctx.arc(sx, sy, pt.size * alpha, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Players
+    players.forEach((pl, i) => {
+      if (!pl.alive) return;
+      const sx = pl.x - cam.ox;
+      const sy = pl.y - cam.oy;
+      if (sx < -40 || sx > vw + 40 || sy < -40 || sy > vh + 40) return;
+
+      // Shield ring
+      if (pl.shield > 0) {
+        ctx.strokeStyle = hexToRgba(NEON_BLUE, 0.5 + Math.sin(gameTime * 0.1) * 0.2);
+        ctx.lineWidth = 2;
+        ctx.shadowColor = NEON_BLUE;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(sx, sy, pl.radius + 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      // Speed boost effect
+      if (pl.speedBoost > 0) {
+        ctx.fillStyle = hexToRgba(NEON_YELLOW, 0.15);
+        ctx.beginPath();
+        ctx.arc(sx, sy, pl.radius + 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Body
+      ctx.shadowColor = pl.color;
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = pl.color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, pl.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Inner glow
+      ctx.fillStyle = hexToRgba('#ffffff', 0.3);
+      ctx.beginPath();
+      ctx.arc(sx - 3, sy - 3, pl.radius * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Gun barrel
+      const gx = sx + Math.cos(pl.angle) * (pl.radius + 6);
+      const gy = sy + Math.sin(pl.angle) * (pl.radius + 6);
+      ctx.strokeStyle = pl.color;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(sx + Math.cos(pl.angle) * pl.radius, sy + Math.sin(pl.angle) * pl.radius);
+      ctx.lineTo(gx, gy);
+      ctx.stroke();
+
+      // HP bar
+      const barW = 30;
+      const barH = 4;
+      const barX = sx - barW / 2;
+      const barY = sy - pl.radius - 12;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(barX, barY, barW, barH);
+      const hpFrac = Math.max(0, pl.hp / 100);
+      const hpColor = hpFrac > 0.5 ? NEON_GREEN : hpFrac > 0.25 ? NEON_YELLOW : NEON_PINK;
+      ctx.fillStyle = hpColor;
+      ctx.fillRect(barX, barY, barW * hpFrac, barH);
+
+      // Name tag (only if not the viewport owner in local mode)
+      if (isOnline || i !== playerIdx) {
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(pl.name, sx, barY - 4);
+      }
+    });
+
+    // Minimap
+    const mmSize = Math.min(100, vw * 0.2);
+    const mmX = vw - mmSize - 10;
+    const mmY = vh - mmSize - 10;
+    const mmScale = mmSize / ARENA_SIZE;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath();
+    ctx.arc(mmX + mmSize / 2, mmY + mmSize / 2, mmSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Arena ring on minimap
+    ctx.strokeStyle = hexToRgba(NEON_PURPLE, 0.5);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(mmX + mmSize / 2, mmY + mmSize / 2, arenaRadius * mmScale, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Players on minimap
+    players.forEach((pl, i) => {
+      if (!pl.alive) return;
+      const mx = mmX + (pl.x / ARENA_SIZE) * mmSize;
+      const my = mmY + (pl.y / ARENA_SIZE) * mmSize;
+      ctx.fillStyle = pl.color;
+      ctx.beginPath();
+      ctx.arc(mx, my, i === playerIdx ? 3 : 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.restore();
+  }
+
+  function drawHUD() {
+    if (state === STATE.PLAYING || state === STATE.COUNTDOWN) {
+      // Player stats at top
+      const barW = isOnline ? 200 : 150;
+      players.forEach((p, i) => {
+        if (!isOnline && players.length === 2) {
+          // Split screen HUD
+          const baseX = i === 0 ? 10 : W() / 2 + 10;
+          const baseY = 10;
+
+          // HP bar
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(baseX, baseY, barW, 16);
+          const hpFrac = Math.max(0, p.hp / 100);
+          ctx.fillStyle = p.alive ? p.color : 'rgba(255,255,255,0.2)';
+          ctx.fillRect(baseX, baseY, barW * hpFrac, 16);
+          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+          ctx.strokeRect(baseX, baseY, barW, 16);
+
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(p.name + (p.alive ? '' : ' \u2620'), baseX + 4, baseY + 12);
+
+          // Kills
+          ctx.fillText('Kills: ' + p.kills, baseX, baseY + 32);
+
+          // Active powerups
+          let iconX = baseX + barW - 40;
+          if (p.shield > 0) { ctx.fillStyle = NEON_BLUE; ctx.fillText('\u25C6', iconX, baseY + 12); iconX -= 14; }
+          if (p.speedBoost > 0) { ctx.fillStyle = NEON_YELLOW; ctx.fillText('\u26A1', iconX, baseY + 12); iconX -= 14; }
+          if (p.rapidFire > 0) { ctx.fillStyle = NEON_ORANGE; ctx.fillText('\u25CF', iconX, baseY + 12); }
+        } else {
+          // Online HUD - top bar
+          const baseX = 10;
+          const baseY = 10 + i * 28;
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(baseX, baseY, barW, 20);
+          const hpFrac = Math.max(0, p.hp / 100);
+          ctx.fillStyle = p.alive ? hexToRgba(p.color, 0.7) : 'rgba(255,255,255,0.1)';
+          ctx.fillRect(baseX, baseY, barW * hpFrac, 20);
+
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(p.name + (p.alive ? '' : ' \u2620') + ' K:' + p.kills, baseX + 6, baseY + 14);
+        }
+      });
+
+      // Timer / Arena info
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      const arenaPercent = Math.round((arenaRadius / (ARENA_SIZE / 2)) * 100);
+      ctx.fillText('Arena: ' + arenaPercent + '%', W() / 2, 20);
+    }
+  }
+
+  function drawCountdown() {
+    const sec = Math.ceil(countdownTimer / 60);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W(), H());
+
+    ctx.shadowColor = NEON_BLUE;
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 80px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sec, W() / 2, H() / 2);
+    ctx.shadowBlur = 0;
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  function drawGameOver() {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W(), H());
+
+    ctx.textAlign = 'center';
+    if (winner >= 0) {
+      ctx.shadowColor = PLAYER_COLORS[winner];
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = PLAYER_COLORS[winner];
+      ctx.font = 'bold 36px sans-serif';
+      ctx.fillText(PLAYER_NAMES[winner] + ' vinner!', W() / 2, H() / 2 - 30);
+    } else {
+      ctx.shadowColor = NEON_PURPLE;
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = NEON_PURPLE;
+      ctx.font = 'bold 36px sans-serif';
+      ctx.fillText('Oavgjort!', W() / 2, H() / 2 - 30);
+    }
+    ctx.shadowBlur = 0;
+
+    // Stats
+    ctx.font = '16px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    players.forEach((p, i) => {
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.name + ': ' + p.kills + ' kills', W() / 2, H() / 2 + 20 + i * 24);
+    });
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Tryck Enter eller klicka f\u00f6r att forts\u00e4tta', W() / 2, H() / 2 + 20 + players.length * 24 + 20);
+  }
+
+  function drawMenu() {
+    // Title
+    ctx.textAlign = 'center';
+    ctx.shadowColor = NEON_BLUE;
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = NEON_BLUE;
+    ctx.font = 'bold 48px sans-serif';
+    ctx.fillText('NEON ROYALE', W() / 2, H() / 2 - 120);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Battle Royale \u2022 Sista spelaren vinner', W() / 2, H() / 2 - 80);
+
+    // Menu buttons
+    const bw = Math.min(320, W() * 0.8);
+    const bh = 60;
+    const startY = H() / 2 - 20;
+
+    menuOptions.forEach((opt, i) => {
+      const bx = W() / 2 - bw / 2;
+      const by = startY + i * (bh + 16);
+      const selected = i === menuSelection;
+
+      ctx.fillStyle = selected ? hexToRgba(NEON_BLUE, 0.2) : 'rgba(255,255,255,0.05)';
+      ctx.strokeStyle = selected ? NEON_BLUE : 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = selected ? 2 : 1;
+      if (selected) { ctx.shadowColor = NEON_BLUE; ctx.shadowBlur = 10; }
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 10);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = selected ? '#fff' : 'rgba(255,255,255,0.7)';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText(opt.label, W() / 2, by + 26);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(opt.desc, W() / 2, by + 44);
+    });
+
+    // Controls info
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '11px sans-serif';
+    ctx.fillText('Lokal: P1 WASD + mus  |  P2 Pilar + . f\u00f6r att skjuta', W() / 2, H() - 30);
+  }
+
+  function drawLobby() {
+    ctx.textAlign = 'center';
+
+    // Title
+    ctx.shadowColor = NEON_PURPLE;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = NEON_PURPLE;
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText('LOBBY', W() / 2, H() / 2 - 140);
+    ctx.shadowBlur = 0;
+
+    // Status
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '16px sans-serif';
+    ctx.fillText(lobbyStatus, W() / 2, H() / 2 - 90);
+
+    const btnW = 220, btnH = 50;
+    const centerX = W() / 2;
+
+    if (!isOnline && menuSelection === 1) {
+      // Create room button
+      const by = H() / 2 - 10;
+      ctx.fillStyle = hexToRgba(NEON_GREEN, 0.15);
+      ctx.strokeStyle = NEON_GREEN;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(centerX - btnW / 2, by, btnW, btnH, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText('Skapa Rum', centerX, by + 30);
+
+      // Divider
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.font = '13px sans-serif';
+      ctx.fillText('eller ange rumskod:', centerX, by + btnH + 20);
+
+      // Input field
+      const iy = by + btnH + 30;
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.strokeStyle = inputActive ? NEON_BLUE : 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = inputActive ? 2 : 1;
+      ctx.beginPath();
+      ctx.roundRect(centerX - btnW / 2, iy, btnW, btnH, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = roomInput ? '#fff' : 'rgba(255,255,255,0.3)';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText(roomInput || 'KLICKA H\u00C4R', centerX, iy + 32);
+
+      // Join button
+      const jy = iy + btnH + 10;
+      ctx.fillStyle = roomInput ? hexToRgba(NEON_BLUE, 0.15) : 'rgba(255,255,255,0.03)';
+      ctx.strokeStyle = roomInput ? NEON_BLUE : 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = roomInput ? 2 : 1;
+      ctx.beginPath();
+      ctx.roundRect(centerX - btnW / 2, jy, btnW, btnH, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = roomInput ? '#fff' : 'rgba(255,255,255,0.3)';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText('G\u00e5 Med', centerX, jy + 30);
+    }
+
+    if (isOnline) {
+      // Show room code
+      if (roomCode && !roomCode.startsWith('RANDOM')) {
+        ctx.shadowColor = NEON_GREEN;
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = NEON_GREEN;
+        ctx.font = 'bold 36px monospace';
+        ctx.fillText(roomCode, centerX, H() / 2 - 30);
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '13px sans-serif';
+        ctx.fillText('Dela koden med din v\u00e4n', centerX, H() / 2);
+      }
+
+      // Player count
+      ctx.fillStyle = '#fff';
+      ctx.font = '18px sans-serif';
+      ctx.fillText(lobbyPlayers + ' spelare anslutna', centerX, H() / 2 + 50);
+
+      // Player dots
+      for (let i = 0; i < lobbyPlayers; i++) {
+        ctx.fillStyle = PLAYER_COLORS[i];
+        ctx.shadowColor = PLAYER_COLORS[i];
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        const dotX = centerX - (lobbyPlayers - 1) * 20 + i * 40;
+        ctx.arc(dotX, H() / 2 + 80, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // Start button (host only)
+      if (isHost && lobbyPlayers >= 2) {
+        const by = H() / 2 + 120;
+        ctx.fillStyle = hexToRgba(NEON_GREEN, 0.2);
+        ctx.strokeStyle = NEON_GREEN;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = NEON_GREEN;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.roundRect(centerX - btnW / 2, by, btnW, btnH, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('Starta Spel', centerX, by + 30);
+      }
+    }
+
+    // Back hint
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('Tryck Escape f\u00f6r att g\u00e5 tillbaka', centerX, H() - 30);
+  }
+
+  // Back to menu
+  function backToMenu() {
+    state = STATE.MENU;
+    if (peer) { peer.destroy(); peer = null; }
+    connections = [];
+    isOnline = false;
+    isHost = false;
+    lobbyPlayers = 1;
+    roomInput = '';
+    inputActive = false;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && (state === STATE.LOBBY || state === STATE.GAMEOVER)) {
+      backToMenu();
+    }
+  });
+
+  // ========== GAME LOOP ==========
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // ========== PARENT COMMUNICATION ==========
+  window.addEventListener('message', e => {
+    if (e.data && e.data.type === 'skinData') {
+      // Could use skin data for player customization
+    }
+  });
+  if (window.parent !== window) {
+    window.parent.postMessage({ type: 'gameReady' }, '*');
+  }
+})();
+</script>
+</body>
+</html>
