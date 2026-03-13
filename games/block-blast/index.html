@@ -319,13 +319,13 @@
     const gh = cell * ROWS;
 
     // Grid background
-    ctx.fillStyle = 'rgba(255,255,255,0.02)';
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
     ctx.beginPath();
     ctx.roundRect(origin.x - 4, origin.y - 4, gw + 8, gh + 8, 8);
     ctx.fill();
 
     // Grid lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
     ctx.lineWidth = 1;
     for (let r = 0; r <= ROWS; r++) {
       ctx.beginPath();
@@ -357,10 +357,10 @@
     const glow = flavor ? flavor.glow : color;
     const img = flavor ? cornyImages[flavor.id] : null;
 
-    // Background rounded rect
-    ctx.fillStyle = hexToRgba(glow, alpha * 0.3);
+    // Background rounded rect — bright glow
+    ctx.fillStyle = hexToRgba(glow, alpha * 0.55);
     ctx.shadowColor = glow;
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, 4);
     ctx.fill();
@@ -387,10 +387,13 @@
       const dx = x + pad + 1 + (boxW - drawW) / 2;
       const dy = y + pad + 1 + (boxH - drawH) / 2;
       ctx.drawImage(img, dx, dy, drawW, drawH);
+      // Bright overlay to make blocks pop
+      ctx.fillStyle = hexToRgba(glow, 0.2);
+      ctx.fillRect(x + pad + 1, y + pad + 1, boxW, boxH);
       ctx.restore();
     } else {
       // Fallback: solid color block
-      ctx.fillStyle = hexToRgba(color, alpha * 0.85);
+      ctx.fillStyle = hexToRgba(color, alpha);
       ctx.beginPath();
       ctx.roundRect(x + pad + 1, y + pad + 1, size - pad * 2 - 2, size - pad * 2 - 2, 3);
       ctx.fill();
