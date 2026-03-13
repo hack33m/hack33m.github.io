@@ -366,14 +366,27 @@
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Draw corny image if loaded
+    // Draw corny image if loaded (contain fit, preserve aspect ratio)
     if (img && img._loaded) {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.beginPath();
       ctx.roundRect(x + pad + 1, y + pad + 1, size - pad * 2 - 2, size - pad * 2 - 2, 3);
       ctx.clip();
-      ctx.drawImage(img, x + pad + 1, y + pad + 1, size - pad * 2 - 2, size - pad * 2 - 2);
+      const boxW = size - pad * 2 - 2;
+      const boxH = boxW;
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      let drawW, drawH;
+      if (imgRatio > 1) {
+        drawW = boxW;
+        drawH = boxW / imgRatio;
+      } else {
+        drawH = boxH;
+        drawW = boxH * imgRatio;
+      }
+      const dx = x + pad + 1 + (boxW - drawW) / 2;
+      const dy = y + pad + 1 + (boxH - drawH) / 2;
+      ctx.drawImage(img, dx, dy, drawW, drawH);
       ctx.restore();
     } else {
       // Fallback: solid color block
