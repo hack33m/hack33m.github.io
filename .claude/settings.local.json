@@ -24,7 +24,27 @@
       "Bash(brew install:*)",
       "Bash(gh repo:*)",
       "Bash(gh api:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "WebFetch(domain:hack33m.github.io)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl:*)",
+      "Bash(sips:*)",
+      "Bash(ls:*)",
+      "Bash(npx supabase:*)",
+      "WebFetch(domain:romeoandjuliet.blogg.se)",
+      "WebFetch(domain:bokohoj.wordpress.com)",
+      "WebFetch(domain:www.jpsmedia.se)",
+      "Bash(node -e \"\nconst fs = require\\('fs'\\);\nconst html = fs.readFileSync\\('games/neon-dash/index.html','utf8'\\);\nconst m = html.match\\(/<script>\\\\n?\\\\\\(\\\\\\(\\\\\\) => \\\\{\\([\\\\s\\\\S]*\\)\\\\}\\\\\\)\\\\\\(\\\\\\);\\\\n?<\\\\/script>/\\);\nif \\(!m\\) { console.log\\('Could not extract script'\\); process.exit\\(1\\); }\n// Check for undefined variable references\nconst code = m[1];\n// Look for any references to removed variables\nconst removed = ['highScore', 'LEVELS', 'currentLevel', 'levelProgress', 'levelLength', 'levelComplete', 'GAP_SIZE_ENDLESS'];\nfor \\(const v of removed\\) {\n  const regex = new RegExp\\('\\\\\\\\\\\\\\\\b' + v + '\\\\\\\\\\\\\\\\b'\\);\n  if \\(regex.test\\(code\\)\\) console.log\\('Found reference to removed var:', v\\);\n}\nconsole.log\\('Check complete'\\);\n\")",
+      "Bash(gh run:*)",
+      "WebFetch(domain:klippkungen.se)",
+      "WebFetch(domain:www.torebrings.se)",
+      "WebFetch(domain:www.cooperscandy.com)",
+      "WebFetch(domain:candify.se)",
+      "WebFetch(domain:allabars.se)",
+      "Bash(node -c games/block-blast/index.html 2>&1 || echo \"Checking JS extraction...\" && sed -n '/<script>/,/<\\\\/script>/p' games/block-blast/index.html > /tmp/bb_check.js && node -c /tmp/bb_check.js 2>&1)",
+      "Bash(sed -n '/<script>/,/<\\\\/script>/p' games/block-blast/index.html | sed '1d;$d' > /tmp/bb_check.js && node -c /tmp/bb_check.js 2>&1)",
+      "Bash(node -c /Users/ehsan/Dev/Elia/projekt1/js/app.js 2>&1)",
+      "Bash(sed -n '/<script>/,/<\\\\/script>/p' /Users/ehsan/Dev/Elia/projekt1/games/neon-league/index.html | sed '1d;$d' > /tmp/nl_check.js && node -c /tmp/nl_check.js 2>&1)"
     ]
   }
 }
