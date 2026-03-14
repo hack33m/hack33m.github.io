@@ -89,7 +89,7 @@ const CAR_SKINS = [
   { id: 'golden', name: 'Golden', price: 200, primary: '#fbbf24', secondary: '#fff8e0', glow: '#fbbf24', boost: '#fbbf24' },
   { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', glow: '#ff4400', boost: '#ff2200' },
   { id: 'void', name: 'Void', price: 300, primary: '#1a0033', secondary: '#6600cc', glow: '#6600cc', boost: '#6600cc' },
-  { id: 'rainbow', name: 'Regnb\u00e5ge', price: 500, primary: 'rainbow', secondary: '#ffffff', glow: 'rainbow', boost: 'rainbow' },
+  { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', glow: 'rainbow', boost: 'rainbow' },
 ];
 
 const EMOJI_PACK_PRICE = 100;
@@ -172,6 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initAuth() {
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
+
     if (session) {
       const { data } = await supabaseClient
         .from('profiles')
@@ -180,6 +181,22 @@ async function initAuth() {
         .single();
       currentUserData = data ? mapProfile(data) : null;
     }
+
+    // Also listen for auth changes
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const { data } = await supabaseClient
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        currentUserData = data ? mapProfile(data) : null;
+        renderHeaderAuth();
+      } else if (event === 'SIGNED_OUT') {
+        currentUserData = null;
+        renderHeaderAuth();
+      }
+    });
   } catch (e) {
     console.error('Auth init error:', e);
   }
@@ -539,7 +556,7 @@ function setupAuth() {
       document.getElementById('login-username').value.trim(),
       document.getElementById('login-password').value
     );
-    if (r.ok) { modal.classList.remove('visible'); window.location.reload(); }
+    if (r.ok) { modal.classList.remove('visible'); }
     else { document.getElementById('login-error').textContent = r.error; btn.disabled = false; btn.textContent = 'Logga in'; }
   });
 
@@ -554,7 +571,7 @@ function setupAuth() {
     btn.textContent = 'Skapar konto...';
     const avatar = picker.querySelector('.avatar-option.selected')?.dataset.avatar || '😀';
     const r = await registerUser(document.getElementById('reg-username').value.trim(), pw1, avatar);
-    if (r.ok) { modal.classList.remove('visible'); window.location.reload(); }
+    if (r.ok) { modal.classList.remove('visible'); renderHeaderAuth(); }
     else { document.getElementById('register-error').textContent = r.error; btn.disabled = false; btn.textContent = 'Skapa konto'; }
   });
 }
@@ -1295,3 +1312,44 @@ function renderShop(user) {
     });
   });
 }
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+wait updateUser({ carSkin: id });
+      if (action === 'unequip-car-skin') await updateUser({ carSkin: null });
+
+      renderShop(getCurrentUser());
+      renderHeaderAuth();
+    });
+  });
+}
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+// end of file
+ end of file
+// end of file
+// end of file
+// end of file
+end of file
+// end of file
+// end of file
+ end of file
+end of file
+// end of file
+// end of file
