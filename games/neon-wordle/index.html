@@ -145,12 +145,63 @@
     'poäng','match','final','serie','klass','sperl','tävll','priss'
   ].map(w => w.toUpperCase());
 
+  // === Word List - 4-letter Swedish words ===
+  const WORDS4 = [
+    'hund','katt','fisk','bord','stol','skog','berg','regn','moln','gris',
+    'häst','lamm','buss','varm','kall','ljus','mörk','stor','lugn','glad',
+    'unge','bana','dörr','golv','vägg','skor','rock','hatt','ring','kaka',
+    'sopp','grön','gult','vita','röda','brun','fyra','elva','noll','plus',
+    'test','spel','dans','sång','film','resa','stad','vind','höst','salt',
+    'sten','sand','snön','regn','bron','torn','hamn','park','plan','mark',
+    'gata','torg','kulm','ände','väst','norr','land','rike','folk','barn',
+    'mamma','papp','vuxn','fröt','kärn','mjöl','bröd','rost','smör','ärta',
+    'böna','korn','raps','svam','lönn','tall','gran','eken','alms','björk',
+    'vass','moss','torv','grus','jord','lera','gips','tenn','guld','järn',
+    'kopf','sink','blyg','hård','mjuk','tunn','bred','smal','flat','djup',
+    'kort','lång','tung','lätt','trög','fort','sent','nytt','fint','fult',
+    'rikm','högt','lågt','rätt','gott','surt','sött','bitt','rått','kokt',
+    'steg','hopp','kast','slag','rapp','stöt','lyft','drag','tryc','knuf',
+    'takt','puls','rytm','vals','fest','skoj','bråk','flyt','lugn','frid',
+    'natt','gryg','dags','vakt','rast','paus','iver','fart','elan','glöd'
+  ].map(w => w.toUpperCase());
+
+  // === Word List - 6-letter Swedish words ===
+  const WORDS6 = [
+    'dansen','sången','filmer','bilder','katten','hunden','fisken','stolen',
+    'bordet','skogen','berget','molnet','grisen','hästen','lammet','bussen',
+    'cykeln','lampan','datorn','fruktä','kaffet','solens','vindar','regnig',
+    'kyligt','varmar','skolan','barnet','mamman','pappan','stugan','stenen',
+    'sanden','bronen','tornet','hamnen','parken','planen','marken','gården',
+    'fältet','ängens','backen','dalens','flodem','kullen','kanals','sjöars',
+    'vikens','kusten','strömm','dungen','lunden','glänta','slutet','börjat',
+    'öppnar','stänga','låstes','ringer','kallar','svarar','frågar','sökter',
+    'hittar','gillar','tycker','tänker','drömma','sovits','vaknar','spring',
+    'simmar','cyklar','vandre','klättr','hoppar','kastar','dansar','sjungs',
+    'spelar','målade','skapar','bygger','former','skriva','läsare','talare',
+    'gladar','lugnar','ilsken','trötts','modiga','stolta','räddas','svagar',
+    'starks','mjukar','hårdan','tunnst','bredas','smalts','flatad','djupas',
+    'kortar','långts','tungar','lättar','snabba','saktar','nyaste','finast',
+    'fulast','bästar','värsta','stärks','mjukas','vildas','tamast','strikt',
+    'friare','gladds','surast','sötast','bittrs','råaste','koktts','stekts',
+    'rostam','saltar','saften','juicen','mjölks','grädds','smöret','oljadn',
+    'vinägs','krydda','sockra','peppra','bakade','lagade','servat','ätbart',
+    'hemmet','rummet','takets','väggen','golvet','dörren','fönstr','trappn'
+  ].map(w => w.toUpperCase());
+
   // Deduplicate
-  const WORD_SET = [...new Set(WORDS)];
+  const WORD_SET4 = [...new Set(WORDS4)];
+  const WORD_SET5 = [...new Set(WORDS)];
+  const WORD_SET6 = [...new Set(WORDS6)];
+
+  function getWordSet() {
+    if (WORD_LENGTH === 4) return WORD_SET4;
+    if (WORD_LENGTH === 6) return WORD_SET6;
+    return WORD_SET5;
+  }
 
   // === Game State ===
   const MAX_GUESSES = 6;
-  const WORD_LENGTH = 5;
+  let WORD_LENGTH = 5;
   let state = 'menu'; // menu, playing, won, lost
   let targetWord = '';
   let guesses = [];       // completed guesses: [{letters, colors}]
@@ -207,7 +258,8 @@
   function pickDailyWord() {
     const today = new Date();
     const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-    return WORD_SET[seed % WORD_SET.length];
+    const ws = getWordSet();
+    return ws[seed % ws.length];
   }
 
   async function fetchDailyWordFromSupabase() {
@@ -217,21 +269,31 @@
       const todayStr = today.getFullYear() + '-' +
         String(today.getMonth() + 1).padStart(2, '0') + '-' +
         String(today.getDate()).padStart(2, '0');
-      const { data, error } = await supabaseClient
+      // Try length-specific key first (e.g. 2026-03-15-5), then plain date
+      const key = todayStr + '-' + WORD_LENGTH;
+      let { data, error } = await supabaseClient
         .from('daily_wordle')
         .select('word')
-        .eq('date', todayStr)
+        .eq('date', key)
         .single();
+      if (error || !data) {
+        ({ data, error } = await supabaseClient
+          .from('daily_wordle')
+          .select('word')
+          .eq('date', todayStr)
+          .single());
+      }
       if (error || !data || !data.word) return null;
       const word = data.word.toUpperCase();
-      if (word.length === 5) return word;
+      if (word.length === WORD_LENGTH) return word;
       return null;
     } catch (e) {
       return null;
     }
   }
   function pickRandomWord() {
-    return WORD_SET[Math.floor(Math.random() * WORD_SET.length)];
+    const ws = getWordSet();
+    return ws[Math.floor(Math.random() * ws.length)];
   }
 
   // === Evaluate Guess ===
@@ -270,7 +332,8 @@
   ];
 
   // === Start Game ===
-  async function startGame(daily = false) {
+  async function startGame(daily = false, wordLen = 5) {
+    WORD_LENGTH = wordLen;
     if (daily) {
       const supabaseWord = await fetchDailyWordFromSupabase();
       targetWord = supabaseWord || pickDailyWord();
@@ -297,7 +360,7 @@
   function submitGuess() {
     if (currentGuess.length !== WORD_LENGTH) return;
     // Check if word is in list
-    if (!WORD_SET.includes(currentGuess)) {
+    if (!getWordSet().includes(currentGuess)) {
       shakeTime = 300;
       shakeRow = currentRow;
       showMessage('Ordet finns inte i listan');
@@ -616,33 +679,47 @@
     ctx.fillStyle = COL.textDim;
     ctx.font = `${Math.min(w * 0.04, 20)}px 'Segoe UI', sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText('Gissa det svenska ordet med 5 bokstäver', w / 2, h * 0.30);
+    ctx.fillText('Gissa det svenska ordet', w / 2, h * 0.30);
 
-    // Play button (daily)
+    // Daily buttons row (4, 5, 6 letters)
     const btnW = Math.min(w * 0.6, 280);
+    const dailyBtnW = Math.floor((btnW - 16) / 3); // 3 buttons with gaps
     const btnH = 56;
     const btnX = (w - btnW) / 2;
-    const btnY = h * 0.40;
+    const btnY = h * 0.38;
 
-    ctx.save();
-    ctx.shadowColor = COL.neonGreen;
-    ctx.shadowBlur = 15;
-    ctx.beginPath();
-    ctx.roundRect(btnX, btnY, btnW, btnH, 12);
-    ctx.fillStyle = '#0a2a1a';
-    ctx.fill();
-    ctx.strokeStyle = COL.neonGreen;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.restore();
-    ctx.fillStyle = COL.neonGreen;
-    ctx.font = `bold 22px 'Segoe UI', sans-serif`;
+    // Section label
+    ctx.fillStyle = COL.textDim;
+    ctx.font = `14px 'Segoe UI', sans-serif`;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('DAGENS ORD', w / 2, btnY + btnH / 2);
+    ctx.fillText('DAGENS ORD', w / 2, btnY - 12);
+
+    const dailyLabels = ['4 BOKST.', '5 BOKST.', '6 BOKST.'];
+    const dailyLens = [4, 5, 6];
+    drawMenu._dailyBtns = [];
+    for (let i = 0; i < 3; i++) {
+      const dx = btnX + i * (dailyBtnW + 8);
+      ctx.save();
+      ctx.shadowColor = COL.neonGreen;
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.roundRect(dx, btnY, dailyBtnW, btnH, 12);
+      ctx.fillStyle = '#0a2a1a';
+      ctx.fill();
+      ctx.strokeStyle = COL.neonGreen;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = COL.neonGreen;
+      ctx.font = `bold ${Math.min(dailyBtnW * 0.22, 18)}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(dailyLabels[i], dx + dailyBtnW / 2, btnY + btnH / 2);
+      drawMenu._dailyBtns.push({ x: dx, y: btnY, w: dailyBtnW, h: btnH, len: dailyLens[i] });
+    }
 
     // Random play button
-    const btn2Y = btnY + btnH + 20;
+    const btn2Y = btnY + btnH + 24;
     ctx.save();
     ctx.shadowColor = COL.neonBlue;
     ctx.shadowBlur = 15;
@@ -668,7 +745,6 @@
     ctx.fillText(`Spelade: ${stats.played}  |  Vinst: ${winRate}%  |  Svit: ${stats.streak}`, w / 2, statsY);
 
     // Store button areas for touch
-    drawMenu._btn1 = { x: btnX, y: btnY, w: btnW, h: btnH };
     drawMenu._btn2 = { x: btnX, y: btn2Y, w: btnW, h: btnH };
   }
 
@@ -781,7 +857,7 @@
       return;
     }
     if (state === 'won' || state === 'lost') {
-      if (e.key === 'Enter') { startGame(false); return; }
+      if (e.key === 'Enter') { startGame(false, WORD_LENGTH); return; }
       if (e.key === 'Escape') { state = 'menu'; return; }
       return;
     }
@@ -798,14 +874,19 @@
     const y = e.clientY - rect.top;
 
     if (state === 'menu') {
-      const b1 = drawMenu._btn1;
-      const b2 = drawMenu._btn2;
-      if (b1 && x >= b1.x && x <= b1.x + b1.w && y >= b1.y && y <= b1.y + b1.h) {
-        startGame(true);
-        return;
+      // Daily buttons (4, 5, 6 letters)
+      const dailyBtns = drawMenu._dailyBtns;
+      if (dailyBtns) {
+        for (const db of dailyBtns) {
+          if (x >= db.x && x <= db.x + db.w && y >= db.y && y <= db.y + db.h) {
+            startGame(true, db.len);
+            return;
+          }
+        }
       }
+      const b2 = drawMenu._btn2;
       if (b2 && x >= b2.x && x <= b2.x + b2.w && y >= b2.y && y <= b2.y + b2.h) {
-        startGame(false);
+        startGame(false, 5);
         return;
       }
       return;
@@ -815,7 +896,7 @@
       const b1 = drawEndOverlay._btn1;
       const b2 = drawEndOverlay._btn2;
       if (b1 && x >= b1.x && x <= b1.x + b1.w && y >= b1.y && y <= b1.y + b1.h) {
-        startGame(false);
+        startGame(false, WORD_LENGTH);
         return;
       }
       if (b2 && x >= b2.x && x <= b2.x + b2.w && y >= b2.y && y <= b2.y + b2.h) {

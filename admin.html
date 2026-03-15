@@ -408,11 +408,12 @@
   }
 
   // ===== Wordle Daily Word (Owner only) =====
+  let wordleSelectedLen = 5;
+
   async function loadWordle() {
     const panel = document.getElementById('panel-wordle');
     if (!panel) return;
 
-    // Get today and next 7 days
     const today = new Date();
     const dates = [];
     for (let i = 0; i < 7; i++) {
@@ -421,24 +422,40 @@
       dates.push(d.toISOString().split('T')[0]);
     }
 
-    // Fetch existing words
+    // Fetch existing words for all lengths
     const { data: existing } = await supabaseClient
       .from('daily_wordle')
       .select('*')
       .in('date', dates)
       .order('date');
 
+    // Map: date -> { 4: word, 5: word, 6: word }
     const wordMap = {};
-    if (existing) existing.forEach(r => { wordMap[r.date] = r.word; });
+    if (existing) existing.forEach(r => {
+      if (!wordMap[r.date]) wordMap[r.date] = {};
+      const len = r.word ? r.word.length : 5;
+      wordMap[r.date][len] = r.word;
+    });
 
     const dayNames = ['Sön','Mån','Tis','Ons','Tor','Fre','Lör'];
+    const len = wordleSelectedLen;
 
     panel.innerHTML = `
       <h3 style="margin-bottom:8px;font-size:18px;">🟩 Dagens Wordle-ord</h3>
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Sätt ett eget ord för varje dag. Lämna tomt för automatiskt ord. Ordet måste vara exakt 5 bokstäver.</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Sätt dagliga ord för varje ordlängd. Lämna tomt för automatiskt ord.</p>
+      <div style="display:flex;gap:8px;margin-bottom:20px;">
+        <button class="btn-sm wordle-len-btn" data-len="4" style="padding:8px 20px;font-size:14px;${len===4?'background:var(--accent-green);color:#0a0a1a;':'background:var(--bg-secondary);color:var(--text-secondary);'}border-radius:8px;">4 bokstäver</button>
+        <button class="btn-sm wordle-len-btn" data-len="5" style="padding:8px 20px;font-size:14px;${len===5?'background:var(--accent-green);color:#0a0a1a;':'background:var(--bg-secondary);color:var(--text-secondary);'}border-radius:8px;">5 bokstäver</button>
+        <button class="btn-sm wordle-len-btn" data-len="6" style="padding:8px 20px;font-size:14px;${len===6?'background:var(--accent-green);color:#0a0a1a;':'background:var(--bg-secondary);color:var(--text-secondary);'}border-radius:8px;">6 bokstäver</button>
+      </div>
       <div id="wordle-dates"></div>
       <div id="wordle-status" style="margin-top:12px;font-size:14px;"></div>
     `;
+
+    // Length tab buttons
+    panel.querySelectorAll('.wordle-len-btn').forEach(btn => {
+      btn.addEventListener('click', () => { wordleSelectedLen = parseInt(btn.dataset.len); loadWordle(); });
+    });
 
     const container = document.getElementById('wordle-dates');
     dates.forEach(date => {
@@ -446,31 +463,26 @@
       const dayName = dayNames[d.getDay()];
       const isToday = date === dates[0];
       const label = isToday ? `${dayName} ${date} (IDAG)` : `${dayName} ${date}`;
-      const existing = wordMap[date] || '';
+      const existingWord = (wordMap[date] && wordMap[date][len]) || '';
 
       const row = document.createElement('div');
       row.className = 'item-card';
-      row.style.display = 'flex';
-      row.style.alignItems = 'center';
-      row.style.gap = '12px';
-      row.style.flexWrap = 'wrap';
+      row.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
       row.innerHTML = `
-        <span style="font-size:14px;font-weight:700;min-width:180px;${isToday ? 'color:var(--accent-green);' : ''}">${label}</span>
-        <input type="text" class="wordle-word-input" data-date="${date}" value="${esc(existing)}" placeholder="5 bokstäver..."
-          maxlength="5" style="width:120px;padding:6px 12px;background:var(--bg-primary);border:2px solid var(--border-color);border-radius:8px;color:var(--text-primary);font-size:16px;font-family:inherit;text-transform:uppercase;text-align:center;outline:none;letter-spacing:2px;">
+        <span style="font-size:14px;font-weight:700;min-width:180px;${isToday?'color:var(--accent-green);':''}">${label}</span>
+        <input type="text" class="wordle-word-input" data-date="${date}" data-len="${len}" value="${esc(existingWord)}" placeholder="${len} bokstäver..."
+          maxlength="${len}" style="width:${60+len*18}px;padding:6px 12px;background:var(--bg-primary);border:2px solid var(--border-color);border-radius:8px;color:var(--text-primary);font-size:16px;font-family:inherit;text-transform:uppercase;text-align:center;outline:none;letter-spacing:2px;">
         <button class="btn-sm wordle-save-btn" data-date="${date}" style="background:rgba(0,212,170,0.1);color:var(--accent-green);">Spara</button>
-        ${existing ? '<button class="btn-sm wordle-clear-btn" data-date="' + date + '" style="background:rgba(248,113,113,0.1);color:var(--accent-red);">Ta bort</button>' : ''}
+        ${existingWord ? '<button class="btn-sm wordle-clear-btn" data-date="'+date+'" style="background:rgba(248,113,113,0.1);color:var(--accent-red);">Ta bort</button>' : ''}
       `;
       container.appendChild(row);
     });
 
-    // Focus styling
     container.querySelectorAll('.wordle-word-input').forEach(input => {
       input.addEventListener('focus', () => { input.style.borderColor = 'var(--accent-green)'; });
       input.addEventListener('blur', () => { input.style.borderColor = 'var(--border-color)'; });
     });
 
-    // Save buttons
     container.querySelectorAll('.wordle-save-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const date = btn.dataset.date;
@@ -479,34 +491,38 @@
         const status = document.getElementById('wordle-status');
 
         if (!word) { status.innerHTML = '<span style="color:var(--accent-red)">Skriv ett ord först!</span>'; return; }
-        if (word.length !== 5) { status.innerHTML = '<span style="color:var(--accent-red)">Ordet måste vara exakt 5 bokstäver!</span>'; return; }
+        if (word.length !== len) { status.innerHTML = '<span style="color:var(--accent-red)">Ordet måste vara exakt '+len+' bokstäver!</span>'; return; }
 
         btn.textContent = 'Sparar...';
-        const { error } = await supabaseClient.from('daily_wordle').upsert({ date, word }, { onConflict: 'date' });
+        // Use date + length combo as unique key
+        const key = date + '-' + len;
+        const { error } = await supabaseClient.from('daily_wordle').upsert(
+          { date: key, word },
+          { onConflict: 'date' }
+        );
         if (error) {
           status.innerHTML = '<span style="color:var(--accent-red)">Fel: ' + esc(error.message) + '</span>';
-          btn.textContent = 'Spara';
         } else {
-          status.innerHTML = '<span style="color:var(--accent-green)">✓ Sparat! "' + esc(word) + '" för ' + date + '</span>';
-          btn.textContent = 'Spara';
-          loadWordle(); // Refresh
+          status.innerHTML = '<span style="color:var(--accent-green)">✓ Sparat! "'+esc(word)+'" ('+len+' bokstäver) för '+date+'</span>';
         }
+        btn.textContent = 'Spara';
+        loadWordle();
       });
     });
 
-    // Clear buttons
     container.querySelectorAll('.wordle-clear-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const date = btn.dataset.date;
+        const key = date + '-' + len;
         const status = document.getElementById('wordle-status');
         btn.textContent = 'Tar bort...';
-        const { error } = await supabaseClient.from('daily_wordle').delete().eq('date', date);
+        const { error } = await supabaseClient.from('daily_wordle').delete().eq('date', key);
         if (error) {
-          status.innerHTML = '<span style="color:var(--accent-red)">Fel: ' + esc(error.message) + '</span>';
+          status.innerHTML = '<span style="color:var(--accent-red)">Fel: '+esc(error.message)+'</span>';
         } else {
-          status.innerHTML = '<span style="color:var(--accent-green)">✓ Borttaget för ' + date + '</span>';
-          loadWordle();
+          status.innerHTML = '<span style="color:var(--accent-green)">✓ Borttaget</span>';
         }
+        loadWordle();
       });
     });
   }
