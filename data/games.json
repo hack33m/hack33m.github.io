@@ -155,7 +155,7 @@
   {
     "id": "neon-draw",
     "title": "Neon Draw",
-    "description": "Rita med neonpensel! F\u00e5 ett ord och rita det p\u00e5 tid.",
+    "description": "Gissa vad som ritas! Datorn ritar och du v\u00e4ljer r\u00e4tt ord.",
     "category": "Pussel",
     "thumbnail": "assets/images/neon-draw.svg",
     "path": "games/neon-draw/index.html",
