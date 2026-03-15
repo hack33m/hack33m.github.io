@@ -393,15 +393,17 @@
     const distFromCenter = Math.abs(car.x - roadCenterAtCar);
     const roadHalf = ROAD_WIDTH_BASE / 2;
 
-    if (distFromCenter > roadHalf + 10) {
-      // Slow down and push back
-      car.speed *= 0.96;
-      if (car.x < roadCenterAtCar) car.x += 2;
-      else car.x -= 2;
-      // Spark particles
-      if (Math.random() < 0.3) {
+    if (distFromCenter > roadHalf - 10) {
+      // Off road - spark particles as warning
+      if (Math.random() < 0.5) {
         spawnParticles(car.x, car.y, ORANGE, 2, 3);
       }
+      car.speed *= 0.94;
+    }
+    if (distFromCenter > roadHalf + 20) {
+      // Too far off road - crash
+      endGame();
+      return;
     }
 
     // Drift trails

@@ -90,15 +90,6 @@
     "featured": true
   },
   {
-    "id": "slope-run",
-    "title": "Slope Run",
-    "description": "Styr bollen ner\u00f6ver sluttningen! Undvik gap och farliga plattor.",
-    "category": "Action",
-    "thumbnail": "assets/images/slope-run.svg",
-    "path": "games/slope-run/index.html",
-    "featured": true
-  },
-  {
     "id": "neon-shooter",
     "title": "Neon Shooter",
     "description": "\u00d6verlev v\u00e5gor av fiender! Skjut, samla powerups och s\u00e4tt rekord.",
