@@ -123,11 +123,24 @@
       deck.push({ pairId: i, symbol: sym, color: col });
     }
 
-    // Shuffle deck
-    for (let i = deck.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [deck[i], deck[j]] = [deck[j], deck[i]];
+    // Shuffle deck - ensure pairs aren't adjacent
+    function shuffleDeck(d) {
+      for (let i = d.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [d[i], d[j]] = [d[j], d[i]];
+      }
     }
+    function hasAdjacentPairs(d) {
+      for (let i = 0; i < d.length; i++) {
+        // Check right neighbor
+        if (i % cols < cols - 1 && i + 1 < d.length && d[i].pairId === d[i+1].pairId) return true;
+        // Check bottom neighbor
+        if (i + cols < d.length && d[i].pairId === d[i+cols].pairId) return true;
+      }
+      return false;
+    }
+    let attempts = 0;
+    do { shuffleDeck(deck); attempts++; } while (hasAdjacentPairs(deck) && attempts < 200);
 
     cards = deck.map((c, idx) => ({
       id: idx,
