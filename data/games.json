@@ -15,7 +15,7 @@
     "category": "Action",
     "thumbnail": "assets/images/neon-bird.svg",
     "path": "games/neon-bird/index.html",
-    "featured": true
+    "featured": false
   },
   {
     "id": "uppdraget",
@@ -24,7 +24,7 @@
     "category": "Äventyr",
     "thumbnail": "assets/images/uppdraget.svg",
     "path": "games/uppdraget/index.html",
-    "featured": true
+    "featured": false
   },
   {
     "id": "block-blast",
@@ -33,7 +33,7 @@
     "category": "Pussel",
     "thumbnail": "assets/images/block-blast.svg",
     "path": "games/block-blast/index.html",
-    "featured": true
+    "featured": false
   },
   {
     "id": "neon-royale",
@@ -42,7 +42,7 @@
     "category": "Multiplayer",
     "thumbnail": "assets/images/neon-royale.svg",
     "path": "games/neon-royale/index.html",
-    "featured": true
+    "featured": false
   },
   {
     "id": "neon-league",
@@ -60,7 +60,7 @@
     "category": "Action",
     "thumbnail": "assets/images/corny-jump.svg",
     "path": "games/corny-jump/index.html",
-    "featured": true
+    "featured": false
   },
   {
     "id": "neon-rex",
@@ -78,7 +78,7 @@
     "category": "Action",
     "thumbnail": "assets/images/neon-snake.svg",
     "path": "games/neon-snake/index.html",
-    "featured": true
+    "featured": false
   },
   {
     "id": "neon-drift",
@@ -96,7 +96,7 @@
     "category": "Action",
     "thumbnail": "assets/images/neon-shooter.svg",
     "path": "games/neon-shooter/index.html",
-    "featured": true
+    "featured": false
   },
   {
     "id": "idle-clicker",
@@ -105,7 +105,7 @@
     "category": "Pussel",
     "thumbnail": "assets/images/idle-clicker.svg",
     "path": "games/idle-clicker/index.html",
-    "featured": true
+    "featured": false
   },
   {
     "id": "2048-neon",
@@ -114,6 +114,6 @@
     "category": "Pussel",
     "thumbnail": "assets/images/2048-neon.svg",
     "path": "games/2048-neon/index.html",
-    "featured": true
+    "featured": false
   }
 ]
