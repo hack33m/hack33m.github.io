@@ -19,7 +19,6 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
-<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -319,7 +318,6 @@
   // --- Start Game ---
   function startGame() {
     state = STATE.PLAYING;
-    NeonSounds.init();
     score = 0;
     gameTime = 0;
     cameraY = 0;
@@ -424,7 +422,6 @@
       if (Math.random() < car.driftAmount * 0.5) {
         spawnParticles(car.x + (Math.random() - 0.5) * 20, car.y + 18, skinTrail, 1, 2);
       }
-      if (Math.random() < 0.1) NeonSounds.drift();
     }
 
     // Fade old trails
@@ -488,7 +485,6 @@
   // --- End Game ---
   function endGame() {
     state = STATE.GAMEOVER;
-    NeonSounds.crash();
     spawnParticles(car.x, car.y, PINK, 30, 6);
     spawnParticles(car.x, car.y, ORANGE, 20, 5);
     if (score > highScore) {
