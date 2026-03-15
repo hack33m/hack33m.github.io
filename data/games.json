@@ -61,5 +61,14 @@
     "thumbnail": "assets/images/corny-jump.svg",
     "path": "games/corny-jump/index.html",
     "featured": true
+  },
+  {
+    "id": "neon-rex",
+    "title": "Neon Rex",
+    "description": "Spring, hoppa och ducka f\u00f6rbi neonhinder! Hur l\u00e5ngt kan din dino springa?",
+    "category": "Action",
+    "thumbnail": "assets/images/neon-rex.svg",
+    "path": "games/neon-rex/index.html",
+    "featured": true
   }
 ]
