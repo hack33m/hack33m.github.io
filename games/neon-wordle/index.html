@@ -19,6 +19,7 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
+<script src="../../js/supabase-config.js"></script>
 <script>
 (() => {
   // === Canvas & Hi-DPI ===
@@ -60,39 +61,88 @@
 
   // === Word List - 5-letter Swedish words ===
   const WORDS = [
+    // Original core words
     'stuga','lampa','dator','stund','lycka','frukt','gryta','morot','skola',
     'kraft','brist','frost','grund','bland','punkt','trots','hjort','bjuda',
     'flock','black','plats','blank','plast','glass','grabb','klass','grill',
     'snabb','spela','spika','sprut','stack','stall','sting','stock','stolt',
-    'stopp','storm','stram','strip','ström','studs','stund','svamp','svans',
+    'stopp','storm','stram','strip','studs','svamp','svans',
     'sving','taget','tanke','tegel','tempo','tills','torsk','tomat','total',
     'trakt','trana','trend','trick','troll','trumf','tunga','tveka','tvist',
     'under','utsyn','vagga','vaken','vecka','verka','villa','vinge','virka',
-    'vrist','yngre','ytlig','ålder','ämbar','ärlig','ögats','ånger','åsikt',
-    'blygt','bröts','cykla','dagis','delta','demon','desto','dimma','djärv',
-    'domän','driva','dropp','dunka','dyker','efter','egalt','elakt','elvis',
-    'ental','extern','fajta','falsk','famla','fiber','fikon','finka','fjäll',
-    'flagg','flask','flora','flykt','foder','fokus','foton','fräls','fullt',
+    'vrist','yngre','ytlig','ånger','åsikt',
+    'blygt','cykla','dagis','delta','demon','desto','dimma',
+    'driva','dropp','dunka','dyker','efter','elakt',
+    'falsk','famla','fiber','fikon','finka','fjäll',
+    'flagg','flask','flora','flykt','foder','fokus','foton','fullt',
     'fylla','galen','glans','gnida','godis','gripa','grupp','guide','gummi',
-    'gunst','gärna','gömma','hagle','hamna','hinna','hobby','hugga','huvud',
-    'hylla','häfta','hälla','hämta','höger','hölja','idyll','ikapp','ingår',
-    'inköp','inåtg','ivägt','jämra','jämte','kalla','karma','karta','kedja',
-    'klädd','knapp','knipa','knyta','kokos','komma','koolt','korsa','kramp',
-    'krymp','kulör','kupol','kylig','källa','könsa','köras','lagom','linda',
-    'lista','ljust','lokal','lucka','lurka','lydig','lyser','lägga','mager',
+    'gunst','hamna','hinna','hobby','hugga','huvud',
+    'hylla','hämta','idyll','ikapp',
+    'jämte','kalla','karma','karta','kedja',
+    'klädd','knapp','knipa','knyta','kokos','komma','korsa','kramp',
+    'kupol','kylig','lagom','linda',
+    'lista','ljust','lokal','lucka','lydig','lyser','mager',
     'maska','media','melon','midja','minus','modig','mogna','motor','mumla',
-    'märka','mögla','nacke','nekat','nimla','norsk','nutid','nådig','nästa',
-    'offer','ordna','ormen','panna','pekad','pirat','plank','plugg','pompa',
-    'press','prova','pulka','pumpa','pärla','rally','rensa','rimma','rivals',
-    'rodna','rumba','rumpa','räcka','sakna','signal','simma','sirap','sjung',
-    'skada','skalv','skild','skina','skojs','skrik','skuld','skylt','skärm',
-    'slank','slipa','slott','slump','smaka','smell','snabb','snart','snitt',
-    'solid','somna','spark','spion','spärr','stank','steka','stelg','stick',
-    'stirr','stråk','styra','summa','surfa','sväng','syrsa','söker','sömna',
-    'taket','tekno','tiger','timma','tjock','toafs','tokig','trapp','tumma',
-    'tvång','tänka','ugnen','union','ursäk','utsäg','vaken','varat','vifta',
-    'vigda','virus','visst','volym','vrida','vulgo','vågar','väcka','välja',
-    'värld','väska','yttre','zloty'
+    'nacke','norsk','nutid','nästa',
+    'offer','ordna','panna','pirat','plank','plugg',
+    'press','prova','pulka','pumpa','rensa','rimma',
+    'rodna','rumba','rumpa','sakna','simma','sirap',
+    'skada','skalv','skild','skina','skrik','skuld','skylt',
+    'slank','slipa','slott','slump','smaka','snart','snitt',
+    'solid','somna','spark','spion','stank','steka','stick',
+    'styra','summa','surfa','syrsa',
+    'taket','tekno','tiger','timma','tjock','tokig','trapp','tumma',
+    'tänka','ugnen','union','varat','vifta',
+    'virus','visst','volym','vrida','väcka','välja',
+    'värld','väska','yttre',
+    // Household & everyday
+    'huset','borst','dörrs','stänk','köket','sängs','fällt','bords',
+    'golva','matta','kudde','lakan','soffa','spege','soppa','bröda',
+    'grädä','mjölk','kaffe','juice','sopar','städa','tvätt','diska',
+    // Nature & weather
+    'regna','blåsa','snöar','solen','molna','åskar','dimma','floda',
+    'skogs','bergs','ängra','sjöar','bäcka','dalar','kulls','stens',
+    'gräsa','busks','löven','roten','blomm','frört','stjäl','grepp',
+    // Animals
+    'fågel','björn','häger','höken','ormar','rävar','myror','gädda',
+    'älgar','lodjr','hästa','katta','hunda','fåren','lamms','grisr',
+    'tunga','hönan','musen','valar','hajar','krabb','manet','snäck',
+    // Food & drink
+    'banan','äppel','päron','kiwis','druva','mango','sushi','nudel',
+    'pasta','bacon','salta','mjuka','fryst','stekt','bakad','kokar',
+    'krydd','smörs','steka','bulle','kanel','kumma','musli','fling',
+    // Body & health
+    'armar','axlar','knäet','foten','huden','hjärt','lunga','magen',
+    'örats','ögats','hakan','nacke','ryggr','lever','njure','nasal',
+    // Emotions & states
+    'glada','lugna','ilska','trött','piggs','modig','räddä','stolt',
+    'lugnt','fräck','vrede','smärt','gläds','sorgr','ånges','hoops',
+    // Actions & verbs
+    'börja','sluta','hoppa','dansa','sjung','läser','flyga','simma',
+    'cykla','åkare','sover','vakna','drömm','skapa','bygga','målar',
+    'skära','binda','fånga','kasta','prata','ropar','skrik','talar',
+    'lyser','tänds','blöda','böjar','delar','fylla','grävr','hamra',
+    // School & work
+    'skola','böckr','penna','ritar','matte','läraa','eleva','kursa',
+    'möten','chefs','jäkla','jobba','firma','konts','lönea','avtal',
+    // Technology
+    'dator','mobil','skärm','nätts','tråds','kabel','laser','robot',
+    'radar','radio','motor','turbo','bytes','mjukv','hårdd','modem',
+    // Colors & descriptions
+    'svart','ljust','mörka','rodna','gulna','gröna','brunn','grått',
+    'vackr','smala','breda','tunga','lätta','korta','tjock',
+    // Time & numbers
+    'snart','imorn','igårs','timme','vecka','månad','stund','tider',
+    'femma','tians','nolla','elvan','tolva','tretd','fjärd','femts',
+    // Places & geography
+    'hemma','bortä','norpa','söder','öster','västr','byräd','stadä',
+    'torgs','kyrka','parke','skogl','ökena','kusts','halvs','fjäll',
+    // Music & culture
+    'musik','noter','piano','trumm','gitrs','sångs','dansr','konst',
+    'tavla','films','böckr','texts','diktä','sagor','teats','opera',
+    // Sports & games
+    'bolla','idrts','simms','hopps','kastt','spark','serve','vinst',
+    'poäng','match','final','serie','klass','sperl','tävll','priss'
   ].map(w => w.toUpperCase());
 
   // Deduplicate
@@ -159,6 +209,27 @@
     const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
     return WORD_SET[seed % WORD_SET.length];
   }
+
+  async function fetchDailyWordFromSupabase() {
+    try {
+      if (typeof supabaseClient === 'undefined') return null;
+      const today = new Date();
+      const todayStr = today.getFullYear() + '-' +
+        String(today.getMonth() + 1).padStart(2, '0') + '-' +
+        String(today.getDate()).padStart(2, '0');
+      const { data, error } = await supabaseClient
+        .from('daily_wordle')
+        .select('word')
+        .eq('date', todayStr)
+        .single();
+      if (error || !data || !data.word) return null;
+      const word = data.word.toUpperCase();
+      if (word.length === 5) return word;
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
   function pickRandomWord() {
     return WORD_SET[Math.floor(Math.random() * WORD_SET.length)];
   }
@@ -199,8 +270,13 @@
   ];
 
   // === Start Game ===
-  function startGame(daily = false) {
-    targetWord = daily ? pickDailyWord() : pickRandomWord();
+  async function startGame(daily = false) {
+    if (daily) {
+      const supabaseWord = await fetchDailyWordFromSupabase();
+      targetWord = supabaseWord || pickDailyWord();
+    } else {
+      targetWord = pickRandomWord();
+    }
     // Ensure target is exactly 5 letters
     if (targetWord.length !== WORD_LENGTH) targetWord = pickRandomWord();
     guesses = [];

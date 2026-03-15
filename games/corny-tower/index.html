@@ -398,11 +398,6 @@ function drawMenu() {
   ctx.fillStyle = COL.cream;
   ctx.fillText('SPELA', W / 2, btnY + btnH / 2);
 
-  // Instructions
-  ctx.font = Math.min(W * 0.04, 16) + 'px Arial, sans-serif';
-  ctx.fillStyle = 'rgba(255,248,231,0.6)';
-  ctx.fillText('Tryck eller mellanslag f\u00f6r att sl\u00e4ppa', W / 2, H * 0.85);
-
   ctx.restore();
 }
 
@@ -606,6 +601,8 @@ function update() {
 
 // Draw
 function draw() {
+  // Re-apply Hi-DPI transform each frame for robustness
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
   if (state === 'menu') drawMenu();
   else if (state === 'playing') drawPlaying();

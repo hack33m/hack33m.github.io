@@ -12,23 +12,42 @@
       font-family: 'Segoe UI', 'Nunito', sans-serif;
       user-select: none;
       -webkit-user-select: none;
-      touch-action: none;
     }
-    canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+    canvas { display: block; width: 100vw; height: 100vh; outline: none; position: absolute; top: 0; left: 0; }
+    #guess-input {
+      position: absolute; display: none;
+      left: 50%; transform: translateX(-50%);
+      background: #111128; border: 2px solid #a855f7; color: #fff;
+      font-size: 22px; padding: 12px 20px; border-radius: 12px;
+      text-align: center; width: 280px; outline: none;
+      font-family: 'Segoe UI', sans-serif;
+      box-shadow: 0 0 20px rgba(168,85,247,0.3);
+    }
+    #guess-input:focus { border-color: #00d4ff; box-shadow: 0 0 20px rgba(0,212,255,0.4); }
+    #guess-btn {
+      position: absolute; display: none;
+      left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #39ff14, #00d4ff);
+      color: #0a0a1a; font-size: 18px; font-weight: bold;
+      padding: 12px 40px; border: none; border-radius: 12px;
+      cursor: pointer; font-family: 'Segoe UI', sans-serif;
+    }
   </style>
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
+<input type="text" id="guess-input" placeholder="Skriv vad du ser..." autocomplete="off">
+<button id="guess-btn">GISSA!</button>
 <script>
 (() => {
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
-  canvas.focus();
+  const guessInput = document.getElementById('guess-input');
+  const guessBtn = document.getElementById('guess-btn');
 
   if (!ctx.roundRect) {
-    CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r) {
-      if (typeof r==='number') r=[r,r,r,r];
-      const [tl,tr,br,bl]=r;
+    CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+      if(typeof r==='number')r=[r,r,r,r];const[tl,tr,br,bl]=r;
       this.moveTo(x+tl,y);this.lineTo(x+w-tr,y);this.quadraticCurveTo(x+w,y,x+w,y+tr);
       this.lineTo(x+w,y+h-br);this.quadraticCurveTo(x+w,y+h,x+w-br,y+h);
       this.lineTo(x+bl,y+h);this.quadraticCurveTo(x,y+h,x,y+h-bl);
@@ -37,453 +56,306 @@
   }
 
   let dpr=1,W,H;
-  function resize(){dpr=window.devicePixelRatio||1;W=window.innerWidth;H=window.innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+  function resize(){dpr=window.devicePixelRatio||1;W=window.innerWidth;H=window.innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);if(drawCanvas){drawCanvas.width=W*dpr;drawCanvas.height=H*dpr;drawCtx.setTransform(dpr,0,0,dpr,0,0);}}
   resize();window.addEventListener('resize',resize);
 
   const CYAN='#00d4ff',PINK='#ff2d95',PURPLE='#a855f7',GREEN='#39ff14',ORANGE='#ff6a00',YELLOW='#ffe600',BG='#0a0a1a';
+  const NEON_COLORS=[CYAN,PINK,PURPLE,GREEN,ORANGE,YELLOW];
 
-  // Drawing definitions: each word has strokes (lines, circles, rects)
-  // Coords are 0-100 normalized, scaled to drawing area
-  const DRAWINGS = [
-    { word: 'hus', alt: ['bil','träd','båt'], color: CYAN, strokes: [
-      {t:'rect',x:25,y:40,w:50,h:45},{t:'tri',x1:25,y1:40,x2:75,y2:40,x3:50,y3:15},
-      {t:'rect',x:40,y:55,w:20,h:30},{t:'rect',x:30,y:50,w:12,h:12},{t:'rect',x:58,y:50,w:12,h:12}
-    ]},
-    { word: 'sol', alt: ['måne','stjärna','moln'], color: YELLOW, strokes: [
-      {t:'circ',x:50,y:50,r:15},
-      {t:'line',x1:50,y1:20,x2:50,y2:10},{t:'line',x1:50,y1:80,x2:50,y2:90},
-      {t:'line',x1:20,y1:50,x2:10,y2:50},{t:'line',x1:80,y1:50,x2:90,y2:50},
-      {t:'line',x1:28,y1:28,x2:20,y2:20},{t:'line',x1:72,y1:28,x2:80,y2:20},
-      {t:'line',x1:28,y1:72,x2:20,y2:80},{t:'line',x1:72,y1:72,x2:80,y2:80}
-    ]},
-    { word: 'bil', alt: ['buss','tåg','cykel'], color: PINK, strokes: [
-      {t:'rect',x:20,y:45,w:60,h:25,r:8},{t:'rect',x:30,y:30,w:35,h:18,r:6},
-      {t:'circ',x:32,y:72,r:8},{t:'circ',x:68,y:72,r:8},
-      {t:'rect',x:35,y:33,w:12,h:12},{t:'rect',x:50,y:33,w:12,h:12}
-    ]},
-    { word: 'träd', alt: ['blomma','skog','buske'], color: GREEN, strokes: [
-      {t:'rect',x:45,y:55,w:10,h:35},{t:'circ',x:50,y:40,r:20},
-      {t:'circ',x:35,y:35,r:14},{t:'circ',x:65,y:35,r:14},{t:'circ',x:50,y:25,r:15}
-    ]},
-    { word: 'fisk', alt: ['delfin','val','krabba'], color: ORANGE, strokes: [
-      {t:'oval',x:45,y:50,rx:25,ry:14},
-      {t:'tri',x1:72,y1:50,x2:90,y2:35,x3:90,y3:65},
-      {t:'circ',x:32,y:47,r:3},{t:'line',x1:35,y1:55,x2:55,y2:55}
-    ]},
-    { word: 'hjärta', alt: ['stjärna','diamant','cirkel'], color: PINK, strokes: [
-      {t:'circ',x:38,y:38,r:14},{t:'circ',x:62,y:38,r:14},
-      {t:'tri',x1:24,y1:44,x2:76,y2:44,x3:50,y3:80}
-    ]},
-    { word: 'båt', alt: ['flygplan','ubåt','raket'], color: CYAN, strokes: [
-      {t:'tri',x1:15,y1:55,x2:85,y2:55,x3:50,y3:70},
-      {t:'rect',x:45,y:30,w:4,h:25},{t:'tri',x1:49,y1:30,x2:49,y2:50,x3:70,y3:45}
-    ]},
-    { word: 'katt', alt: ['hund','kanin','mus'], color: PURPLE, strokes: [
-      {t:'circ',x:50,y:55,r:18},{t:'circ',x:50,y:35,r:14},
-      {t:'tri',x1:38,y1:35,x2:36,y2:18,x3:42,y3:28},{t:'tri',x1:62,y1:35,x2:64,y2:18,x3:58,y3:28},
-      {t:'circ',x:44,y:32,r:2.5},{t:'circ',x:56,y:32,r:2.5},
-      {t:'line',x1:46,y1:38,x2:50,y2:40},{t:'line',x1:54,y1:38,x2:50,y2:40},
-      {t:'line',x1:75,y1:65,x2:85,y2:55}
-    ]},
-    { word: 'blomma', alt: ['träd','sol','fjäril'], color: PINK, strokes: [
-      {t:'rect',x:48,y:55,w:4,h:35},{t:'circ',x:50,y:45,r:8},
-      {t:'circ',x:50,y:30,r:7},{t:'circ',x:38,y:38,r:7},{t:'circ',x:62,y:38,r:7},
-      {t:'circ',x:38,y:52,r:7},{t:'circ',x:62,y:52,r:7}
-    ]},
-    { word: 'snögubbe', alt: ['igloo','snöflinga','vinter'], color: CYAN, strokes: [
-      {t:'circ',x:50,y:72,r:16},{t:'circ',x:50,y:48,r:12},{t:'circ',x:50,y:30,r:9},
-      {t:'circ',x:46,y:28,r:2},{t:'circ',x:54,y:28,r:2},
-      {t:'line',x1:30,y1:48,x2:20,y2:38},{t:'line',x1:70,y1:48,x2:80,y2:38}
-    ]},
-    { word: 'raket', alt: ['flygplan','boll','pil'], color: ORANGE, strokes: [
-      {t:'rect',x:43,y:25,w:14,h:40,r:6},{t:'tri',x1:43,y1:25,x2:57,y2:25,x3:50,y3:12},
-      {t:'tri',x1:43,y1:65,x2:43,y2:50,x3:33,y3:68},{t:'tri',x1:57,y1:65,x2:57,y2:50,x3:67,y3:68},
-      {t:'circ',x:50,y:40,r:5}
-    ]},
-    { word: 'stjärna', alt: ['sol','måne','hjärta'], color: YELLOW, strokes: [
-      {t:'line',x1:50,y1:15,x2:42,y2:42},{t:'line',x1:42,y1:42,x2:15,y2:42},
-      {t:'line',x1:15,y1:42,x2:37,y2:58},{t:'line',x1:37,y1:58,x2:28,y2:85},
-      {t:'line',x1:28,y1:85,x2:50,y2:68},{t:'line',x1:50,y1:68,x2:72,y2:85},
-      {t:'line',x1:72,y1:85,x2:63,y2:58},{t:'line',x1:63,y1:58,x2:85,y2:42},
-      {t:'line',x1:85,y1:42,x2:58,y2:42},{t:'line',x1:58,y1:42,x2:50,y2:15}
-    ]},
-    { word: 'paraply', alt: ['moln','regn','hatt'], color: PURPLE, strokes: [
-      {t:'arc',x:50,y:40,r:25,a1:Math.PI,a2:0},
-      {t:'line',x1:50,y1:40,x2:50,y2:80},
-      {t:'arc',x:55,y:80,r:5,a1:0,a2:Math.PI}
-    ]},
-    { word: 'glass', alt: ['tårta','godis','frukt'], color: PINK, strokes: [
-      {t:'circ',x:50,y:35,r:14},{t:'circ',x:38,y:33,r:10},{t:'circ',x:62,y:33,r:10},
-      {t:'tri',x1:32,y1:42,x2:68,y2:42,x3:50,y3:85}
-    ]},
-    { word: 'måne', alt: ['sol','stjärna','planet'], color: YELLOW, strokes: [
-      {t:'circ',x:50,y:50,r:22},{t:'circ',x:60,y:45,r:20,bg:true}
-    ]},
-    { word: 'moln', alt: ['sol','regn','dimma'], color: CYAN, strokes: [
-      {t:'circ',x:50,y:50,r:16},{t:'circ',x:35,y:55,r:12},{t:'circ',x:65,y:55,r:12},
-      {t:'circ',x:42,y:42,r:10},{t:'circ',x:58,y:42,r:10}
-    ]},
-    { word: 'pizza', alt: ['tårta','hamburgare','smörgås'], color: ORANGE, strokes: [
-      {t:'circ',x:50,y:50,r:25},{t:'line',x1:50,y1:25,x2:30,y2:70},{t:'line',x1:50,y1:25,x2:70,y2:70},
-      {t:'circ',x:42,y:48,r:3},{t:'circ',x:55,y:55,r:3},{t:'circ',x:50,y:38,r:3}
-    ]},
-    { word: 'äpple', alt: ['banan','päron','jordgubbe'], color: GREEN, strokes: [
-      {t:'circ',x:50,y:52,r:18},{t:'rect',x:48,y:28,w:4,h:12},
-      {t:'circ',x:58,y:32,r:6}
-    ]},
-    { word: 'fotboll', alt: ['basketboll','tennis','golf'], color: CYAN, strokes: [
-      {t:'circ',x:50,y:50,r:22},{t:'line',x1:30,y1:40,x2:45,y2:50},
-      {t:'line',x1:45,y1:50,x2:40,y2:65},{t:'line',x1:45,y1:50,x2:60,y2:45},
-      {t:'line',x1:60,y1:45,x2:70,y2:55},{t:'line',x1:60,y1:45,x2:55,y2:32}
-    ]},
-    { word: 'spöke', alt: ['pumpa','vampyr','zombie'], color: CYAN, strokes: [
-      {t:'arc',x:50,y:40,r:20,a1:Math.PI,a2:0},
-      {t:'line',x1:30,y1:40,x2:30,y2:75},{t:'line',x1:70,y1:40,x2:70,y2:75},
-      {t:'line',x1:30,y1:75,x2:40,y2:65},{t:'line',x1:40,y1:65,x2:50,y2:75},
-      {t:'line',x1:50,y1:75,x2:60,y2:65},{t:'line',x1:60,y1:65,x2:70,y2:75},
-      {t:'circ',x:42,y:38,r:4},{t:'circ',x:58,y:38,r:4},
-      {t:'oval',x:50,y:50,rx:5,ry:7}
-    ]}
-  ];
+  const WORDS=['hund','katt','hus','sol','bil','träd','fisk','blomma','fjäril','pizza',
+    'båt','cykel','moln','stjärna','hjärta','skog','berg','flod','bro','slott',
+    'raket','robot','drake','krona','gitarr','piano','tårta','glass','äpple','banan',
+    'elefant','giraff','pingvin','delfin','kanin','uggla','orm','groda','snigel','spindel',
+    'flygplan','tåg','buss','paraply','regnbåge','måne','vulkan','lampa','stol','bord',
+    'bok','penna','nyckel','klocka','telefon','ballong','fotboll','snögubbe','clown',
+    'dinosaurie','enhörning','hammare','svärd','sköld','spöke','pumpa','jordgubbe',
+    'hamburger','diamant','fjäder','ananas','ko','gris','häst','tiger','lejon'];
 
-  // Game state
-  const ROUNDS = 5;
-  const ROUND_TIME = 15;
-  let state = 'menu';
-  let round = 0, score = 0, timeLeft = 0;
-  let currentDrawing = null;
-  let options = [];
-  let drawProgress = 0; // 0 to 1
-  let drawSpeed = 0.008;
-  let answered = false;
-  let answerCorrect = false;
-  let answerTimer = 0;
-  let timerInterval = null;
-  let usedIndices = [];
-  let highScore = parseInt(localStorage.getItem('neon-draw-hi')||'0');
-  let particles = [];
+  // State: menu, word-reveal, drawing, guessing, result, gameover
+  const ROUNDS=5, DRAW_TIME=45;
+  let state='menu', round=0, score=0, currentWord='', timeLeft=0, timerInterval=null;
+  let usedWords=[], guessResult='', guessCorrect=false, resultTimer=0;
 
-  function shuffle(arr) {
-    const a = [...arr];
-    for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
-    return a;
+  // Drawing
+  let drawColor=CYAN, brushSize=8, isEraser=false, isDrawing=false, lastX=0, lastY=0;
+  const BRUSH_SIZES=[4,8,14];
+  let brushIdx=1;
+  let drawCanvas, drawCtx;
+
+  function initDrawCanvas(){
+    drawCanvas=document.createElement('canvas');
+    drawCanvas.width=canvas.width;drawCanvas.height=canvas.height;
+    drawCtx=drawCanvas.getContext('2d');drawCtx.setTransform(dpr,0,0,dpr,0,0);
+    drawCtx.fillStyle='#111128';drawCtx.fillRect(0,0,W,H);
   }
 
-  function startGame() {
-    state='playing'; round=0; score=0; usedIndices=[]; nextRound();
+  function pickWord(){
+    if(usedWords.length>=WORDS.length)usedWords=[];
+    let w;do{w=WORDS[Math.floor(Math.random()*WORDS.length)];}while(usedWords.includes(w));
+    usedWords.push(w);return w;
   }
 
-  function nextRound() {
-    round++;
-    answered=false; answerCorrect=false; answerTimer=0; drawProgress=0;
-    drawSpeed = 0.006 + round * 0.001;
+  function startGame(){state='word-reveal';round=0;score=0;usedWords=[];nextRound();}
 
-    // Pick unused drawing
-    let idx;
-    do { idx = Math.floor(Math.random()*DRAWINGS.length); } while (usedIndices.includes(idx) && usedIndices.length < DRAWINGS.length);
-    usedIndices.push(idx);
-    currentDrawing = DRAWINGS[idx];
+  function nextRound(){
+    round++;currentWord=pickWord();initDrawCanvas();
+    drawColor=CYAN;brushSize=BRUSH_SIZES[1];brushIdx=1;isEraser=false;
+    state='word-reveal';resultTimer=0;
+    hideGuessUI();
+  }
 
-    // Create 4 options (1 correct + 3 wrong)
-    options = shuffle([currentDrawing.word, ...currentDrawing.alt]);
-
-    timeLeft = ROUND_TIME;
+  function startDrawing(){
+    state='drawing';timeLeft=DRAW_TIME;
     clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-      if (answered) return;
-      timeLeft--;
-      if (timeLeft <= 0) { timeLeft=0; clearInterval(timerInterval); answer(null); }
-    }, 1000);
+    timerInterval=setInterval(()=>{timeLeft--;if(timeLeft<=0){timeLeft=0;clearInterval(timerInterval);finishDrawing();}},1000);
   }
 
-  function answer(word) {
-    if (answered) return;
-    answered = true;
-    clearInterval(timerInterval);
-    answerCorrect = word === currentDrawing.word;
-    if (answerCorrect) {
-      score += Math.max(1, Math.ceil(timeLeft / 3));
-      spawnParticles(W/2, H*0.4, GREEN, 20);
-    } else {
-      spawnParticles(W/2, H*0.4, PINK, 10);
-    }
-    answerTimer = 90; // frames to show result
+  function finishDrawing(){
+    clearInterval(timerInterval);state='guessing';
+    showGuessUI();
   }
 
-  function spawnParticles(x,y,color,count) {
-    for(let i=0;i<count;i++) {
-      particles.push({x,y,vx:(Math.random()-0.5)*6,vy:(Math.random()-0.5)*6-2,life:1,decay:0.015+Math.random()*0.02,size:2+Math.random()*4,color});
-    }
+  function showGuessUI(){
+    guessInput.style.display='block';
+    guessInput.style.top=(H*0.72)+'px';
+    guessInput.value='';
+    guessBtn.style.display='block';
+    guessBtn.style.top=(H*0.82)+'px';
+    setTimeout(()=>guessInput.focus(),100);
   }
 
-  // Drawing renderer
-  function drawStroke(s, cx, cy, scale, alpha) {
-    ctx.globalAlpha = alpha;
-    const sc = (v) => v * scale / 100;
-    const sx = (v) => cx + sc(v - 50);
-    const sy = (v) => cy + sc(v - 50);
-
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    if (s.t === 'line') {
-      ctx.beginPath();
-      ctx.moveTo(sx(s.x1), sy(s.y1));
-      ctx.lineTo(sx(s.x2), sy(s.y2));
-      ctx.stroke();
-    } else if (s.t === 'circ') {
-      if (s.bg) {
-        ctx.save();
-        ctx.fillStyle = BG;
-        ctx.shadowBlur = 0;
-        ctx.beginPath();
-        ctx.arc(sx(s.x), sy(s.y), sc(s.r), 0, Math.PI*2);
-        ctx.fill();
-        ctx.restore();
-        ctx.globalAlpha = alpha;
-      } else {
-        ctx.beginPath();
-        ctx.arc(sx(s.x), sy(s.y), sc(s.r), 0, Math.PI*2);
-        ctx.stroke();
-      }
-    } else if (s.t === 'oval') {
-      ctx.beginPath();
-      ctx.ellipse(sx(s.x), sy(s.y), sc(s.rx), sc(s.ry), 0, 0, Math.PI*2);
-      ctx.stroke();
-    } else if (s.t === 'rect') {
-      const r = s.r ? sc(s.r) : 0;
-      if (r > 0) {
-        ctx.beginPath();
-        ctx.roundRect(sx(s.x), sy(s.y), sc(s.w), sc(s.h), r);
-        ctx.stroke();
-      } else {
-        ctx.strokeRect(sx(s.x), sy(s.y), sc(s.w), sc(s.h));
-      }
-    } else if (s.t === 'tri') {
-      ctx.beginPath();
-      ctx.moveTo(sx(s.x1), sy(s.y1));
-      ctx.lineTo(sx(s.x2), sy(s.y2));
-      ctx.lineTo(sx(s.x3), sy(s.y3));
-      ctx.closePath();
-      ctx.stroke();
-    } else if (s.t === 'arc') {
-      ctx.beginPath();
-      ctx.arc(sx(s.x), sy(s.y), sc(s.r), s.a1, s.a2);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
+  function hideGuessUI(){
+    guessInput.style.display='none';guessBtn.style.display='none';
   }
 
-  function renderDrawing(cx, cy, scale, progress) {
-    if (!currentDrawing) return;
-    const strokes = currentDrawing.strokes;
-    const total = strokes.length;
-    const drawn = progress * total;
-
-    ctx.strokeStyle = currentDrawing.color;
-    ctx.shadowColor = currentDrawing.color;
-    ctx.shadowBlur = 12;
-
-    for (let i = 0; i < total; i++) {
-      if (i < Math.floor(drawn)) {
-        drawStroke(strokes[i], cx, cy, scale, 1);
-      } else if (i < drawn) {
-        drawStroke(strokes[i], cx, cy, scale, drawn - i);
-      }
-    }
-    ctx.shadowBlur = 0;
+  function submitGuess(){
+    const guess=guessInput.value.trim().toLowerCase();
+    if(!guess)return;
+    hideGuessUI();
+    guessCorrect=guess===currentWord.toLowerCase();
+    if(guessCorrect)score++;
+    guessResult=guess;state='result';resultTimer=150;
   }
 
-  // Click handling
-  canvas.addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+  guessBtn.addEventListener('click',submitGuess);
+  guessInput.addEventListener('keydown',(e)=>{if(e.key==='Enter')submitGuess();});
 
-    if (state === 'menu') {
-      const bw=220,bh=55,bx=W/2-bw/2,by=H*0.7;
-      if(mx>=bx&&mx<=bx+bw&&my>=by&&my<=by+bh) startGame();
-      return;
+  // Drawing area
+  const TOOLBAR_H=95, BOTTOM_H=60;
+  function canvasTop(){return TOOLBAR_H;}
+  function canvasBot(){return H-BOTTOM_H;}
+
+  function drawLine(x1,y1,x2,y2){
+    if(y1<canvasTop()||y2<canvasTop()||y1>canvasBot()||y2>canvasBot())return;
+    drawCtx.lineCap='round';drawCtx.lineJoin='round';
+    if(isEraser){
+      drawCtx.globalCompositeOperation='source-over';drawCtx.strokeStyle='#111128';
+      drawCtx.lineWidth=brushSize*3;drawCtx.shadowBlur=0;
+      drawCtx.beginPath();drawCtx.moveTo(x1,y1);drawCtx.lineTo(x2,y2);drawCtx.stroke();
+    }else{
+      drawCtx.globalCompositeOperation='lighter';
+      drawCtx.shadowColor=drawColor;drawCtx.shadowBlur=brushSize*2;
+      drawCtx.strokeStyle=drawColor+'66';drawCtx.lineWidth=brushSize*2;
+      drawCtx.beginPath();drawCtx.moveTo(x1,y1);drawCtx.lineTo(x2,y2);drawCtx.stroke();
+      drawCtx.shadowBlur=brushSize;drawCtx.strokeStyle=drawColor;drawCtx.lineWidth=brushSize;
+      drawCtx.beginPath();drawCtx.moveTo(x1,y1);drawCtx.lineTo(x2,y2);drawCtx.stroke();
+      drawCtx.shadowBlur=0;drawCtx.strokeStyle='#ffffff88';drawCtx.lineWidth=brushSize*0.4;
+      drawCtx.beginPath();drawCtx.moveTo(x1,y1);drawCtx.lineTo(x2,y2);drawCtx.stroke();
+      drawCtx.globalCompositeOperation='source-over';
     }
+    drawCtx.shadowBlur=0;
+  }
 
-    if (state === 'playing' && !answered) {
-      // Check option buttons
-      const optY = H * 0.72;
-      const optW = Math.min(180, W * 0.4);
-      const optH = 44;
-      const gap = 10;
-      const cols = 2;
-      const totalW = cols * optW + (cols-1) * gap;
-      const startX = W/2 - totalW/2;
+  function clearDrawing(){drawCtx.globalCompositeOperation='source-over';drawCtx.fillStyle='#111128';drawCtx.fillRect(0,0,W,H);}
 
-      for (let i = 0; i < options.length; i++) {
-        const col = i % 2;
-        const row = Math.floor(i / 2);
-        const ox = startX + col * (optW + gap);
-        const oy = optY + row * (optH + gap);
-        if (mx >= ox && mx <= ox+optW && my >= oy && my <= oy+optH) {
-          answer(options[i]);
-          return;
-        }
-      }
-    }
+  // Input
+  function getPos(e){const r=canvas.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};}
 
-    if (state === 'gameover') {
-      const bw=220,bh=55,bx=W/2-bw/2,by=H*0.72;
-      if(mx>=bx&&mx<=bx+bw&&my>=by&&my<=by+bh) startGame();
-    }
-  });
-
-  // Touch support
-  canvas.addEventListener('touchstart', (e) => {
+  function onDown(e){
+    if(state==='menu'){const p=getPos(e);const bx=W/2-110,by=H*0.65;if(p.x>=bx&&p.x<=bx+220&&p.y>=by&&p.y<=by+55)startGame();return;}
+    if(state==='word-reveal'){startDrawing();return;}
+    if(state==='gameover'){const p=getPos(e);const bx=W/2-110,by=H*0.72;if(p.x>=bx&&p.x<=bx+220&&p.y>=by&&p.y<=by+55)startGame();return;}
+    if(state!=='drawing')return;
     e.preventDefault();
-    const touch = e.touches[0];
-    canvas.dispatchEvent(new MouseEvent('click', {clientX:touch.clientX,clientY:touch.clientY}));
-  }, {passive:false});
+    const p=getPos(e);
+    // Toolbar
+    if(p.y<canvasTop()){handleToolbar(p);return;}
+    // Bottom bar
+    if(p.y>canvasBot()){handleBottom(p);return;}
+    isDrawing=true;lastX=p.x;lastY=p.y;drawLine(lastX,lastY,lastX+0.1,lastY+0.1);
+  }
+  function onMove(e){if(!isDrawing||state!=='drawing')return;e.preventDefault();const p=getPos(e);drawLine(lastX,lastY,p.x,p.y);lastX=p.x;lastY=p.y;}
+  function onUp(){isDrawing=false;}
+
+  canvas.addEventListener('mousedown',onDown);canvas.addEventListener('mousemove',onMove);
+  canvas.addEventListener('mouseup',onUp);canvas.addEventListener('mouseleave',onUp);
+  canvas.addEventListener('touchstart',(e)=>{e.preventDefault();onDown(e);},{passive:false});
+  canvas.addEventListener('touchmove',(e)=>{e.preventDefault();onMove(e);},{passive:false});
+  canvas.addEventListener('touchend',onUp);
+
+  function handleToolbar(p){
+    const y=65;
+    // Colors
+    for(let i=0;i<NEON_COLORS.length;i++){
+      const cx=15+i*36;
+      if(p.x>=cx&&p.x<=cx+28&&p.y>=y&&p.y<=y+28){drawColor=NEON_COLORS[i];isEraser=false;return;}
+    }
+    // Brush sizes
+    const bx=W-200;
+    for(let i=0;i<3;i++){
+      const x=bx+i*38;
+      if(p.x>=x&&p.x<=x+32&&p.y>=y&&p.y<=y+28){brushIdx=i;brushSize=BRUSH_SIZES[i];isEraser=false;return;}
+    }
+    // Eraser
+    if(p.x>=W-80&&p.x<=W-20&&p.y>=y&&p.y<=y+28){isEraser=!isEraser;return;}
+  }
+
+  function handleBottom(p){
+    const by=canvasBot()+10;
+    if(p.x>=15&&p.x<=95&&p.y>=by&&p.y<=by+40)clearDrawing();
+    if(p.x>=W-140&&p.x<=W-15&&p.y>=by&&p.y<=by+40)finishDrawing();
+  }
 
   // Render helpers
-  function glowText(text,x,y,color,size,align) {
+  function glow(text,x,y,color,size,align){
     ctx.save();ctx.textAlign=align||'center';ctx.textBaseline='middle';
     ctx.font=`bold ${size}px 'Segoe UI',sans-serif`;
     ctx.shadowColor=color;ctx.shadowBlur=15;ctx.fillStyle=color;ctx.fillText(text,x,y);
     ctx.shadowBlur=0;ctx.restore();
   }
-
-  function neonBtn(x,y,w,h,color,text,size) {
+  function neonBtn(x,y,w,h,color,text,sz){
     ctx.save();ctx.beginPath();ctx.roundRect(x,y,w,h,12);
-    ctx.fillStyle=color+'22';ctx.fill();
-    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=10;ctx.stroke();
-    ctx.shadowBlur=0;ctx.restore();
-    glowText(text,x+w/2,y+h/2,color,size||20);
+    ctx.fillStyle=color+'22';ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=2;
+    ctx.shadowColor=color;ctx.shadowBlur=10;ctx.stroke();ctx.shadowBlur=0;ctx.restore();
+    glow(text,x+w/2,y+h/2,color,sz||20);
   }
 
-  // Update
-  function update() {
-    if (state === 'playing') {
-      if (!answered) {
-        drawProgress = Math.min(1, drawProgress + drawSpeed);
-      } else {
-        answerTimer--;
-        if (answerTimer <= 0) {
-          if (round >= ROUNDS) {
-            state = 'gameover';
-            if (score > highScore) { highScore = score; localStorage.setItem('neon-draw-hi', highScore); }
-            try { window.parent.postMessage({type:'game-score',score,game:'neon-draw'},'*'); } catch(e){}
-          } else {
-            nextRound();
-          }
-        }
-      }
-    }
-
-    // Particles
-    particles = particles.filter(p => {
-      p.x+=p.vx;p.y+=p.vy;p.vy+=0.08;p.life-=p.decay;return p.life>0;
-    });
-  }
-
-  // Render
-  function render() {
-    update();
+  function render(){
     ctx.fillStyle=BG;ctx.fillRect(0,0,W,H);
 
-    if (state === 'menu') {
-      glowText('NEON DRAW',W/2,H*0.25,CYAN,Math.min(52,W*0.11));
-      glowText('Gissa vad som ritas!',W/2,H*0.35,PURPLE,18);
-
-      // Demo drawing
-      if(DRAWINGS.length>0){
-        ctx.save();
-        ctx.strokeStyle=PINK;ctx.shadowColor=PINK;ctx.shadowBlur=10;ctx.lineWidth=3;ctx.lineCap='round';
-        const t=Date.now()/4000;
-        const demoIdx=Math.floor(t)%DRAWINGS.length;
-        const prog=(t%1);
-        renderDrawing(W/2,H*0.52,Math.min(W*0.5,250),prog);
-        ctx.restore();
-      }
-
-      if(highScore>0) glowText(`Rekord: ${highScore}`,W/2,H*0.63,GREEN,16);
-      neonBtn(W/2-110,H*0.7,220,55,GREEN,'SPELA',26);
-      ctx.save();ctx.textAlign='center';ctx.font='13px Segoe UI';ctx.fillStyle='rgba(255,255,255,0.3)';
-      ctx.fillText('Tryck för att starta',W/2,H*0.85);ctx.restore();
+    if(state==='menu'){
+      glow('NEON DRAW',W/2,H*0.22,CYAN,Math.min(52,W*0.11));
+      glow('En ritar, en gissar!',W/2,H*0.33,PURPLE,18);
+      ctx.save();ctx.textAlign='center';ctx.font='15px Segoe UI';ctx.fillStyle='rgba(255,255,255,0.5)';
+      ctx.fillText('Spelare 1 ritar ett ord',W/2,H*0.42);
+      ctx.fillText('Spelare 2 gissar vad det är',W/2,H*0.47);ctx.restore();
+      neonBtn(W/2-110,H*0.65,220,55,GREEN,'SPELA',26);
     }
 
-    else if (state === 'playing') {
+    else if(state==='word-reveal'){
+      glow(`Runda ${round}/${ROUNDS}`,W/2,H*0.2,PURPLE,20);
+      glow('Ditt ord att rita:',W/2,H*0.35,CYAN,20);
+      glow(currentWord.toUpperCase(),W/2,H*0.48,PINK,Math.min(56,W*0.12));
+      ctx.save();ctx.textAlign='center';ctx.font='16px Segoe UI';ctx.fillStyle='rgba(255,255,255,0.4)';
+      ctx.fillText('Visa INTE ordet för den som gissar!',W/2,H*0.60);
+      ctx.fillText('Tryck var som helst för att börja rita',W/2,H*0.66);ctx.restore();
+    }
+
+    else if(state==='drawing'){
       // Top bar
-      ctx.fillStyle='#0d0d24';ctx.fillRect(0,0,W,45);
-      glowText(`Runda ${round}/${ROUNDS}`,70,23,PURPLE,16);
-      glowText(`${score} poäng`,W/2,23,CYAN,16);
-      const tc = timeLeft<=5?ORANGE:CYAN;
-      glowText(`${timeLeft}s`,W-40,23,tc,18);
+      ctx.fillStyle='#0d0d24';ctx.fillRect(0,0,W,55);
+      glow(`Runda ${round}/${ROUNDS}`,70,28,PURPLE,16);
+      glow(`${score} poäng`,W/2,28,CYAN,16);
+      const tc=timeLeft<=10?ORANGE:CYAN;
+      glow(`${timeLeft}s`,W-40,28,tc,18);
+
+      // Toolbar
+      ctx.fillStyle='#0d0d24cc';ctx.fillRect(0,55,W,38);
+      const ty=65;
+      for(let i=0;i<NEON_COLORS.length;i++){
+        const cx=15+i*36;const c=NEON_COLORS[i];const sel=!isEraser&&drawColor===c;
+        ctx.save();ctx.beginPath();ctx.roundRect(cx,ty,28,28,6);ctx.fillStyle=c;
+        ctx.shadowColor=c;ctx.shadowBlur=sel?15:4;ctx.fill();
+        if(sel){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}ctx.restore();
+      }
+      const labels=['S','M','L'];const bsx=W-200;
+      for(let i=0;i<3;i++){
+        const x=bsx+i*38;const sel=!isEraser&&brushIdx===i;
+        ctx.save();ctx.beginPath();ctx.roundRect(x,ty,32,28,6);
+        ctx.fillStyle=sel?CYAN+'44':'#222244';ctx.fill();
+        ctx.strokeStyle=sel?CYAN:'#444466';ctx.lineWidth=sel?2:1;ctx.stroke();ctx.restore();
+        ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.font='bold 13px Segoe UI';ctx.fillStyle=sel?CYAN:'#8888aa';
+        ctx.fillText(labels[i],x+16,ty+14);ctx.restore();
+      }
+      const ex=W-80;
+      ctx.save();ctx.beginPath();ctx.roundRect(ex,ty,60,28,6);
+      ctx.fillStyle=isEraser?ORANGE+'44':'#222244';ctx.fill();
+      ctx.strokeStyle=isEraser?ORANGE:'#444466';ctx.lineWidth=isEraser?2:1;ctx.stroke();ctx.restore();
+      ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 12px Segoe UI';
+      ctx.fillStyle=isEraser?ORANGE:'#8888aa';ctx.fillText('SUDD',ex+30,ty+14);ctx.restore();
 
       // Drawing area
-      const drawCx = W/2;
-      const drawCy = H*0.38;
-      const drawScale = Math.min(W*0.7, H*0.45);
+      ctx.save();ctx.beginPath();ctx.rect(0,canvasTop(),W,canvasBot()-canvasTop());ctx.clip();
+      ctx.drawImage(drawCanvas,0,0,drawCanvas.width,drawCanvas.height,0,0,W,H);ctx.restore();
+      ctx.strokeStyle=PURPLE+'33';ctx.lineWidth=1;ctx.strokeRect(0,canvasTop(),W,canvasBot()-canvasTop());
 
-      // Draw area background
-      ctx.save();ctx.beginPath();ctx.roundRect(drawCx-drawScale/2-10,drawCy-drawScale/2-10,drawScale+20,drawScale+20,12);
-      ctx.fillStyle='#111128';ctx.fill();ctx.strokeStyle=PURPLE+'44';ctx.lineWidth=1;ctx.stroke();ctx.restore();
-
-      renderDrawing(drawCx, drawCy, drawScale, drawProgress);
-
-      // Options (2x2 grid)
-      const optY = H * 0.72;
-      const optW = Math.min(180, W * 0.4);
-      const optH = 44;
-      const gap = 10;
-      const cols = 2;
-      const totalW = cols * optW + (cols-1) * gap;
-      const startX = W/2 - totalW/2;
-
-      for (let i = 0; i < options.length; i++) {
-        const col = i % 2;
-        const row = Math.floor(i / 2);
-        const ox = startX + col * (optW + gap);
-        const oy = optY + row * (optH + gap);
-
-        let btnColor = CYAN;
-        if (answered) {
-          if (options[i] === currentDrawing.word) btnColor = GREEN;
-          else if (!answerCorrect) btnColor = '#333';
-          else btnColor = '#333';
-        }
-
-        neonBtn(ox, oy, optW, optH, btnColor, options[i].toUpperCase(), 16);
-      }
-
-      // Result overlay
-      if (answered) {
-        const msg = answerCorrect ? 'RÄTT!' : `Fel! Det var: ${currentDrawing.word.toUpperCase()}`;
-        const msgColor = answerCorrect ? GREEN : PINK;
-        glowText(msg, W/2, H*0.63, msgColor, 24);
-      }
+      // Bottom bar
+      ctx.fillStyle='#0d0d24cc';ctx.fillRect(0,canvasBot(),W,BOTTOM_H);
+      const by=canvasBot()+10;
+      neonBtn(15,by,80,38,ORANGE,'RENSA',14);
+      neonBtn(W-140,by,125,38,GREEN,'KLAR!',16);
+      ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='15px Segoe UI';
+      ctx.fillStyle=PURPLE;ctx.fillText(`Poäng: ${score}`,W/2,by+19);ctx.restore();
     }
 
-    else if (state === 'gameover') {
-      glowText('SPELET SLUT!',W/2,H*0.2,CYAN,40);
-      glowText(`${score} poäng`,W/2,H*0.35,PINK,48);
+    else if(state==='guessing'){
+      ctx.fillStyle='#0d0d24';ctx.fillRect(0,0,W,50);
+      glow(`Runda ${round}/${ROUNDS}`,W/2,26,PURPLE,18);
 
-      let ratingText='';
-      if(score>=ROUNDS*4) ratingText='Otroligt!';
-      else if(score>=ROUNDS*2) ratingText='Snyggt!';
-      else if(score>=ROUNDS) ratingText='Bra jobbat!';
-      else ratingText='Fortsätt öva!';
-      glowText(ratingText,W/2,H*0.48,GREEN,22);
+      // Show drawing
+      const top=60,bot=H*0.65;
+      ctx.save();ctx.beginPath();ctx.rect(0,top,W,bot-top);ctx.clip();
+      ctx.drawImage(drawCanvas,0,0,drawCanvas.width,drawCanvas.height,0,0,W,H);ctx.restore();
+      ctx.strokeStyle=CYAN+'33';ctx.lineWidth=1;ctx.strokeRect(0,top,W,bot-top);
 
-      if(score>=highScore&&score>0) glowText('NYTT REKORD!',W/2,H*0.56,YELLOW,20);
-      else glowText(`Rekord: ${highScore}`,W/2,H*0.56,PURPLE,16);
+      glow('Vad föreställer ritningen?',W/2,H*0.68,CYAN,20);
+      // Input and button are HTML elements positioned via CSS
+    }
 
+    else if(state==='result'){
+      // Show drawing small
+      const dw=Math.min(W-40,350),dh=Math.min(H*0.35,250);
+      const dx=W/2-dw/2,dy=30;
+      ctx.save();ctx.beginPath();ctx.roundRect(dx,dy,dw,dh,12);ctx.clip();
+      ctx.drawImage(drawCanvas,0,0,drawCanvas.width,drawCanvas.height,dx,dy,dw,dh);ctx.restore();
+      ctx.save();ctx.beginPath();ctx.roundRect(dx,dy,dw,dh,12);ctx.strokeStyle=CYAN;ctx.lineWidth=2;ctx.stroke();ctx.restore();
+
+      const cy=dy+dh+30;
+      if(guessCorrect){
+        glow('RÄTT!',W/2,cy,GREEN,36);
+        glow(`"${guessResult}" var korrekt!`,W/2,cy+40,CYAN,18);
+      }else{
+        glow('FEL!',W/2,cy,PINK,36);
+        glow(`Gissning: "${guessResult}"`,W/2,cy+35,ORANGE,16);
+        glow(`Rätt svar: ${currentWord.toUpperCase()}`,W/2,cy+65,GREEN,20);
+      }
+
+      resultTimer--;
+      if(resultTimer<=0){
+        if(round>=ROUNDS){state='gameover';}
+        else nextRound();
+      }
+
+      // Progress bar
+      const pb=resultTimer/150;
+      ctx.fillStyle='#222244';ctx.fillRect(W*0.2,H-30,W*0.6,6);
+      ctx.fillStyle=CYAN;ctx.fillRect(W*0.2,H-30,W*0.6*pb,6);
+    }
+
+    else if(state==='gameover'){
+      glow('SPELET SLUT!',W/2,H*0.2,CYAN,40);
+      glow(`${score} / ${ROUNDS}`,W/2,H*0.35,PINK,48);
+      glow('rätt gissningar',W/2,H*0.42,PURPLE,16);
+      let msg='';
+      if(score===ROUNDS)msg='Perfekt! Ni är ett dreamteam!';
+      else if(score>=4)msg='Fantastiskt samarbete!';
+      else if(score>=3)msg='Bra jobbat!';
+      else if(score>=1)msg='Fortsätt öva!';
+      else msg='Nästa gång blir bättre!';
+      glow(msg,W/2,H*0.55,GREEN,20);
       neonBtn(W/2-110,H*0.72,220,55,GREEN,'SPELA IGEN',22);
     }
-
-    // Particles
-    for(const p of particles){
-      ctx.globalAlpha=p.life;ctx.fillStyle=p.color;
-      ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
-    }
-    ctx.globalAlpha=1;
 
     requestAnimationFrame(render);
   }

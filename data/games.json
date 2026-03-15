@@ -155,7 +155,7 @@
   {
     "id": "neon-draw",
     "title": "Neon Draw",
-    "description": "Gissa vad som ritas! Datorn ritar och du v\u00e4ljer r\u00e4tt ord.",
+    "description": "En ritar, en gissar! Lokalt 2-spelarspel med neonpensel.",
     "category": "Pussel",
     "thumbnail": "assets/images/neon-draw.svg",
     "path": "games/neon-draw/index.html",
