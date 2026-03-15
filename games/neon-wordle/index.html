@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Neon Wordle</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+  </style>
+</head>
+<body>
+<canvas id="game" tabindex="0"></canvas>
+<script src="../../js/sounds.js"></script>
+<script>
+(() => {
+  // === Canvas & Hi-DPI ===
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  canvas.focus();
+  window.addEventListener('load', () => canvas.focus());
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
+  // === roundRect polyfill (Safari) ===
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radii) {
+      let r = typeof radii === 'number' ? radii : (Array.isArray(radii) ? radii[0] : 0);
+      r = Math.min(r, w / 2, h / 2);
+      this.moveTo(x + r, y);
+      this.lineTo(x + w - r, y);
+      this.quadraticCurveTo(x + w, y, x + w, y + r);
+      this.lineTo(x + w, y + h - r);
+      this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      this.lineTo(x + r, y + h);
+      this.quadraticCurveTo(x, y + h, x, y + h - r);
+      this.lineTo(x, y + r);
+      this.quadraticCurveTo(x, y, x + r, y);
+      this.closePath();
+      return this;
+    };
+  }
+
+  // === Word List - 5-letter Swedish words ===
+  const WORDS = [
+    'stuga','lampa','dator','stund','lycka','frukt','gryta','morot','skola',
+    'kraft','brist','frost','grund','bland','punkt','trots','hjort','bjuda',
+    'flock','black','plats','blank','plast','glass','grabb','klass','grill',
+    'snabb','spela','spika','sprut','stack','stall','sting','stock','stolt',
+    'stopp','storm','stram','strip','ström','studs','stund','svamp','svans',
+    'sving','taget','tanke','tegel','tempo','tills','torsk','tomat','total',
+    'trakt','trana','trend','trick','troll','trumf','tunga','tveka','tvist',
+    'under','utsyn','vagga','vaken','vecka','verka','villa','vinge','virka',
+    'vrist','yngre','ytlig','ålder','ämbar','ärlig','ögats','ånger','åsikt',
+    'blygt','bröts','cykla','dagis','delta','demon','desto','dimma','djärv',
+    'domän','driva','dropp','dunka','dyker','efter','egalt','elakt','elvis',
+    'ental','extern','fajta','falsk','famla','fiber','fikon','finka','fjäll',
+    'flagg','flask','flora','flykt','foder','fokus','foton','fräls','fullt',
+    'fylla','galen','glans','gnida','godis','gripa','grupp','guide','gummi',
+    'gunst','gärna','gömma','hagle','hamna','hinna','hobby','hugga','huvud',
+    'hylla','häfta','hälla','hämta','höger','hölja','idyll','ikapp','ingår',
+    'inköp','inåtg','ivägt','jämra','jämte','kalla','karma','karta','kedja',
+    'klädd','knapp','knipa','knyta','kokos','komma','koolt','korsa','kramp',
+    'krymp','kulör','kupol','kylig','källa','könsa','köras','lagom','linda',
+    'lista','ljust','lokal','lucka','lurka','lydig','lyser','lägga','mager',
+    'maska','media','melon','midja','minus','modig','mogna','motor','mumla',
+    'märka','mögla','nacke','nekat','nimla','norsk','nutid','nådig','nästa',
+    'offer','ordna','ormen','panna','pekad','pirat','plank','plugg','pompa',
+    'press','prova','pulka','pumpa','pärla','rally','rensa','rimma','rivals',
+    'rodna','rumba','rumpa','räcka','sakna','signal','simma','sirap','sjung',
+    'skada','skalv','skild','skina','skojs','skrik','skuld','skylt','skärm',
+    'slank','slipa','slott','slump','smaka','smell','snabb','snart','snitt',
+    'solid','somna','spark','spion','spärr','stank','steka','stelg','stick',
+    'stirr','stråk','styra','summa','surfa','sväng','syrsa','söker','sömna',
+    'taket','tekno','tiger','timma','tjock','toafs','tokig','trapp','tumma',
+    'tvång','tänka','ugnen','union','ursäk','utsäg','vaken','varat','vifta',
+    'vigda','virus','visst','volym','vrida','vulgo','vågar','väcka','välja',
+    'värld','väska','yttre','zloty'
+  ].map(w => w.toUpperCase());
+
+  // Deduplicate
+  const WORD_SET = [...new Set(WORDS)];
+
+  // === Game State ===
+  const MAX_GUESSES = 6;
+  const WORD_LENGTH = 5;
+  let state = 'menu'; // menu, playing, won, lost
+  let targetWord = '';
+  let guesses = [];       // completed guesses: [{letters, colors}]
+  let currentGuess = '';   // in-progress typing
+  let currentRow = 0;
+  let shakeTime = 0;
+  let shakeRow = -1;
+  let flipAnim = null;     // {row, col, time, duration}
+  let revealingRow = -1;
+  let revealCol = -1;
+  let revealTimer = 0;
+  let particles = [];
+  let keyColors = {};      // letter -> 'correct'|'present'|'absent'
+  let message = '';
+  let messageTimer = 0;
+  let menuPulse = 0;
+
+  // === Stats ===
+  function loadStats() {
+    try {
+      const s = JSON.parse(localStorage.getItem('neon-wordle-stats'));
+      if (s) return s;
+    } catch(e) {}
+    return { played: 0, wins: 0, streak: 0, maxStreak: 0 };
+  }
+  function saveStats(stats) {
+    localStorage.setItem('neon-wordle-stats', JSON.stringify(stats));
+  }
+  let stats = loadStats();
+
+  // === Colors ===
+  const COL = {
+    bg: '#0a0a1a',
+    tileBorder: '#3a3a5c',
+    tileEmpty: '#1a1a2e',
+    tileFilled: '#2a2a4e',
+    correct: '#00ff88',
+    correctDark: '#00aa55',
+    present: '#ffaa00',
+    presentDark: '#cc8800',
+    absent: '#3a3a5c',
+    absentDark: '#2a2a3e',
+    text: '#ffffff',
+    textDim: '#8888aa',
+    neonPink: '#ff00ff',
+    neonBlue: '#00ccff',
+    neonGreen: '#00ff88',
+    neonOrange: '#ffaa00',
+    keyBg: '#2a2a4e',
+    keyText: '#ffffff',
+  };
+
+  // === Pick Word ===
+  function pickDailyWord() {
+    const today = new Date();
+    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    return WORD_SET[seed % WORD_SET.length];
+  }
+  function pickRandomWord() {
+    return WORD_SET[Math.floor(Math.random() * WORD_SET.length)];
+  }
+
+  // === Evaluate Guess ===
+  function evaluateGuess(guess, target) {
+    const colors = Array(WORD_LENGTH).fill('absent');
+    const targetArr = target.split('');
+    const guessArr = guess.split('');
+    const used = Array(WORD_LENGTH).fill(false);
+
+    // First pass: correct positions
+    for (let i = 0; i < WORD_LENGTH; i++) {
+      if (guessArr[i] === targetArr[i]) {
+        colors[i] = 'correct';
+        used[i] = true;
+      }
+    }
+    // Second pass: present but wrong position
+    for (let i = 0; i < WORD_LENGTH; i++) {
+      if (colors[i] === 'correct') continue;
+      for (let j = 0; j < WORD_LENGTH; j++) {
+        if (!used[j] && guessArr[i] === targetArr[j]) {
+          colors[i] = 'present';
+          used[j] = true;
+          break;
+        }
+      }
+    }
+    return colors;
+  }
+
+  // === Keyboard Layout (Swedish) ===
+  const KB_ROWS = [
+    ['Q','W','E','R','T','Y','U','I','O','P','Å'],
+    ['A','S','D','F','G','H','J','K','L','Ö','Ä'],
+    ['ENTER','Z','X','C','V','B','N','M','⌫']
+  ];
+
+  // === Start Game ===
+  function startGame(daily = false) {
+    targetWord = daily ? pickDailyWord() : pickRandomWord();
+    // Ensure target is exactly 5 letters
+    if (targetWord.length !== WORD_LENGTH) targetWord = pickRandomWord();
+    guesses = [];
+    currentGuess = '';
+    currentRow = 0;
+    shakeTime = 0;
+    shakeRow = -1;
+    revealingRow = -1;
+    revealCol = -1;
+    keyColors = {};
+    particles = [];
+    message = '';
+    messageTimer = 0;
+    state = 'playing';
+    NeonSounds.init();
+  }
+
+  // === Submit Guess ===
+  function submitGuess() {
+    if (currentGuess.length !== WORD_LENGTH) return;
+    // Check if word is in list
+    if (!WORD_SET.includes(currentGuess)) {
+      shakeTime = 300;
+      shakeRow = currentRow;
+      NeonSounds.hit();
+      showMessage('Ordet finns inte i listan');
+      return;
+    }
+    NeonSounds.slide();
+    const colors = evaluateGuess(currentGuess, targetWord);
+    guesses.push({ letters: currentGuess, colors });
+
+    // Start reveal animation
+    revealingRow = currentRow;
+    revealCol = 0;
+    revealTimer = 0;
+
+    currentRow++;
+    currentGuess = '';
+  }
+
+  // After reveal completes for a row
+  function onRevealComplete(rowIdx) {
+    const g = guesses[rowIdx];
+    // Update keyboard colors
+    for (let i = 0; i < WORD_LENGTH; i++) {
+      const letter = g.letters[i];
+      const color = g.colors[i];
+      const existing = keyColors[letter];
+      // Priority: correct > present > absent
+      if (color === 'correct') {
+        keyColors[letter] = 'correct';
+      } else if (color === 'present' && existing !== 'correct') {
+        keyColors[letter] = 'present';
+      } else if (!existing) {
+        keyColors[letter] = 'absent';
+      }
+    }
+
+    // Check win/lose
+    if (g.colors.every(c => c === 'correct')) {
+      state = 'won';
+      NeonSounds.fanfare();
+      spawnCelebration();
+      stats.played++;
+      stats.wins++;
+      stats.streak++;
+      if (stats.streak > stats.maxStreak) stats.maxStreak = stats.streak;
+      saveStats(stats);
+      showMessage('Fantastiskt!');
+    } else if (currentRow >= MAX_GUESSES) {
+      state = 'lost';
+      NeonSounds.death();
+      stats.played++;
+      stats.streak = 0;
+      saveStats(stats);
+      showMessage('Ordet var: ' + targetWord);
+    }
+    revealingRow = -1;
+  }
+
+  function showMessage(msg) {
+    message = msg;
+    messageTimer = 2500;
+  }
+
+  // === Celebration Particles ===
+  function spawnCelebration() {
+    for (let i = 0; i < 80; i++) {
+      particles.push({
+        x: W() / 2 + (Math.random() - 0.5) * 200,
+        y: H() / 2,
+        vx: (Math.random() - 0.5) * 12,
+        vy: -Math.random() * 10 - 2,
+        life: 1,
+        decay: 0.005 + Math.random() * 0.01,
+        size: 3 + Math.random() * 5,
+        color: [COL.neonGreen, COL.neonPink, COL.neonBlue, COL.neonOrange][Math.floor(Math.random() * 4)]
+      });
+    }
+  }
+
+  // === Layout Calculations ===
+  function getLayout() {
+    const w = W();
+    const h = H();
+    const tileSize = Math.min(w * 0.12, h * 0.065, 62);
+    const tileGap = tileSize * 0.15;
+    const gridW = WORD_LENGTH * (tileSize + tileGap) - tileGap;
+    const gridX = (w - gridW) / 2;
+    const gridY = h * 0.12;
+
+    const kbKeyW = Math.min(w * 0.08, 44);
+    const kbKeyH = kbKeyW * 1.3;
+    const kbGap = kbKeyW * 0.12;
+    const kbY = h - kbKeyH * 3 - kbGap * 4 - 10;
+
+    return { tileSize, tileGap, gridW, gridX, gridY, kbKeyW, kbKeyH, kbGap, kbY };
+  }
+
+  // === Drawing ===
+  function drawTile(x, y, size, letter, colorType, flipProgress) {
+    // flipProgress: 0 = not flipped, 0-0.5 = shrinking, 0.5-1 = growing with color
+    const isFlipping = flipProgress > 0 && flipProgress < 1;
+    const scaleY = isFlipping ? Math.abs(Math.cos(flipProgress * Math.PI)) : 1;
+    const showColor = flipProgress >= 0.5;
+
+    let bgColor = COL.tileEmpty;
+    let borderColor = COL.tileBorder;
+    if (letter && !showColor && flipProgress < 0.5) {
+      bgColor = COL.tileFilled;
+      borderColor = '#5a5a8c';
+    }
+    if (showColor || flipProgress >= 1) {
+      if (colorType === 'correct') { bgColor = COL.correctDark; borderColor = COL.correct; }
+      else if (colorType === 'present') { bgColor = COL.presentDark; borderColor = COL.present; }
+      else { bgColor = COL.absentDark; borderColor = COL.absent; }
+    }
+
+    ctx.save();
+    ctx.translate(x + size / 2, y + size / 2);
+    ctx.scale(1, scaleY);
+
+    ctx.beginPath();
+    ctx.roundRect(-size / 2, -size / 2, size, size, 6);
+    ctx.fillStyle = bgColor;
+    ctx.fill();
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Neon glow for colored tiles
+    if (showColor || flipProgress >= 1) {
+      if (colorType === 'correct' || colorType === 'present') {
+        ctx.shadowColor = borderColor;
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.roundRect(-size / 2, -size / 2, size, size, 6);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    if (letter && scaleY > 0.1) {
+      ctx.fillStyle = COL.text;
+      ctx.font = `bold ${size * 0.55}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(letter, 0, 2);
+    }
+    ctx.restore();
+  }
+
+  function drawGrid(layout, dt) {
+    const { tileSize, tileGap, gridX, gridY } = layout;
+    const shakeX = shakeTime > 0 ? Math.sin(shakeTime * 0.05) * 6 : 0;
+
+    for (let row = 0; row < MAX_GUESSES; row++) {
+      const rowShake = (row === shakeRow && shakeTime > 0) ? shakeX : 0;
+      for (let col = 0; col < WORD_LENGTH; col++) {
+        const x = gridX + col * (tileSize + tileGap) + rowShake;
+        const y = gridY + row * (tileSize + tileGap);
+
+        if (row < guesses.length) {
+          // Completed guess
+          const g = guesses[row];
+          let flipP = 1;
+          if (row === revealingRow) {
+            const colDelay = col * 350;
+            const elapsed = revealTimer - colDelay;
+            if (elapsed < 0) flipP = 0;
+            else if (elapsed < 500) flipP = elapsed / 500;
+            else flipP = 1;
+          }
+          drawTile(x, y, tileSize, g.letters[col], g.colors[col], flipP);
+        } else if (row === currentRow) {
+          // Current row
+          const letter = currentGuess[col] || '';
+          drawTile(x, y, tileSize, letter, null, 0);
+        } else {
+          drawTile(x, y, tileSize, '', null, 0);
+        }
+      }
+    }
+  }
+
+  function drawKeyboard(layout) {
+    const { kbKeyW, kbKeyH, kbGap, kbY } = layout;
+    const w = W();
+
+    for (let r = 0; r < KB_ROWS.length; r++) {
+      const row = KB_ROWS[r];
+      const totalW = row.reduce((s, key) => {
+        const kw = (key === 'ENTER' || key === '⌫') ? kbKeyW * 1.5 : kbKeyW;
+        return s + kw + kbGap;
+      }, -kbGap);
+      let x = (w - totalW) / 2;
+      const y = kbY + r * (kbKeyH + kbGap);
+
+      for (const key of row) {
+        const kw = (key === 'ENTER' || key === '⌫') ? kbKeyW * 1.5 : kbKeyW;
+        let bgColor = COL.keyBg;
+        let borderColor = '#4a4a6e';
+        let glowColor = null;
+
+        const kc = keyColors[key];
+        if (kc === 'correct') { bgColor = COL.correctDark; borderColor = COL.correct; glowColor = COL.correct; }
+        else if (kc === 'present') { bgColor = COL.presentDark; borderColor = COL.present; glowColor = COL.present; }
+        else if (kc === 'absent') { bgColor = COL.absentDark; borderColor = COL.absent; }
+
+        ctx.beginPath();
+        ctx.roundRect(x, y, kw, kbKeyH, 5);
+        ctx.fillStyle = bgColor;
+        ctx.fill();
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        if (glowColor) {
+          ctx.shadowColor = glowColor;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.roundRect(x, y, kw, kbKeyH, 5);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+
+        ctx.fillStyle = COL.text;
+        const fontSize = (key === 'ENTER' || key === '⌫') ? kbKeyH * 0.32 : kbKeyH * 0.4;
+        ctx.font = `bold ${fontSize}px 'Segoe UI', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const label = key === 'ENTER' ? 'SKICKA' : key;
+        ctx.fillText(label, x + kw / 2, y + kbKeyH / 2 + 1);
+
+        // Store hit area for touch
+        key._x = x; key._y = y; key._w = kw; key._h = kbKeyH;
+
+        x += kw + kbGap;
+      }
+    }
+  }
+
+  // Store keyboard hit areas for touch
+  function getKeyAt(tx, ty) {
+    for (const row of KB_ROWS) {
+      for (const key of row) {
+        if (key._x !== undefined && tx >= key._x && tx <= key._x + key._w && ty >= key._y && ty <= key._y + key._h) {
+          return key;
+        }
+      }
+    }
+    return null;
+  }
+
+  function drawMessage() {
+    if (messageTimer <= 0 || !message) return;
+    const alpha = Math.min(1, messageTimer / 300);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#1a1a3a';
+    ctx.strokeStyle = COL.neonBlue;
+    ctx.lineWidth = 2;
+    const tw = ctx.measureText(message).width;
+    const pw = tw + 40;
+    const ph = 44;
+    const px = (W() - pw) / 2;
+    const py = H() * 0.08;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = COL.text;
+    ctx.font = 'bold 18px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(message, W() / 2, py + ph / 2);
+    ctx.restore();
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      ctx.save();
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 10;
+      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      ctx.restore();
+    }
+  }
+
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx * dt * 60;
+      p.y += p.vy * dt * 60;
+      p.vy += 0.15 * dt * 60;
+      p.life -= p.decay * dt * 60;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  // === Menu ===
+  function drawMenu() {
+    const w = W(), h = H();
+    menuPulse += 0.03;
+
+    // Title
+    const glow = Math.sin(menuPulse) * 0.3 + 0.7;
+    ctx.save();
+    ctx.shadowColor = COL.neonGreen;
+    ctx.shadowBlur = 30 * glow;
+    ctx.fillStyle = COL.neonGreen;
+    ctx.font = `bold ${Math.min(w * 0.12, 72)}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('NEON WORDLE', w / 2, h * 0.22);
+    ctx.restore();
+
+    // Subtitle
+    ctx.fillStyle = COL.textDim;
+    ctx.font = `${Math.min(w * 0.04, 20)}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Gissa det svenska ordet med 5 bokstäver', w / 2, h * 0.30);
+
+    // Play button (daily)
+    const btnW = Math.min(w * 0.6, 280);
+    const btnH = 56;
+    const btnX = (w - btnW) / 2;
+    const btnY = h * 0.40;
+
+    ctx.save();
+    ctx.shadowColor = COL.neonGreen;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, 12);
+    ctx.fillStyle = '#0a2a1a';
+    ctx.fill();
+    ctx.strokeStyle = COL.neonGreen;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = COL.neonGreen;
+    ctx.font = `bold 22px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('DAGENS ORD', w / 2, btnY + btnH / 2);
+
+    // Random play button
+    const btn2Y = btnY + btnH + 20;
+    ctx.save();
+    ctx.shadowColor = COL.neonBlue;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.roundRect(btnX, btn2Y, btnW, btnH, 12);
+    ctx.fillStyle = '#0a1a2a';
+    ctx.fill();
+    ctx.strokeStyle = COL.neonBlue;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = COL.neonBlue;
+    ctx.font = `bold 22px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('SLUMPMÄSSIGT ORD', w / 2, btn2Y + btnH / 2);
+
+    // Stats
+    const statsY = btn2Y + btnH + 50;
+    ctx.fillStyle = COL.textDim;
+    ctx.font = `16px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    const winRate = stats.played > 0 ? Math.round(stats.wins / stats.played * 100) : 0;
+    ctx.fillText(`Spelade: ${stats.played}  |  Vinst: ${winRate}%  |  Svit: ${stats.streak}`, w / 2, statsY);
+
+    // Store button areas for touch
+    drawMenu._btn1 = { x: btnX, y: btnY, w: btnW, h: btnH };
+    drawMenu._btn2 = { x: btnX, y: btn2Y, w: btnW, h: btnH };
+  }
+
+  // === End Screen Overlay ===
+  function drawEndOverlay() {
+    const w = W(), h = H();
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+
+    const isWin = state === 'won';
+    const title = isWin ? 'GRATTIS!' : 'TYVÄRR!';
+    const color = isWin ? COL.neonGreen : COL.neonPink;
+
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = color;
+    ctx.font = `bold ${Math.min(w * 0.1, 56)}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, w / 2, h * 0.3);
+    ctx.restore();
+
+    if (!isWin) {
+      ctx.fillStyle = COL.text;
+      ctx.font = `24px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Rätt ord: ' + targetWord, w / 2, h * 0.38);
+    } else {
+      ctx.fillStyle = COL.textDim;
+      ctx.font = `20px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(`Löst på ${guesses.length} av ${MAX_GUESSES} försök`, w / 2, h * 0.38);
+    }
+
+    // Stats
+    const winRate = stats.played > 0 ? Math.round(stats.wins / stats.played * 100) : 0;
+    ctx.fillStyle = COL.textDim;
+    ctx.font = `16px 'Segoe UI', sans-serif`;
+    ctx.fillText(`Spelade: ${stats.played}  |  Vinst: ${winRate}%  |  Svit: ${stats.streak}`, w / 2, h * 0.44);
+
+    // Play again button
+    const btnW = Math.min(w * 0.6, 260);
+    const btnH = 52;
+    const btnX = (w - btnW) / 2;
+    const btnY = h * 0.52;
+    ctx.save();
+    ctx.shadowColor = COL.neonBlue;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, 12);
+    ctx.fillStyle = '#0a1a2a';
+    ctx.fill();
+    ctx.strokeStyle = COL.neonBlue;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = COL.neonBlue;
+    ctx.font = `bold 20px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('SPELA IGEN', w / 2, btnY + btnH / 2);
+
+    // Menu button
+    const btn2Y = btnY + btnH + 16;
+    ctx.save();
+    ctx.shadowColor = COL.neonPink;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.roundRect(btnX, btn2Y, btnW, btnH, 12);
+    ctx.fillStyle = '#1a0a1a';
+    ctx.fill();
+    ctx.strokeStyle = COL.neonPink;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = COL.neonPink;
+    ctx.font = `bold 20px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('MENY', w / 2, btn2Y + btnH / 2);
+
+    drawEndOverlay._btn1 = { x: btnX, y: btnY, w: btnW, h: btnH };
+    drawEndOverlay._btn2 = { x: btnX, y: btn2Y, w: btnW, h: btnH };
+  }
+
+  // === Input Handling ===
+  function handleKey(key) {
+    if (state !== 'playing') return;
+    if (revealingRow >= 0) return; // wait for reveal
+
+    if (key === 'ENTER') {
+      submitGuess();
+    } else if (key === '⌫' || key === 'BACKSPACE') {
+      if (currentGuess.length > 0) {
+        currentGuess = currentGuess.slice(0, -1);
+        NeonSounds.click();
+      }
+    } else if (key.length === 1 && /[A-ZÅÄÖ]/.test(key)) {
+      if (currentGuess.length < WORD_LENGTH) {
+        currentGuess += key;
+        NeonSounds.click();
+      }
+    }
+  }
+
+  // Physical keyboard
+  document.addEventListener('keydown', (e) => {
+    if (state === 'menu') {
+      if (e.key === 'Enter') { startGame(false); return; }
+      return;
+    }
+    if (state === 'won' || state === 'lost') {
+      if (e.key === 'Enter') { startGame(false); return; }
+      if (e.key === 'Escape') { state = 'menu'; return; }
+      return;
+    }
+    const k = e.key.toUpperCase();
+    if (k === 'ENTER') handleKey('ENTER');
+    else if (k === 'BACKSPACE') handleKey('⌫');
+    else if (k.length === 1 && /[A-ZÅÄÖ]/.test(k)) handleKey(k);
+  });
+
+  // Touch / click
+  function handlePointer(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (state === 'menu') {
+      const b1 = drawMenu._btn1;
+      const b2 = drawMenu._btn2;
+      if (b1 && x >= b1.x && x <= b1.x + b1.w && y >= b1.y && y <= b1.y + b1.h) {
+        NeonSounds.click();
+        startGame(true);
+        return;
+      }
+      if (b2 && x >= b2.x && x <= b2.x + b2.w && y >= b2.y && y <= b2.y + b2.h) {
+        NeonSounds.click();
+        startGame(false);
+        return;
+      }
+      return;
+    }
+
+    if (state === 'won' || state === 'lost') {
+      const b1 = drawEndOverlay._btn1;
+      const b2 = drawEndOverlay._btn2;
+      if (b1 && x >= b1.x && x <= b1.x + b1.w && y >= b1.y && y <= b1.y + b1.h) {
+        NeonSounds.click();
+        startGame(false);
+        return;
+      }
+      if (b2 && x >= b2.x && x <= b2.x + b2.w && y >= b2.y && y <= b2.y + b2.h) {
+        NeonSounds.click();
+        state = 'menu';
+        return;
+      }
+      return;
+    }
+
+    // Keyboard touch
+    const key = getKeyAt(x, y);
+    if (key) {
+      handleKey(key === '⌫' ? '⌫' : key);
+    }
+  }
+
+  canvas.addEventListener('pointerdown', handlePointer);
+
+  // === Reveal Animation Update ===
+  function updateReveal(dt) {
+    if (revealingRow < 0) return;
+    revealTimer += dt * 1000;
+
+    // Check each column's completion
+    const lastColStart = (WORD_LENGTH - 1) * 350;
+    const lastColEnd = lastColStart + 500;
+
+    // Play sounds per column
+    const g = guesses[revealingRow];
+    for (let col = 0; col < WORD_LENGTH; col++) {
+      const colStart = col * 350;
+      const colMid = colStart + 250;
+      if (revealTimer >= colMid && revealTimer < colMid + dt * 1000 + 20) {
+        // Sound at flip midpoint
+        if (g.colors[col] === 'correct') NeonSounds.collect();
+        else NeonSounds.hit();
+      }
+    }
+
+    if (revealTimer >= lastColEnd) {
+      onRevealComplete(revealingRow);
+    }
+  }
+
+  // === Main Loop ===
+  let lastTime = 0;
+  function loop(time) {
+    const dt = Math.min((time - lastTime) / 1000, 0.05);
+    lastTime = time;
+
+    ctx.clearRect(0, 0, W(), H());
+
+    if (state === 'menu') {
+      drawMenu();
+    } else {
+      // Update
+      if (shakeTime > 0) shakeTime -= dt * 1000;
+      if (messageTimer > 0) messageTimer -= dt * 1000;
+      updateReveal(dt);
+      updateParticles(dt);
+
+      const layout = getLayout();
+      drawGrid(layout, dt);
+      drawKeyboard(layout);
+      drawMessage();
+      drawParticles();
+
+      if (state === 'won' || state === 'lost') {
+        drawEndOverlay();
+      }
+    }
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

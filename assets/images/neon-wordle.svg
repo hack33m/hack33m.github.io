@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#0a0a1a"/>
+  <rect x="100" y="70" width="40" height="40" rx="5" fill="#39ff14"/><text x="120" y="98" text-anchor="middle" font-family="Segoe UI" font-size="22" font-weight="bold" fill="white">H</text>
+  <rect x="145" y="70" width="40" height="40" rx="5" fill="#39ff14"/><text x="165" y="98" text-anchor="middle" font-family="Segoe UI" font-size="22" font-weight="bold" fill="white">U</text>
+  <rect x="190" y="70" width="40" height="40" rx="5" fill="#39ff14"/><text x="210" y="98" text-anchor="middle" font-family="Segoe UI" font-size="22" font-weight="bold" fill="white">S</text>
+  <rect x="235" y="70" width="40" height="40" rx="5" fill="#39ff14"/><text x="255" y="98" text-anchor="middle" font-family="Segoe UI" font-size="22" font-weight="bold" fill="white">E</text>
+  <rect x="280" y="70" width="40" height="40" rx="5" fill="#39ff14"/><text x="300" y="98" text-anchor="middle" font-family="Segoe UI" font-size="22" font-weight="bold" fill="white">T</text>
+  <rect x="100" y="115" width="40" height="40" rx="5" fill="#ff6a00"/><text x="120" y="143" text-anchor="middle" font-family="Segoe UI" font-size="22" font-weight="bold" fill="white">S</text>
+  <rect x="145" y="115" width="40" height="40" rx="5" fill="#333"/><text x="165" y="143" text-anchor="middle" font-family="Segoe UI" font-size="22" font-weight="bold" fill="#666">K</text>
+  <rect x="190" y="115" width="40" height="40" rx="5" fill="#39ff14"/><text x="210" y="143" text-anchor="middle" font-family="Segoe UI" font-size="22" font-weight="bold" fill="white">O</text>
+  <rect x="235" y="115" width="40" height="40" rx="5" fill="#333"/><text x="255" y="143" text-anchor="middle" font-family="Segoe UI" font-size="22" font-weight="bold" fill="#666">G</text>
+  <rect x="280" y="115" width="40" height="40" rx="5" fill="#333"/><text x="300" y="143" text-anchor="middle" font-family="Segoe UI" font-size="22" font-weight="bold" fill="#666">A</text>
+  <rect x="100" y="160" width="40" height="40" rx="5" fill="#1a1a3a" stroke="#333" stroke-width="1"/>
+  <rect x="145" y="160" width="40" height="40" rx="5" fill="#1a1a3a" stroke="#333" stroke-width="1"/>
+  <rect x="190" y="160" width="40" height="40" rx="5" fill="#1a1a3a" stroke="#333" stroke-width="1"/>
+  <rect x="235" y="160" width="40" height="40" rx="5" fill="#1a1a3a" stroke="#333" stroke-width="1"/>
+  <rect x="280" y="160" width="40" height="40" rx="5" fill="#1a1a3a" stroke="#333" stroke-width="1"/>
+  <text x="200" y="40" text-anchor="middle" font-family="Segoe UI" font-size="28" font-weight="bold" fill="#39ff14">NEON WORDLE</text>
+</svg>

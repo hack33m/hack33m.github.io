@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Neon Tanks</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #fff;
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script src="../../js/sounds.js"></script>
+<script>
+(() => {
+  // ========== roundRect polyfill (Safari) ==========
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radii) {
+      let r = typeof radii === 'number' ? radii : (Array.isArray(radii) ? radii[0] : 0);
+      if (r > w / 2) r = w / 2;
+      if (r > h / 2) r = h / 2;
+      this.beginPath();
+      this.moveTo(x + r, y);
+      this.lineTo(x + w - r, y);
+      this.arcTo(x + w, y, x + w, y + r, r);
+      this.lineTo(x + w, y + h - r);
+      this.arcTo(x + w, y + h, x + w - r, y + h, r);
+      this.lineTo(x + r, y + h);
+      this.arcTo(x, y + h, x, y + h - r, r);
+      this.lineTo(x, y + r);
+      this.arcTo(x, y, x + r, y, r);
+      this.closePath();
+      return this;
+    };
+  }
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  let dpr = 1;
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
+  // ========== COLORS ==========
+  const CYAN = '#00d4ff';
+  const PINK = '#ff2d95';
+  const PURPLE = '#a855f7';
+  const GREEN = '#39ff14';
+  const ORANGE = '#ff6a00';
+  const BG = '#0a0a1a';
+
+  const PLAYER_COLORS = [CYAN, PINK];
+  const PLAYER_NAMES = ['SPELARE 1', 'SPELARE 2'];
+
+  // ========== GAME STATE ==========
+  let state = 'menu'; // menu, playing, gameover
+  let mode = '2p'; // 1p or 2p
+  let menuSelection = '2p';
+
+  // Terrain
+  let terrain = []; // array of heights (one per pixel column)
+  let terrainW = 0;
+
+  // Tanks
+  const TANK_W = 36;
+  const TANK_H = 18;
+  const CANNON_LEN = 28;
+  const MAX_HP = 3;
+  const EXPLOSION_RADIUS = 45;
+
+  let tanks = [];
+  let currentPlayer = 0;
+  let wind = 0; // -1 to 1
+  let projectile = null; // {x, y, vx, vy}
+  let particles = [];
+  let explosions = []; // visual explosion rings
+  let turnMessage = '';
+  let turnMessageTimer = 0;
+  let winner = -1;
+  let aiThinking = false;
+  let aiTimer = 0;
+
+  // Touch controls
+  let touchControls = { angleUp: false, angleDown: false, powerUp: false, powerDown: false };
+  let isTouchDevice = false;
+
+  // ========== TERRAIN GENERATION ==========
+  function generateTerrain() {
+    terrainW = W();
+    terrain = new Array(Math.ceil(terrainW));
+    const baseH = H() * 0.55;
+    const amplitude = H() * 0.2;
+
+    // Use multiple sine waves for natural hills
+    const freq1 = 0.003 + Math.random() * 0.002;
+    const freq2 = 0.008 + Math.random() * 0.004;
+    const freq3 = 0.02 + Math.random() * 0.01;
+    const phase1 = Math.random() * Math.PI * 2;
+    const phase2 = Math.random() * Math.PI * 2;
+    const phase3 = Math.random() * Math.PI * 2;
+
+    for (let x = 0; x < terrain.length; x++) {
+      const h1 = Math.sin(x * freq1 + phase1) * amplitude * 0.5;
+      const h2 = Math.sin(x * freq2 + phase2) * amplitude * 0.3;
+      const h3 = Math.sin(x * freq3 + phase3) * amplitude * 0.15;
+      terrain[x] = baseH + h1 + h2 + h3;
+    }
+  }
+
+  function getTerrainY(x) {
+    const ix = Math.floor(Math.max(0, Math.min(terrain.length - 1, x)));
+    return terrain[ix] || H();
+  }
+
+  function createCrater(cx, radius) {
+    for (let x = Math.max(0, Math.floor(cx - radius)); x < Math.min(terrain.length, Math.ceil(cx + radius)); x++) {
+      const dist = Math.abs(x - cx);
+      if (dist < radius) {
+        const depth = Math.sqrt(radius * radius - dist * dist);
+        terrain[x] = Math.min(H() + 50, terrain[x] + depth * 0.8);
+      }
+    }
+  }
+
+  // ========== TANK HELPERS ==========
+  function createTank(playerIdx) {
+    const margin = terrainW * 0.15;
+    const x = playerIdx === 0
+      ? margin + Math.random() * (terrainW * 0.2)
+      : terrainW - margin - Math.random() * (terrainW * 0.2);
+    return {
+      x: x,
+      y: getTerrainY(x),
+      angle: playerIdx === 0 ? -Math.PI / 4 : -3 * Math.PI / 4,
+      power: 50,
+      hp: MAX_HP,
+      color: PLAYER_COLORS[playerIdx],
+      name: PLAYER_NAMES[playerIdx],
+      idx: playerIdx
+    };
+  }
+
+  function settleTank(tank) {
+    tank.y = getTerrainY(tank.x);
+  }
+
+  // ========== INIT GAME ==========
+  function startGame() {
+    generateTerrain();
+    tanks = [createTank(0), createTank(1)];
+    currentPlayer = 0;
+    wind = (Math.random() - 0.5) * 2;
+    projectile = null;
+    particles = [];
+    explosions = [];
+    winner = -1;
+    aiThinking = false;
+    turnMessage = tanks[currentPlayer].name + 's tur';
+    turnMessageTimer = 120;
+    state = 'playing';
+    if (typeof NeonSounds !== 'undefined') NeonSounds.init();
+  }
+
+  function nextTurn() {
+    currentPlayer = 1 - currentPlayer;
+    wind += (Math.random() - 0.5) * 0.6;
+    wind = Math.max(-1, Math.min(1, wind));
+    turnMessage = tanks[currentPlayer].name + 's tur';
+    turnMessageTimer = 120;
+
+    // AI turn
+    if (mode === '1p' && currentPlayer === 1) {
+      aiThinking = true;
+      aiTimer = 60;
+    }
+  }
+
+  // ========== FIRE ==========
+  function fire() {
+    if (projectile) return;
+    const tank = tanks[currentPlayer];
+    const muzzleX = tank.x + Math.cos(tank.angle) * CANNON_LEN;
+    const muzzleY = (tank.y - TANK_H) + Math.sin(tank.angle) * CANNON_LEN;
+    const speed = tank.power * 0.14;
+    projectile = {
+      x: muzzleX,
+      y: muzzleY,
+      vx: Math.cos(tank.angle) * speed,
+      vy: Math.sin(tank.angle) * speed
+    };
+    if (typeof NeonSounds !== 'undefined') NeonSounds.shoot();
+  }
+
+  // ========== AI ==========
+  function aiTurn() {
+    const ai = tanks[1];
+    const target = tanks[0];
+    const dx = target.x - ai.x;
+    const dy = (target.y - TANK_H) - (ai.y - TANK_H);
+    // Simple aimed shot with some randomness
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx) - 0.3 - Math.random() * 0.3;
+    const power = Math.min(95, Math.max(30, dist * 0.12 + Math.random() * 20 - 10));
+    ai.angle = angle;
+    ai.power = power;
+    fire();
+    aiThinking = false;
+  }
+
+  // ========== EXPLOSION ==========
+  function explode(x, y) {
+    createCrater(x, EXPLOSION_RADIUS);
+    if (typeof NeonSounds !== 'undefined') NeonSounds.crash();
+
+    // Particles
+    for (let i = 0; i < 40; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 1 + Math.random() * 5;
+      particles.push({
+        x: x, y: y,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd - 2,
+        life: 40 + Math.random() * 30,
+        maxLife: 70,
+        color: [CYAN, PINK, ORANGE, GREEN, PURPLE][Math.floor(Math.random() * 5)],
+        size: 2 + Math.random() * 3
+      });
+    }
+
+    // Explosion ring
+    explosions.push({ x, y, radius: 0, maxRadius: EXPLOSION_RADIUS * 1.5, alpha: 1 });
+
+    // Damage tanks
+    for (const tank of tanks) {
+      if (tank.hp <= 0) continue;
+      const dist = Math.sqrt((tank.x - x) ** 2 + ((tank.y - TANK_H / 2) - y) ** 2);
+      if (dist < EXPLOSION_RADIUS * 1.5) {
+        const dmg = dist < EXPLOSION_RADIUS * 0.5 ? 2 : 1;
+        tank.hp = Math.max(0, tank.hp - dmg);
+        if (typeof NeonSounds !== 'undefined') {
+          if (tank.hp <= 0) NeonSounds.death();
+          else NeonSounds.hit();
+        }
+      }
+    }
+
+    // Settle tanks on new terrain
+    for (const tank of tanks) settleTank(tank);
+
+    // Check win
+    for (let i = 0; i < 2; i++) {
+      if (tanks[i].hp <= 0) {
+        winner = 1 - i;
+        setTimeout(() => {
+          state = 'gameover';
+          if (typeof NeonSounds !== 'undefined') NeonSounds.fanfare();
+        }, 1500);
+        return;
+      }
+    }
+
+    setTimeout(nextTurn, 800);
+  }
+
+  // ========== UPDATE ==========
+  function update() {
+    if (state !== 'playing') return;
+
+    if (turnMessageTimer > 0) turnMessageTimer--;
+
+    // AI logic
+    if (aiThinking) {
+      aiTimer--;
+      if (aiTimer <= 0) aiTurn();
+      return;
+    }
+
+    // Update projectile
+    if (projectile) {
+      projectile.vx += wind * 0.008;
+      projectile.vy += 0.15; // gravity
+      projectile.x += projectile.vx;
+      projectile.y += projectile.vy;
+
+      // Trail particles
+      if (Math.random() > 0.3) {
+        particles.push({
+          x: projectile.x, y: projectile.y,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5,
+          life: 15 + Math.random() * 10,
+          maxLife: 25,
+          color: tanks[currentPlayer].color,
+          size: 1.5
+        });
+      }
+
+      // Check terrain collision
+      if (projectile.x < 0 || projectile.x > terrainW || projectile.y > H() + 50) {
+        // Out of bounds
+        projectile = null;
+        setTimeout(nextTurn, 500);
+      } else if (projectile.y >= getTerrainY(projectile.x)) {
+        explode(projectile.x, projectile.y);
+        projectile = null;
+      }
+    }
+
+    // Update particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.05;
+      p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // Update explosion rings
+    for (let i = explosions.length - 1; i >= 0; i--) {
+      const e = explosions[i];
+      e.radius += 3;
+      e.alpha -= 0.03;
+      if (e.alpha <= 0) explosions.splice(i, 1);
+    }
+
+    // Keyboard held controls
+    const tank = tanks[currentPlayer];
+    if (!projectile && !aiThinking) {
+      const dir = currentPlayer === 0 ? 1 : -1;
+      if (keys['ArrowUp'] || touchControls.angleUp) {
+        tank.angle -= 0.02;
+      }
+      if (keys['ArrowDown'] || touchControls.angleDown) {
+        tank.angle += 0.02;
+      }
+      // Clamp angle: roughly -170 to -10 degrees
+      tank.angle = Math.max(-Math.PI * 0.95, Math.min(-Math.PI * 0.05, tank.angle));
+      if (keys['ArrowLeft'] || touchControls.powerDown) {
+        tank.power = Math.max(10, tank.power - 0.5);
+      }
+      if (keys['ArrowRight'] || touchControls.powerUp) {
+        tank.power = Math.min(100, tank.power + 0.5);
+      }
+    }
+  }
+
+  // ========== DRAW ==========
+  function drawTerrain() {
+    // Fill terrain body
+    const grad = ctx.createLinearGradient(0, H() * 0.3, 0, H());
+    grad.addColorStop(0, '#1a0a2e');
+    grad.addColorStop(0.5, '#0d1b2a');
+    grad.addColorStop(1, '#0a0a1a');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0, H());
+    for (let x = 0; x < terrainW; x += 2) {
+      ctx.lineTo(x, terrain[x] || H());
+    }
+    ctx.lineTo(terrainW, H());
+    ctx.closePath();
+    ctx.fill();
+
+    // Grid lines on terrain
+    ctx.strokeStyle = 'rgba(0, 212, 255, 0.08)';
+    ctx.lineWidth = 0.5;
+    const gridSize = 40;
+    for (let gx = 0; gx < terrainW; gx += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, H());
+      ctx.stroke();
+    }
+    for (let gy = 0; gy < H(); gy += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(terrainW, gy);
+      ctx.stroke();
+    }
+
+    // Terrain outline with glow
+    ctx.shadowColor = GREEN;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = GREEN;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, terrain[0] || H());
+    for (let x = 1; x < terrainW; x += 2) {
+      ctx.lineTo(x, terrain[x] || H());
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  function drawTank(tank) {
+    if (tank.hp <= 0) return;
+    const x = tank.x;
+    const y = tank.y;
+    const col = tank.color;
+
+    // Tank body
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.roundRect(x - TANK_W / 2, y - TANK_H, TANK_W, TANK_H, 4);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Darker stripe
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(x - TANK_W / 2 + 4, y - TANK_H + 4, TANK_W - 8, 4);
+
+    // Cannon
+    ctx.save();
+    ctx.translate(x, y - TANK_H);
+    ctx.rotate(tank.angle);
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(CANNON_LEN, 0);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // HP bar
+    const barW = 40;
+    const barH = 6;
+    const barX = x - barW / 2;
+    const barY = y - TANK_H - 20;
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(barX, barY, barW, barH);
+    const hpFrac = tank.hp / MAX_HP;
+    const hpCol = hpFrac > 0.5 ? GREEN : hpFrac > 0.25 ? ORANGE : PINK;
+    ctx.fillStyle = hpCol;
+    ctx.fillRect(barX, barY, barW * hpFrac, barH);
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
+
+    // Player name
+    ctx.font = 'bold 11px "Segoe UI", sans-serif';
+    ctx.fillStyle = col;
+    ctx.textAlign = 'center';
+    ctx.fillText(tank.name, x, barY - 6);
+  }
+
+  function drawProjectile() {
+    if (!projectile) return;
+    ctx.shadowColor = '#fff';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(projectile.x, projectile.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      const alpha = p.life / p.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawExplosions() {
+    for (const e of explosions) {
+      ctx.globalAlpha = e.alpha;
+      ctx.strokeStyle = ORANGE;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = ORANGE;
+      ctx.shadowBlur = 20;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawWind() {
+    const cx = W() / 2;
+    const cy = 40;
+    ctx.font = 'bold 13px "Segoe UI", sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.textAlign = 'center';
+    ctx.fillText('VIND', cx, cy - 12);
+
+    // Wind arrow
+    const arrowLen = Math.abs(wind) * 60;
+    const dir = wind > 0 ? 1 : -1;
+    ctx.strokeStyle = Math.abs(wind) > 0.5 ? ORANGE : CYAN;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.moveTo(cx - arrowLen * dir / 2, cy);
+    ctx.lineTo(cx + arrowLen * dir / 2, cy);
+    // Arrowhead
+    ctx.lineTo(cx + arrowLen * dir / 2 - 8 * dir, cy - 6);
+    ctx.moveTo(cx + arrowLen * dir / 2, cy);
+    ctx.lineTo(cx + arrowLen * dir / 2 - 8 * dir, cy + 6);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  function drawHUD() {
+    if (state !== 'playing') return;
+    const tank = tanks[currentPlayer];
+
+    drawWind();
+
+    // Turn indicator
+    if (turnMessageTimer > 0) {
+      const alpha = Math.min(1, turnMessageTimer / 30);
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold 28px "Segoe UI", sans-serif';
+      ctx.fillStyle = tank.color;
+      ctx.textAlign = 'center';
+      ctx.shadowColor = tank.color;
+      ctx.shadowBlur = 15;
+      ctx.fillText(turnMessage, W() / 2, H() / 3);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+
+    // Angle and power display
+    if (!projectile) {
+      const angleDeg = Math.round(-tank.angle * 180 / Math.PI);
+      const pow = Math.round(tank.power);
+
+      ctx.font = 'bold 14px "Segoe UI", sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = tank.color;
+      const infoX = 20;
+      const infoY = H() - 60;
+
+      ctx.fillText('Vinkel: ' + angleDeg + '°', infoX, infoY);
+
+      // Power bar
+      ctx.fillText('Kraft: ' + pow + '%', infoX, infoY + 22);
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.fillRect(infoX + 90, infoY + 12, 100, 10);
+      ctx.fillStyle = tank.color;
+      ctx.fillRect(infoX + 90, infoY + 12, pow, 10);
+    }
+
+    // AI thinking
+    if (aiThinking) {
+      ctx.font = 'bold 18px "Segoe UI", sans-serif';
+      ctx.fillStyle = PINK;
+      ctx.textAlign = 'center';
+      ctx.fillText('AI tänker...', W() / 2, H() / 2);
+    }
+  }
+
+  function drawTouchControls() {
+    if (!isTouchDevice || projectile || aiThinking || state !== 'playing') return;
+
+    const btnW = 60, btnH = 50, gap = 10;
+    const baseX = W() - btnW * 2 - gap * 2 - 10;
+    const baseY = H() - btnH * 2 - gap - 20;
+    const col = tanks[currentPlayer].color;
+
+    const buttons = [
+      { label: '▲', x: baseX + btnW + gap, y: baseY - btnH - gap, key: 'angleUp' },
+      { label: '▼', x: baseX + btnW + gap, y: baseY + btnH + gap, key: 'angleDown' },
+      { label: '◀', x: baseX, y: baseY, key: 'powerDown' },
+      { label: '▶', x: baseX + btnW * 2 + gap * 2, y: baseY, key: 'powerUp' },
+    ];
+
+    touchBtns = buttons;
+
+    for (const btn of buttons) {
+      ctx.fillStyle = touchControls[btn.key] ? col : 'rgba(255,255,255,0.1)';
+      ctx.beginPath();
+      ctx.roundRect(btn.x, btn.y, btnW, btnH, 8);
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.font = 'bold 22px sans-serif';
+      ctx.fillStyle = touchControls[btn.key] ? '#000' : col;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(btn.label, btn.x + btnW / 2, btn.y + btnH / 2);
+    }
+
+    // Fire button
+    const fireW = 90, fireH = 50;
+    const fireX = 20;
+    const fireY = H() - fireH - 100;
+    fireBtnRect = { x: fireX, y: fireY, w: fireW, h: fireH };
+
+    ctx.fillStyle = ORANGE;
+    ctx.shadowColor = ORANGE;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.roundRect(fireX, fireY, fireW, fireH, 10);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.font = 'bold 18px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SKJUT!', fireX + fireW / 2, fireY + fireH / 2);
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  let touchBtns = [];
+  let fireBtnRect = null;
+
+  // ========== MENU ==========
+  function drawMenu() {
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W(), H());
+
+    // Decorative particles in background
+    const t = Date.now() * 0.001;
+    for (let i = 0; i < 20; i++) {
+      const px = W() / 2 + Math.sin(t + i * 0.7) * W() * 0.35;
+      const py = H() / 2 + Math.cos(t * 0.7 + i * 1.1) * H() * 0.3;
+      ctx.globalAlpha = 0.15;
+      ctx.fillStyle = [CYAN, PINK, PURPLE, GREEN, ORANGE][i % 5];
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Title
+    ctx.font = 'bold 52px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = CYAN;
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = CYAN;
+    ctx.fillText('NEON TANKS', W() / 2, H() * 0.25);
+    ctx.shadowBlur = 0;
+
+    // Subtitle
+    ctx.font = '18px "Segoe UI", sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText('Artilleri-strid med neonljus', W() / 2, H() * 0.25 + 40);
+
+    // Mode buttons
+    const btnW = 240, btnH = 55, gap = 18;
+    const startY = H() * 0.45;
+
+    const modes = [
+      { id: '1p', label: '1 SPELARE vs AI' },
+      { id: '2p', label: '2 SPELARE LOKALT' },
+    ];
+
+    menuBtns = [];
+
+    for (let i = 0; i < modes.length; i++) {
+      const bx = W() / 2 - btnW / 2;
+      const by = startY + i * (btnH + gap);
+      const selected = menuSelection === modes[i].id;
+      menuBtns.push({ x: bx, y: by, w: btnW, h: btnH, id: modes[i].id });
+
+      ctx.fillStyle = selected ? (i === 0 ? PURPLE : PINK) : 'rgba(255,255,255,0.06)';
+      ctx.beginPath();
+      ctx.roundRect(bx, by, btnW, btnH, 12);
+      ctx.fill();
+
+      if (selected) {
+        ctx.shadowColor = i === 0 ? PURPLE : PINK;
+        ctx.shadowBlur = 12;
+      }
+      ctx.strokeStyle = selected ? '#fff' : 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, btnW, btnH, 12);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.font = 'bold 20px "Segoe UI", sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText(modes[i].label, W() / 2, by + btnH / 2 + 7);
+    }
+
+    // Play button
+    const playY = startY + 2 * (btnH + gap) + 10;
+    const playW = 180, playH = 55;
+    const pbx = W() / 2 - playW / 2;
+    playBtnRect = { x: pbx, y: playY, w: playW, h: playH };
+
+    ctx.fillStyle = GREEN;
+    ctx.shadowColor = GREEN;
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.roundRect(pbx, playY, playW, playH, 14);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.font = 'bold 24px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#0a0a1a';
+    ctx.textAlign = 'center';
+    ctx.fillText('SPELA', W() / 2, playY + playH / 2 + 8);
+
+    // Controls hint
+    ctx.font = '13px "Segoe UI", sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText('Piltangenter = vinkel/kraft | Mellanslag = skjut', W() / 2, H() - 40);
+  }
+
+  let menuBtns = [];
+  let playBtnRect = null;
+
+  // ========== GAME OVER ==========
+  function drawGameOver() {
+    // Dim background
+    ctx.fillStyle = 'rgba(10, 10, 26, 0.85)';
+    ctx.fillRect(0, 0, W(), H());
+
+    const winCol = winner >= 0 ? PLAYER_COLORS[winner] : '#fff';
+    const winName = winner >= 0 ? tanks[winner].name : '???';
+
+    ctx.font = 'bold 44px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = winCol;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = winCol;
+    ctx.fillText(winName + ' VINNER!', W() / 2, H() * 0.35);
+    ctx.shadowBlur = 0;
+
+    ctx.font = '20px "Segoe UI", sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText('Grattis till segern!', W() / 2, H() * 0.35 + 45);
+
+    // Replay button
+    const rw = 200, rh = 55;
+    const rx = W() / 2 - rw / 2;
+    const ry = H() * 0.55;
+    replayBtnRect = { x: rx, y: ry, w: rw, h: rh };
+
+    ctx.fillStyle = GREEN;
+    ctx.shadowColor = GREEN;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.roundRect(rx, ry, rw, rh, 12);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.font = 'bold 22px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillText('SPELA IGEN', W() / 2, ry + rh / 2 + 8);
+
+    // Menu button
+    const mx = W() / 2 - rw / 2;
+    const my = ry + rh + 20;
+    menuBtnRect = { x: mx, y: my, w: rw, h: rh };
+
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.beginPath();
+    ctx.roundRect(mx, my, rw, rh, 12);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(mx, my, rw, rh, 12);
+    ctx.stroke();
+
+    ctx.font = 'bold 20px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('MENY', W() / 2, my + rh / 2 + 7);
+  }
+
+  let replayBtnRect = null;
+  let menuBtnRect = null;
+
+  // ========== STARFIELD BACKGROUND ==========
+  let stars = [];
+  function initStars() {
+    stars = [];
+    for (let i = 0; i < 80; i++) {
+      stars.push({
+        x: Math.random(),
+        y: Math.random() * 0.6,
+        size: 0.5 + Math.random() * 1.5,
+        twinkle: Math.random() * Math.PI * 2
+      });
+    }
+  }
+  initStars();
+
+  function drawStars() {
+    const t = Date.now() * 0.002;
+    for (const s of stars) {
+      const alpha = 0.3 + 0.3 * Math.sin(t + s.twinkle);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(s.x * W(), s.y * H(), s.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ========== MAIN DRAW ==========
+  function draw() {
+    ctx.clearRect(0, 0, W(), H());
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W(), H());
+
+    if (state === 'menu') {
+      drawMenu();
+      return;
+    }
+
+    // Game background
+    drawStars();
+    drawTerrain();
+
+    // Draw tanks
+    for (const tank of tanks) drawTank(tank);
+
+    drawProjectile();
+    drawExplosions();
+    drawParticles();
+    drawHUD();
+    drawTouchControls();
+
+    if (state === 'gameover') drawGameOver();
+  }
+
+  // ========== INPUT ==========
+  const keys = {};
+  window.addEventListener('keydown', (e) => {
+    keys[e.key] = true;
+    if (state === 'menu') {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        menuSelection = menuSelection === '1p' ? '2p' : '1p';
+      }
+      if (e.key === 'Enter' || e.key === ' ') {
+        mode = menuSelection;
+        if (mode === '1p') {
+          PLAYER_NAMES[1] = 'AI';
+        } else {
+          PLAYER_NAMES[1] = 'SPELARE 2';
+        }
+        startGame();
+      }
+      return;
+    }
+    if (state === 'playing' && !projectile && !aiThinking) {
+      if (e.key === ' ') {
+        e.preventDefault();
+        fire();
+      }
+    }
+    if (state === 'gameover') {
+      if (e.key === 'Enter' || e.key === ' ') {
+        startGame();
+      }
+    }
+  });
+  window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+  function hitTest(px, py, rect) {
+    return rect && px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h;
+  }
+
+  canvas.addEventListener('click', (e) => {
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (state === 'menu') {
+      for (const btn of menuBtns) {
+        if (hitTest(x, y, btn)) menuSelection = btn.id;
+      }
+      if (hitTest(x, y, playBtnRect)) {
+        mode = menuSelection;
+        if (mode === '1p') {
+          PLAYER_NAMES[1] = 'AI';
+        } else {
+          PLAYER_NAMES[1] = 'SPELARE 2';
+        }
+        startGame();
+      }
+      return;
+    }
+
+    if (state === 'playing' && !projectile && !aiThinking) {
+      if (fireBtnRect && hitTest(x, y, fireBtnRect)) {
+        fire();
+        return;
+      }
+      // Click anywhere else to fire (non-touch)
+      if (!isTouchDevice) fire();
+    }
+
+    if (state === 'gameover') {
+      if (hitTest(x, y, replayBtnRect)) startGame();
+      if (hitTest(x, y, menuBtnRect)) { state = 'menu'; }
+    }
+  });
+
+  // Touch support
+  function handleTouchStart(e) {
+    isTouchDevice = true;
+    const touches = e.changedTouches;
+    for (let t = 0; t < touches.length; t++) {
+      const tx = touches[t].clientX;
+      const ty = touches[t].clientY;
+
+      if (state === 'playing' && !projectile && !aiThinking) {
+        for (const btn of touchBtns) {
+          if (hitTest(tx, ty, { x: btn.x, y: btn.y, w: 60, h: 50 })) {
+            touchControls[btn.key] = true;
+          }
+        }
+        if (hitTest(tx, ty, fireBtnRect)) {
+          fire();
+        }
+      }
+    }
+  }
+
+  function handleTouchEnd(e) {
+    touchControls.angleUp = false;
+    touchControls.angleDown = false;
+    touchControls.powerUp = false;
+    touchControls.powerDown = false;
+  }
+
+  canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
+  canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
+  canvas.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+  // ========== GAME LOOP ==========
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#0a0a1a"/>
+  <rect x="160" y="80" width="30" height="30" rx="4" fill="#00d4ff"/><rect x="190" y="80" width="30" height="30" rx="4" fill="#00d4ff"/>
+  <rect x="190" y="110" width="30" height="30" rx="4" fill="#00d4ff"/><rect x="220" y="110" width="30" height="30" rx="4" fill="#00d4ff"/>
+  <rect x="130" y="170" width="30" height="30" rx="4" fill="#a855f7"/><rect x="160" y="170" width="30" height="30" rx="4" fill="#a855f7"/>
+  <rect x="190" y="170" width="30" height="30" rx="4" fill="#a855f7"/><rect x="160" y="200" width="30" height="30" rx="4" fill="#a855f7"/>
+  <rect x="220" y="200" width="30" height="30" rx="4" fill="#39ff14"/><rect x="250" y="200" width="30" height="30" rx="4" fill="#39ff14"/>
+  <rect x="220" y="230" width="30" height="30" rx="4" fill="#39ff14"/><rect x="250" y="230" width="30" height="30" rx="4" fill="#39ff14"/>
+  <text x="200" y="45" text-anchor="middle" font-family="Segoe UI" font-size="30" font-weight="bold" fill="#00d4ff">NEON TETRIS</text>
+</svg>

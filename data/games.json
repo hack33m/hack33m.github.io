@@ -115,5 +115,68 @@
     "thumbnail": "assets/images/2048-neon.svg",
     "path": "games/2048-neon/index.html",
     "featured": false
+  },
+  {
+    "id": "corny-pong",
+    "title": "Corny Pong",
+    "description": "Klassiska Pong med Corny-tema! Spela mot AI och bli f\u00f6rst till 7.",
+    "category": "Action",
+    "thumbnail": "assets/images/corny-pong.svg",
+    "path": "games/corny-pong/index.html",
+    "featured": false
+  },
+  {
+    "id": "neon-tetris",
+    "title": "Neon Tetris",
+    "description": "Klassiska Tetris med neonbitar! Rensa rader och jaga h\u00f6gsta po\u00e4ngen.",
+    "category": "Pussel",
+    "thumbnail": "assets/images/neon-tetris.svg",
+    "path": "games/neon-tetris/index.html",
+    "featured": false
+  },
+  {
+    "id": "neon-memory",
+    "title": "Neon Memory",
+    "description": "Hitta alla par! V\u00e4lj sv\u00e5righetsgrad och tr\u00e4na minnet.",
+    "category": "Pussel",
+    "thumbnail": "assets/images/neon-memory.svg",
+    "path": "games/neon-memory/index.html",
+    "featured": false
+  },
+  {
+    "id": "corny-tower",
+    "title": "Corny Tower",
+    "description": "Stapla Corny-bars s\u00e5 h\u00f6gt du kan! Tajma r\u00e4tt f\u00f6r perfekt placering.",
+    "category": "Action",
+    "thumbnail": "assets/images/corny-tower.svg",
+    "path": "games/corny-tower/index.html",
+    "featured": false
+  },
+  {
+    "id": "neon-draw",
+    "title": "Neon Draw",
+    "description": "Rita med neonpensel! F\u00e5 ett ord och rita det p\u00e5 tid.",
+    "category": "Pussel",
+    "thumbnail": "assets/images/neon-draw.svg",
+    "path": "games/neon-draw/index.html",
+    "featured": false
+  },
+  {
+    "id": "neon-wordle",
+    "title": "Neon Wordle",
+    "description": "Gissa det svenska ordet p\u00e5 6 f\u00f6rs\u00f6k! Nytt ord varje dag.",
+    "category": "Pussel",
+    "thumbnail": "assets/images/neon-wordle.svg",
+    "path": "games/neon-wordle/index.html",
+    "featured": false
+  },
+  {
+    "id": "neon-tanks",
+    "title": "Neon Tanks",
+    "description": "Artillerispel! Sikta, v\u00e4lj kraft och f\u00f6rst\u00f6r motst\u00e5ndaren. 1P vs AI eller 2P lokalt.",
+    "category": "Action",
+    "thumbnail": "assets/images/neon-tanks.svg",
+    "path": "games/neon-tanks/index.html",
+    "featured": false
   }
 ]

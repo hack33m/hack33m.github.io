@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Neon Tetris</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100vw;height:100vh}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="../../js/sounds.js"></script>
+<script>
+(()=>{
+'use strict';
+
+// --- roundRect polyfill (Safari) ---
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    if(typeof r==='number')r=[r,r,r,r];
+    const[tl,tr,br,bl]=r;
+    this.moveTo(x+tl,y);
+    this.lineTo(x+w-tr,y);this.quadraticCurveTo(x+w,y,x+w,y+tr);
+    this.lineTo(x+w,y+h-br);this.quadraticCurveTo(x+w,y+h,x+w-br,y+h);
+    this.lineTo(x+bl,y+h);this.quadraticCurveTo(x,y+h,x,y+h-bl);
+    this.lineTo(x,y+tl);this.quadraticCurveTo(x,y,x+tl,y);
+    this.closePath();
+    return this;
+  };
+}
+
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+
+// Hi-DPI
+let dpr=window.devicePixelRatio||1;
+let W,H;
+function resize(){
+  W=window.innerWidth;H=window.innerHeight;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize',resize);
+resize();
+
+// --- Constants ---
+const COLS=10,ROWS=20;
+const COLORS={
+  I:'#00d4ff',
+  O:'#ffe600',
+  T:'#a855f7',
+  S:'#39ff14',
+  Z:'#ff3344',
+  J:'#00d4ff',
+  L:'#ff6a00'
+};
+// Unique J color - make it a deeper blue to distinguish from I
+const J_COLOR='#4488ff';
+COLORS.J=J_COLOR;
+
+const SHAPES={
+  I:[[0,0],[1,0],[2,0],[3,0]],
+  O:[[0,0],[1,0],[0,1],[1,1]],
+  T:[[0,0],[1,0],[2,0],[1,1]],
+  S:[[1,0],[2,0],[0,1],[1,1]],
+  Z:[[0,0],[1,0],[1,1],[2,1]],
+  J:[[0,0],[0,1],[1,1],[2,1]],
+  L:[[2,0],[0,1],[1,1],[2,1]]
+};
+const TYPES=['I','O','T','S','Z','J','L'];
+const LINE_SCORES=[0,100,300,500,800];
+
+// --- Game State ---
+let state='menu'; // menu, playing, gameover
+let board=[];
+let current=null,next=null;
+let score=0,lines=0,level=1,hiScore=0;
+let dropTimer=0,dropInterval=1000;
+let lockDelay=0,lockLimit=500;
+let particles=[];
+let clearingRows=[];
+let clearAnim=0;
+let gameTime=0;
+let lastTime=0;
+
+// Load high score
+try{hiScore=parseInt(localStorage.getItem('neon-tetris-hi'))||0;}catch(e){}
+
+// --- Piece Factory ---
+function newPiece(type){
+  const cells=SHAPES[type].map(c=>[c[0],c[1]]);
+  const p={type,cells,x:3,y:0,rotation:0};
+  // center I piece
+  if(type==='I')p.x=3;
+  if(type==='O')p.x=4;
+  return p;
+}
+
+function randomType(){
+  return TYPES[Math.floor(Math.random()*TYPES.length)];
+}
+
+// 7-bag randomizer
+let bag=[];
+function nextFromBag(){
+  if(bag.length===0){
+    bag=TYPES.slice();
+    for(let i=bag.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [bag[i],bag[j]]=[bag[j],bag[i]];
+    }
+  }
+  return bag.pop();
+}
+
+function spawnPiece(){
+  current=next||newPiece(nextFromBag());
+  current.x=Math.floor((COLS-getWidth(current))/2);
+  current.y=0;
+  next=newPiece(nextFromBag());
+  lockDelay=0;
+  if(!isValid(current,current.x,current.y)){
+    state='gameover';
+    if(typeof NeonSounds!=='undefined')NeonSounds.death();
+    if(score>hiScore){
+      hiScore=score;
+      try{localStorage.setItem('neon-tetris-hi',''+hiScore);}catch(e){}
+    }
+    window.parent.postMessage({type:'game-score',score,game:'neon-tetris'},'*');
+  }
+}
+
+function getWidth(p){
+  let max=0;
+  for(const c of p.cells)if(c[0]>max)max=c[0];
+  return max+1;
+}
+
+// --- Board ---
+function initBoard(){
+  board=[];
+  for(let r=0;r<ROWS;r++){
+    board[r]=[];
+    for(let c=0;c<COLS;c++)board[r][c]=null;
+  }
+}
+
+function isValid(piece,px,py){
+  for(const c of piece.cells){
+    const x=px+c[0],y=py+c[1];
+    if(x<0||x>=COLS||y>=ROWS)return false;
+    if(y>=0&&board[y][x])return false;
+  }
+  return true;
+}
+
+function lockPiece(){
+  for(const c of current.cells){
+    const x=current.x+c[0],y=current.y+c[1];
+    if(y>=0&&y<ROWS)board[y][x]=current.type;
+  }
+  checkLines();
+  spawnPiece();
+}
+
+function checkLines(){
+  clearingRows=[];
+  for(let r=ROWS-1;r>=0;r--){
+    let full=true;
+    for(let c=0;c<COLS;c++){
+      if(!board[r][c]){full=false;break;}
+    }
+    if(full)clearingRows.push(r);
+  }
+  if(clearingRows.length>0){
+    clearAnim=0.4; // seconds of animation
+    const n=clearingRows.length;
+    score+=LINE_SCORES[n]*level;
+    lines+=n;
+    level=Math.floor(lines/10)+1;
+    dropInterval=Math.max(50,1000-((level-1)*80));
+    // Sounds
+    if(typeof NeonSounds!=='undefined'){
+      if(n>=4)NeonSounds.bigMerge();
+      else NeonSounds.collect();
+    }
+    // Spawn particles for cleared rows
+    const cs=getCellSize();
+    const ox=getOffsetX();
+    const oy=getOffsetY();
+    for(const r of clearingRows){
+      for(let c=0;c<COLS;c++){
+        const color=COLORS[board[r][c]]||'#fff';
+        for(let i=0;i<6;i++){
+          particles.push({
+            x:ox+(c+0.5)*cs,
+            y:oy+(r+0.5)*cs,
+            vx:(Math.random()-0.5)*200,
+            vy:(Math.random()-0.5)*200-100,
+            life:0.5+Math.random()*0.5,
+            maxLife:0.5+Math.random()*0.5,
+            color,
+            size:2+Math.random()*3
+          });
+        }
+      }
+    }
+  }
+}
+
+function removeLines(){
+  for(const r of clearingRows.sort((a,b)=>a-b)){
+    board.splice(r,1);
+    board.unshift(new Array(COLS).fill(null));
+  }
+  clearingRows=[];
+}
+
+// --- Rotation (SRS-like) ---
+function rotateCells(cells,type){
+  if(type==='O')return cells.map(c=>[c[0],c[1]]);
+  // find bounding box center
+  let mx=0,my=0;
+  if(type==='I'){
+    // rotate around 1.5,0.5
+    return cells.map(c=>{
+      const rx=c[0]-1.5,ry=c[1]-0.5;
+      return [Math.round(-ry+1.5),Math.round(rx+0.5)];
+    });
+  }
+  // 3x3 center at 1,1
+  return cells.map(c=>{
+    const rx=c[0]-1,ry=c[1]-1;
+    return [Math.round(-ry+1),Math.round(rx+1)];
+  });
+}
+
+function tryRotate(){
+  if(!current||current.type==='O')return;
+  const newCells=rotateCells(current.cells,current.type);
+  const kicks=[0,1,-1,2,-2];
+  for(const kx of kicks){
+    for(const ky of [0,-1,1]){
+      const test={...current,cells:newCells};
+      if(isValid(test,current.x+kx,current.y+ky)){
+        current.cells=newCells;
+        current.x+=kx;
+        current.y+=ky;
+        if(typeof NeonSounds!=='undefined')NeonSounds.bounce();
+        return;
+      }
+    }
+  }
+}
+
+// --- Ghost piece ---
+function getGhostY(){
+  let gy=current.y;
+  while(isValid(current,current.x,gy+1))gy++;
+  return gy;
+}
+
+// --- Drawing ---
+function getCellSize(){
+  const maxH=H*0.9;
+  const maxW=W*0.55;
+  return Math.floor(Math.min(maxW/COLS,maxH/ROWS));
+}
+
+function getOffsetX(){
+  const cs=getCellSize();
+  return Math.floor((W-cs*COLS)/2)-cs*1.5;
+}
+
+function getOffsetY(){
+  const cs=getCellSize();
+  return Math.floor((H-cs*ROWS)/2);
+}
+
+function drawCell(x,y,color,alpha,cs,ox,oy,glow){
+  const px=ox+x*cs;
+  const py=oy+y*cs;
+  const pad=1;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  if(glow){
+    ctx.shadowColor=color;
+    ctx.shadowBlur=12;
+  }
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.roundRect(px+pad,py+pad,cs-pad*2,cs-pad*2,[3]);
+  ctx.fill();
+  // inner highlight
+  ctx.globalAlpha=alpha*0.3;
+  ctx.fillStyle='#fff';
+  ctx.fillRect(px+pad+2,py+pad+2,cs-pad*2-4,3);
+  ctx.restore();
+}
+
+function drawBoard(){
+  const cs=getCellSize();
+  const ox=getOffsetX();
+  const oy=getOffsetY();
+
+  // Board background
+  ctx.fillStyle='rgba(10,10,30,0.85)';
+  ctx.fillRect(ox-1,oy-1,cs*COLS+2,cs*ROWS+2);
+
+  // Grid lines
+  ctx.strokeStyle='rgba(100,100,150,0.1)';
+  ctx.lineWidth=0.5;
+  for(let r=0;r<=ROWS;r++){
+    ctx.beginPath();ctx.moveTo(ox,oy+r*cs);ctx.lineTo(ox+COLS*cs,oy+r*cs);ctx.stroke();
+  }
+  for(let c=0;c<=COLS;c++){
+    ctx.beginPath();ctx.moveTo(ox+c*cs,oy);ctx.lineTo(ox+c*cs,oy+ROWS*cs);ctx.stroke();
+  }
+
+  // Board border glow
+  ctx.save();
+  ctx.shadowColor='#a855f7';
+  ctx.shadowBlur=15;
+  ctx.strokeStyle='#a855f7';
+  ctx.lineWidth=2;
+  ctx.strokeRect(ox-1,oy-1,cs*COLS+2,cs*ROWS+2);
+  ctx.restore();
+
+  // Placed blocks
+  for(let r=0;r<ROWS;r++){
+    const clearing=clearingRows.includes(r);
+    for(let c=0;c<COLS;c++){
+      if(board[r][c]){
+        const alpha=clearing?Math.max(0,clearAnim/0.4):1;
+        drawCell(c,r,COLORS[board[r][c]],alpha,cs,ox,oy,!clearing);
+      }
+    }
+  }
+
+  if(!current)return;
+
+  // Ghost piece
+  const gy=getGhostY();
+  if(gy!==current.y){
+    for(const c of current.cells){
+      drawCell(current.x+c[0],gy+c[1],COLORS[current.type],0.2,cs,ox,oy,false);
+    }
+  }
+
+  // Current piece
+  for(const c of current.cells){
+    const py=current.y+c[1];
+    if(py>=0){
+      drawCell(current.x+c[0],py,COLORS[current.type],1,cs,ox,oy,true);
+    }
+  }
+}
+
+function drawNextPiece(){
+  const cs=getCellSize();
+  const ox=getOffsetX();
+  const oy=getOffsetY();
+  const nx=ox+COLS*cs+cs*0.8;
+  const ny=oy;
+
+  ctx.fillStyle='#c8c8ff';
+  ctx.font=`bold ${Math.round(cs*0.55)}px "Segoe UI",Arial,sans-serif`;
+  ctx.textAlign='left';
+  ctx.fillText('NASTA',nx,ny-cs*0.3);
+
+  if(!next)return;
+  const scs=cs*0.75;
+  for(const c of next.cells){
+    drawCell(c[0],c[1],COLORS[next.type],1,scs,nx,ny,true);
+  }
+}
+
+function drawHUD(){
+  const cs=getCellSize();
+  const ox=getOffsetX();
+  const oy=getOffsetY();
+  const nx=ox+COLS*cs+cs*0.8;
+  const sy=oy+cs*5;
+
+  ctx.textAlign='left';
+  const fs=Math.round(cs*0.5);
+  ctx.font=`bold ${fs}px "Segoe UI",Arial,sans-serif`;
+
+  // Score
+  ctx.fillStyle='#888';
+  ctx.fillText('POANG',nx,sy);
+  ctx.fillStyle='#00d4ff';
+  ctx.font=`bold ${Math.round(fs*1.2)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillText(score.toLocaleString(),nx,sy+fs*1.4);
+
+  // Lines
+  ctx.fillStyle='#888';
+  ctx.font=`bold ${fs}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillText('RADER',nx,sy+fs*3.5);
+  ctx.fillStyle='#39ff14';
+  ctx.font=`bold ${Math.round(fs*1.2)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillText(''+lines,nx,sy+fs*4.9);
+
+  // Level
+  ctx.fillStyle='#888';
+  ctx.font=`bold ${fs}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillText('NIVA',nx,sy+fs*7);
+  ctx.fillStyle='#a855f7';
+  ctx.font=`bold ${Math.round(fs*1.2)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillText(''+level,nx,sy+fs*8.4);
+
+  // Hi Score
+  ctx.fillStyle='#888';
+  ctx.font=`bold ${fs}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillText('BAST',nx,sy+fs*10.5);
+  ctx.fillStyle='#ffe600';
+  ctx.font=`bold ${Math.round(fs*1.2)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillText(hiScore.toLocaleString(),nx,sy+fs*11.9);
+}
+
+function drawParticles(){
+  for(const p of particles){
+    ctx.save();
+    ctx.globalAlpha=p.life/p.maxLife;
+    ctx.shadowColor=p.color;
+    ctx.shadowBlur=8;
+    ctx.fillStyle=p.color;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawMenu(){
+  ctx.fillStyle='#0a0a1a';
+  ctx.fillRect(0,0,W,H);
+
+  const cx=W/2,cy=H/2;
+
+  // Title
+  ctx.save();
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+
+  // Glow
+  ctx.shadowColor='#00d4ff';
+  ctx.shadowBlur=30;
+  ctx.fillStyle='#00d4ff';
+  ctx.font=`bold ${Math.min(W*0.12,72)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillText('NEON',cx,cy-H*0.12);
+  ctx.shadowColor='#ff2d95';
+  ctx.fillStyle='#ff2d95';
+  ctx.fillText('TETRIS',cx,cy-H*0.02);
+  ctx.restore();
+
+  // Draw some decorative tetrominos
+  const t=gameTime*0.5;
+  ctx.save();
+  ctx.globalAlpha=0.15;
+  const decoSize=Math.min(W,H)*0.04;
+  for(let i=0;i<7;i++){
+    const type=TYPES[i];
+    const angle=t+i*0.9;
+    const dx=cx+Math.cos(angle)*W*0.3;
+    const dy=cy+Math.sin(angle)*H*0.35;
+    ctx.fillStyle=COLORS[type];
+    ctx.shadowColor=COLORS[type];
+    ctx.shadowBlur=15;
+    for(const c of SHAPES[type]){
+      ctx.fillRect(dx+c[0]*decoSize,dy+c[1]*decoSize,decoSize-2,decoSize-2);
+    }
+  }
+  ctx.restore();
+
+  // Play button
+  ctx.save();
+  const bw=Math.min(W*0.5,220),bh=55;
+  const bx=cx-bw/2,by=cy+H*0.1;
+  ctx.shadowColor='#39ff14';
+  ctx.shadowBlur=20;
+  ctx.strokeStyle='#39ff14';
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.roundRect(bx,by,bw,bh,[12]);
+  ctx.stroke();
+  ctx.fillStyle='rgba(57,255,20,0.1)';
+  ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#39ff14';
+  ctx.font=`bold ${Math.min(W*0.05,24)}px "Segoe UI",Arial,sans-serif`;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText('SPELA',cx,by+bh/2);
+  ctx.restore();
+
+  // High score
+  if(hiScore>0){
+    ctx.fillStyle='#ffe600';
+    ctx.font=`bold ${Math.min(W*0.035,18)}px "Segoe UI",Arial,sans-serif`;
+    ctx.textAlign='center';
+    ctx.fillText('BASTA: '+hiScore.toLocaleString(),cx,by+bh+40);
+  }
+
+  // Controls hint
+  ctx.fillStyle='#555';
+  ctx.font=`${Math.min(W*0.028,14)}px "Segoe UI",Arial,sans-serif`;
+  ctx.textAlign='center';
+  ctx.fillText('Piltangenter / WASD for att styra, Mellanslag for att sla ner',cx,H-30);
+
+  // Store button rect for click detection
+  drawMenu._btn={x:bx,y:by,w:bw,h:bh};
+}
+
+function drawGameOver(){
+  // Dim overlay
+  ctx.fillStyle='rgba(10,10,26,0.8)';
+  ctx.fillRect(0,0,W,H);
+
+  const cx=W/2,cy=H/2;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+
+  ctx.save();
+  ctx.shadowColor='#ff3344';
+  ctx.shadowBlur=25;
+  ctx.fillStyle='#ff3344';
+  ctx.font=`bold ${Math.min(W*0.1,56)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillText('SPELET SLUT',cx,cy-60);
+  ctx.restore();
+
+  ctx.fillStyle='#fff';
+  ctx.font=`bold ${Math.min(W*0.05,28)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillText('POANG: '+score.toLocaleString(),cx,cy);
+
+  if(score>=hiScore&&score>0){
+    ctx.fillStyle='#ffe600';
+    ctx.font=`bold ${Math.min(W*0.04,20)}px "Segoe UI",Arial,sans-serif`;
+    ctx.fillText('NYTT REKORD!',cx,cy+35);
+  }
+
+  // Restart button
+  const bw=Math.min(W*0.5,220),bh=50;
+  const bx=cx-bw/2,by=cy+70;
+  ctx.save();
+  ctx.shadowColor='#39ff14';
+  ctx.shadowBlur=15;
+  ctx.strokeStyle='#39ff14';
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.roundRect(bx,by,bw,bh,[12]);
+  ctx.stroke();
+  ctx.fillStyle='rgba(57,255,20,0.1)';
+  ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#39ff14';
+  ctx.font=`bold ${Math.min(W*0.045,22)}px "Segoe UI",Arial,sans-serif`;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText('SPELA IGEN',cx,by+bh/2);
+  ctx.restore();
+
+  drawGameOver._btn={x:bx,y:by,w:bw,h:bh};
+}
+
+// --- Game logic ---
+function startGame(){
+  initBoard();
+  score=0;lines=0;level=1;
+  dropInterval=1000;
+  dropTimer=0;
+  clearingRows=[];
+  clearAnim=0;
+  particles=[];
+  bag=[];
+  next=null;
+  current=null;
+  spawnPiece();
+  state='playing';
+  if(typeof NeonSounds!=='undefined')NeonSounds.init();
+}
+
+function moveLeft(){
+  if(!current)return;
+  if(isValid(current,current.x-1,current.y)){
+    current.x--;
+    if(typeof NeonSounds!=='undefined')NeonSounds.slide();
+  }
+}
+
+function moveRight(){
+  if(!current)return;
+  if(isValid(current,current.x+1,current.y)){
+    current.x++;
+    if(typeof NeonSounds!=='undefined')NeonSounds.slide();
+  }
+}
+
+function softDrop(){
+  if(!current)return;
+  if(isValid(current,current.x,current.y+1)){
+    current.y++;
+    score+=1;
+    dropTimer=0;
+  }
+}
+
+function hardDrop(){
+  if(!current)return;
+  let d=0;
+  while(isValid(current,current.x,current.y+1)){
+    current.y++;d++;
+  }
+  score+=d*2;
+  lockPiece();
+  dropTimer=0;
+}
+
+// --- Update ---
+function update(dt){
+  gameTime+=dt;
+
+  if(state!=='playing')return;
+
+  // Line clear animation
+  if(clearAnim>0){
+    clearAnim-=dt;
+    if(clearAnim<=0){
+      clearAnim=0;
+      removeLines();
+    }
+    // Don't update game during clear animation
+  }else{
+    // Gravity
+    dropTimer+=dt*1000;
+    if(dropTimer>=dropInterval){
+      dropTimer=0;
+      if(current){
+        if(isValid(current,current.x,current.y+1)){
+          current.y++;
+          lockDelay=0;
+        }else{
+          lockDelay+=dropInterval;
+          if(lockDelay>=lockLimit){
+            lockPiece();
+          }
+        }
+      }
+    }
+
+    // Check lock delay even between drops
+    if(current&&!isValid(current,current.x,current.y+1)){
+      lockDelay+=dt*1000;
+      if(lockDelay>=lockLimit){
+        lockPiece();
+      }
+    }
+  }
+
+  // Update particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx*dt;
+    p.y+=p.vy*dt;
+    p.vy+=400*dt; // gravity
+    p.life-=dt;
+    if(p.life<=0)particles.splice(i,1);
+  }
+}
+
+// --- Render ---
+function render(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0a0a1a';
+  ctx.fillRect(0,0,W,H);
+
+  if(state==='menu'){
+    drawMenu();
+    return;
+  }
+
+  drawBoard();
+  drawNextPiece();
+  drawHUD();
+  drawParticles();
+
+  if(state==='gameover'){
+    drawGameOver();
+  }
+}
+
+// --- Main loop ---
+function loop(ts){
+  const dt=Math.min((ts-lastTime)/1000,0.1);
+  lastTime=ts;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+lastTime=performance.now();
+requestAnimationFrame(loop);
+
+// --- Input: Keyboard ---
+document.addEventListener('keydown',e=>{
+  if(state==='menu'){
+    if(e.code==='Enter'||e.code==='Space'){startGame();e.preventDefault();}
+    return;
+  }
+  if(state==='gameover'){
+    if(e.code==='Enter'||e.code==='Space'){startGame();e.preventDefault();}
+    return;
+  }
+  if(state!=='playing'||clearAnim>0)return;
+
+  switch(e.code){
+    case'ArrowLeft':case'KeyA':moveLeft();e.preventDefault();break;
+    case'ArrowRight':case'KeyD':moveRight();e.preventDefault();break;
+    case'ArrowDown':case'KeyS':softDrop();e.preventDefault();break;
+    case'ArrowUp':case'KeyW':tryRotate();e.preventDefault();break;
+    case'Space':hardDrop();e.preventDefault();break;
+  }
+});
+
+// --- Input: Touch ---
+let touchStartX=0,touchStartY=0,touchStartTime=0,touchMoved=false;
+
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  const t=e.touches[0];
+  touchStartX=t.clientX;
+  touchStartY=t.clientY;
+  touchStartTime=Date.now();
+  touchMoved=false;
+},{passive:false});
+
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  touchMoved=true;
+},{passive:false});
+
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();
+  if(!e.changedTouches.length)return;
+  const t=e.changedTouches[0];
+  const dx=t.clientX-touchStartX;
+  const dy=t.clientY-touchStartY;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  const elapsed=Date.now()-touchStartTime;
+
+  if(state==='menu'){
+    const btn=drawMenu._btn;
+    if(btn&&t.clientX>=btn.x&&t.clientX<=btn.x+btn.w&&t.clientY>=btn.y&&t.clientY<=btn.y+btn.h){
+      startGame();
+    }
+    return;
+  }
+
+  if(state==='gameover'){
+    const btn=drawGameOver._btn;
+    if(btn&&t.clientX>=btn.x&&t.clientX<=btn.x+btn.w&&t.clientY>=btn.y&&t.clientY<=btn.y+btn.h){
+      startGame();
+    }
+    return;
+  }
+
+  if(state!=='playing'||clearAnim>0)return;
+
+  const threshold=30;
+  if(dist<threshold){
+    // Tap = rotate
+    tryRotate();
+    return;
+  }
+
+  const angle=Math.atan2(dy,dx);
+  if(Math.abs(dx)>Math.abs(dy)){
+    // Horizontal swipe
+    if(dx>0)moveRight();else moveLeft();
+  }else{
+    // Vertical swipe
+    if(dy>0)hardDrop();else tryRotate();
+  }
+},{passive:false});
+
+// --- Input: Click/Mouse ---
+canvas.addEventListener('click',e=>{
+  if(state==='menu'){
+    const btn=drawMenu._btn;
+    if(btn&&e.clientX>=btn.x&&e.clientX<=btn.x+btn.w&&e.clientY>=btn.y&&e.clientY<=btn.y+btn.h){
+      startGame();
+    }
+  }else if(state==='gameover'){
+    const btn=drawGameOver._btn;
+    if(btn&&e.clientX>=btn.x&&e.clientX<=btn.x+btn.w&&e.clientY>=btn.y&&e.clientY<=btn.y+btn.h){
+      startGame();
+    }
+  }
+});
+
+})();
+</script>
+</body>
+</html>

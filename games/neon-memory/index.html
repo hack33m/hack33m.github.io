@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Memory</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+  </style>
+</head>
+<body>
+<canvas id="game" tabindex="0"></canvas>
+<script src="../../js/sounds.js"></script>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  canvas.focus();
+  window.addEventListener('load', () => canvas.focus());
+
+  // roundRect polyfill for Safari
+  if (!ctx.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      if (typeof r === 'number') r = [r,r,r,r];
+      const [tl,tr,br,bl] = r;
+      this.moveTo(x+tl, y);
+      this.lineTo(x+w-tr, y);
+      this.quadraticCurveTo(x+w, y, x+w, y+tr);
+      this.lineTo(x+w, y+h-br);
+      this.quadraticCurveTo(x+w, y+h, x+w-br, y+h);
+      this.lineTo(x+bl, y+h);
+      this.quadraticCurveTo(x, y+h, x, y+h-bl);
+      this.lineTo(x, y+tl);
+      this.quadraticCurveTo(x, y, x+tl, y);
+      this.closePath();
+    };
+  }
+
+  // Hi-DPI
+  let dpr = 1;
+  let W = 0, H = 0;
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // --- Constants ---
+  const BG = '#0a0a1a';
+  const NEON_COLORS = [
+    '#ff00ff', '#00ffff', '#ff3366', '#33ff66',
+    '#ffcc00', '#6633ff', '#ff6600', '#00ff99',
+    '#ff0066', '#3399ff', '#ff9933', '#66ff33',
+    '#cc33ff', '#33ffcc', '#ff3300'
+  ];
+  const SYMBOLS = [
+    '⚡', '🔥', '💎', '🌟', '🎯', '🚀', '👾', '🎮',
+    '💜', '🧊', '🪐', '🌈', '🎵', '🔮', '🍀'
+  ];
+
+  const DIFFICULTIES = [
+    { label: 'Enkel (4x4)', cols: 4, rows: 4 },
+    { label: 'Medium (4x5)', cols: 4, rows: 5 },
+    { label: 'Svår (6x5)', cols: 6, rows: 5 }
+  ];
+
+  // --- State ---
+  let state = 'menu'; // menu, playing, gameover
+  let difficulty = 0;
+  let cols = 4, rows = 4;
+  let cards = [];
+  let flipped = [];
+  let matched = [];
+  let moves = 0;
+  let timer = 0;
+  let timerStart = 0;
+  let score = 0;
+  let highscore = parseInt(localStorage.getItem('neon-memory-hi')) || 0;
+  let lockInput = false;
+  let particles = [];
+  let menuHoverBtn = -1;
+  let menuSelectedDiff = 0;
+
+  // Card flip animation state
+  // Each card has: { id, pairId, symbol, color, flipAnim (0=face down, 1=face up), flipDir (+1 or -1), flipping }
+
+  function initGame() {
+    const diff = DIFFICULTIES[menuSelectedDiff];
+    cols = diff.cols;
+    rows = diff.rows;
+    const totalCards = cols * rows;
+    const numPairs = totalCards / 2;
+
+    // Pick symbols and colors
+    const indices = [];
+    for (let i = 0; i < SYMBOLS.length; i++) indices.push(i);
+    // Shuffle and pick numPairs
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    const chosen = indices.slice(0, numPairs);
+
+    // Create card pairs
+    let deck = [];
+    for (let i = 0; i < numPairs; i++) {
+      const sym = SYMBOLS[chosen[i]];
+      const col = NEON_COLORS[chosen[i]];
+      deck.push({ pairId: i, symbol: sym, color: col });
+      deck.push({ pairId: i, symbol: sym, color: col });
+    }
+
+    // Shuffle deck
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+
+    cards = deck.map((c, idx) => ({
+      id: idx,
+      pairId: c.pairId,
+      symbol: c.symbol,
+      color: c.color,
+      flipAnim: 0,   // 0 = face down, 1 = face up
+      flipDir: 0,     // +1 flipping up, -1 flipping down
+      flipping: false,
+      matchAnim: 0    // for glow pulse on match
+    }));
+
+    flipped = [];
+    matched = [];
+    moves = 0;
+    timer = 0;
+    timerStart = 0;
+    score = 0;
+    lockInput = false;
+    particles = [];
+    state = 'playing';
+    NeonSounds.init();
+  }
+
+  // --- Particles ---
+  function spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1 + Math.random() * 4;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1,
+        decay: 0.015 + Math.random() * 0.02,
+        size: 2 + Math.random() * 4,
+        color
+      });
+    }
+  }
+
+  function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.05;
+      p.life -= p.decay;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }
+
+  // --- Card layout ---
+  function getCardLayout() {
+    const padding = Math.min(W, H) * 0.04;
+    const topBarH = 60;
+    const areaW = W - padding * 2;
+    const areaH = H - topBarH - padding * 2;
+    const cardW = Math.min((areaW - (cols - 1) * padding * 0.5) / cols, 140);
+    const cardH = Math.min((areaH - (rows - 1) * padding * 0.5) / rows, 160);
+    const cw = Math.min(cardW, cardH * 0.85);
+    const ch = cw / 0.85;
+    const gap = Math.min(padding * 0.5, 12);
+    const totalW = cols * cw + (cols - 1) * gap;
+    const totalH = rows * ch + (rows - 1) * gap;
+    const startX = (W - totalW) / 2;
+    const startY = topBarH + (H - topBarH - totalH) / 2;
+    return { cw, ch, gap, startX, startY };
+  }
+
+  function getCardRect(index) {
+    const { cw, ch, gap, startX, startY } = getCardLayout();
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    return {
+      x: startX + col * (cw + gap),
+      y: startY + row * (ch + gap),
+      w: cw,
+      h: ch
+    };
+  }
+
+  // --- Card flip animation update ---
+  function updateCards(dt) {
+    for (const card of cards) {
+      if (card.flipping) {
+        card.flipAnim += card.flipDir * dt * 4;
+        if (card.flipDir > 0 && card.flipAnim >= 1) {
+          card.flipAnim = 1;
+          card.flipping = false;
+        }
+        if (card.flipDir < 0 && card.flipAnim <= 0) {
+          card.flipAnim = 0;
+          card.flipping = false;
+        }
+      }
+      // Match glow pulse
+      if (matched.includes(card.id)) {
+        card.matchAnim = Math.min(card.matchAnim + dt * 2, 1);
+      }
+    }
+  }
+
+  function flipCardUp(card) {
+    card.flipDir = 1;
+    card.flipping = true;
+  }
+
+  function flipCardDown(card) {
+    card.flipDir = -1;
+    card.flipping = true;
+  }
+
+  // --- Drawing ---
+  function drawCard(card, index) {
+    const rect = getCardRect(index);
+    const { x, y, w, h } = rect;
+    const anim = card.flipAnim;
+    const isMatched = matched.includes(card.id);
+
+    // Flip animation: scale width based on anim
+    // 0 -> 0.5: scale from 1 to 0 (face down shrinking)
+    // 0.5 -> 1: scale from 0 to 1 (face up growing)
+    let scaleX;
+    let showFace;
+    if (anim <= 0.5) {
+      scaleX = 1 - anim * 2; // 1 -> 0
+      showFace = false;
+    } else {
+      scaleX = (anim - 0.5) * 2; // 0 -> 1
+      showFace = true;
+    }
+    if (scaleX < 0.01) scaleX = 0.01;
+
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const sw = w * scaleX;
+    const drawX = cx - sw / 2;
+    const r = 10;
+
+    ctx.save();
+
+    if (showFace) {
+      // Face up - colored card
+      const glowAmount = isMatched ? 15 + Math.sin(Date.now() * 0.005) * 8 : 10;
+      ctx.shadowColor = card.color;
+      ctx.shadowBlur = glowAmount;
+      ctx.fillStyle = '#1a1a3a';
+      ctx.beginPath();
+      ctx.roundRect(drawX, y, sw, h, r);
+      ctx.fill();
+
+      // Border glow
+      ctx.strokeStyle = card.color;
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = glowAmount;
+      ctx.beginPath();
+      ctx.roundRect(drawX, y, sw, h, r);
+      ctx.stroke();
+
+      // Symbol
+      if (scaleX > 0.3) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = card.color;
+        const fontSize = Math.min(sw * 0.55, h * 0.45);
+        ctx.font = `${fontSize}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(card.symbol, cx, cy);
+      }
+    } else {
+      // Face down - dark card with pattern
+      ctx.shadowColor = '#6633ff';
+      ctx.shadowBlur = 5;
+      ctx.fillStyle = '#15153a';
+      ctx.beginPath();
+      ctx.roundRect(drawX, y, sw, h, r);
+      ctx.fill();
+
+      ctx.strokeStyle = '#4422aa';
+      ctx.lineWidth = 1.5;
+      ctx.shadowBlur = 3;
+      ctx.beginPath();
+      ctx.roundRect(drawX, y, sw, h, r);
+      ctx.stroke();
+
+      // Draw neon "?" pattern on back
+      if (scaleX > 0.3) {
+        ctx.shadowColor = '#6633ff';
+        ctx.shadowBlur = 8;
+        const fontSize = Math.min(sw * 0.4, h * 0.35);
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#6633ff';
+        ctx.fillText('?', cx, cy);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function drawHUD() {
+    const fontSize = Math.min(W * 0.04, 22);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${fontSize}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    // Timer
+    const mins = Math.floor(timer / 60);
+    const secs = Math.floor(timer % 60);
+    const timeStr = `Tid: ${mins}:${secs.toString().padStart(2, '0')}`;
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 6;
+    ctx.fillText(timeStr, 20, 30);
+
+    // Moves
+    ctx.shadowColor = '#ff00ff';
+    ctx.fillText(`Drag: ${moves}`, W * 0.35, 30);
+
+    // Pairs found
+    ctx.shadowColor = '#33ff66';
+    const pairsFound = matched.length / 2;
+    const totalPairs = cards.length / 2;
+    ctx.fillText(`Par: ${pairsFound}/${totalPairs}`, W * 0.65, 30);
+
+    ctx.shadowBlur = 0;
+  }
+
+  function formatTime(t) {
+    const mins = Math.floor(t / 60);
+    const secs = Math.floor(t % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  function calcScore() {
+    const totalPairs = cards.length / 2;
+    const baseScore = totalPairs * 1000;
+    const timePenalty = Math.floor(timer * 5);
+    const movePenalty = Math.max(0, moves - totalPairs) * 50;
+    return Math.max(100, baseScore - timePenalty - movePenalty);
+  }
+
+  // --- Menu ---
+  function drawMenu() {
+    // Background
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+
+    // Floating neon dots in background
+    const t = Date.now() * 0.001;
+    for (let i = 0; i < 20; i++) {
+      const bx = W * 0.5 + Math.sin(t * 0.3 + i * 1.7) * W * 0.4;
+      const by = H * 0.5 + Math.cos(t * 0.2 + i * 2.1) * H * 0.4;
+      ctx.globalAlpha = 0.15 + Math.sin(t + i) * 0.1;
+      ctx.fillStyle = NEON_COLORS[i % NEON_COLORS.length];
+      ctx.shadowColor = NEON_COLORS[i % NEON_COLORS.length];
+      ctx.shadowBlur = 20;
+      ctx.beginPath();
+      ctx.arc(bx, by, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+
+    // Title
+    const titleSize = Math.min(W * 0.1, 64);
+    ctx.font = `bold ${titleSize}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Title glow
+    ctx.shadowColor = '#ff00ff';
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = '#ff00ff';
+    ctx.fillText('NEON MEMORY', W / 2, H * 0.18);
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('NEON MEMORY', W / 2, H * 0.18);
+    ctx.shadowBlur = 0;
+
+    // Subtitle
+    const subSize = Math.min(W * 0.035, 20);
+    ctx.font = `${subSize}px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = '#8888cc';
+    ctx.fillText('Hitta alla matchande par!', W / 2, H * 0.26);
+
+    // Difficulty selection
+    const diffLabelSize = Math.min(W * 0.035, 18);
+    ctx.font = `bold ${diffLabelSize}px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = '#00ffff';
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 8;
+    ctx.fillText('Välj svårighetsgrad:', W / 2, H * 0.36);
+    ctx.shadowBlur = 0;
+
+    const btnW = Math.min(W * 0.55, 280);
+    const btnH = Math.min(H * 0.07, 48);
+    const btnGap = btnH * 0.4;
+    const btnStartY = H * 0.42;
+
+    for (let i = 0; i < DIFFICULTIES.length; i++) {
+      const bx = W / 2 - btnW / 2;
+      const by = btnStartY + i * (btnH + btnGap);
+      const selected = i === menuSelectedDiff;
+      const hovered = i === menuHoverBtn;
+
+      ctx.fillStyle = selected ? '#2a1a4a' : (hovered ? '#1a1a3a' : '#111130');
+      ctx.strokeStyle = selected ? '#ff00ff' : (hovered ? '#8844cc' : '#333366');
+      ctx.lineWidth = selected ? 2.5 : 1.5;
+      if (selected) {
+        ctx.shadowColor = '#ff00ff';
+        ctx.shadowBlur = 12;
+      }
+      ctx.beginPath();
+      ctx.roundRect(bx, by, btnW, btnH, 10);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = selected ? '#ffffff' : '#aaaacc';
+      const btnFontSize = Math.min(W * 0.035, 18);
+      ctx.font = `${selected ? 'bold ' : ''}${btnFontSize}px 'Segoe UI', sans-serif`;
+      ctx.fillText(DIFFICULTIES[i].label, W / 2, by + btnH / 2);
+    }
+
+    // Play button
+    const playBtnW = Math.min(W * 0.5, 240);
+    const playBtnH = Math.min(H * 0.085, 56);
+    const playBtnY = btnStartY + DIFFICULTIES.length * (btnH + btnGap) + btnGap;
+    const playBtnX = W / 2 - playBtnW / 2;
+    const playHover = menuHoverBtn === 10;
+
+    ctx.fillStyle = playHover ? '#33ff66' : '#22cc55';
+    ctx.shadowColor = '#33ff66';
+    ctx.shadowBlur = playHover ? 20 : 10;
+    ctx.beginPath();
+    ctx.roundRect(playBtnX, playBtnY, playBtnW, playBtnH, 12);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#0a0a1a';
+    const playFontSize = Math.min(W * 0.05, 26);
+    ctx.font = `bold ${playFontSize}px 'Segoe UI', sans-serif`;
+    ctx.fillText('SPELA', W / 2, playBtnY + playBtnH / 2);
+
+    // Highscore
+    if (highscore > 0) {
+      ctx.font = `${subSize}px 'Segoe UI', sans-serif`;
+      ctx.fillStyle = '#ffcc00';
+      ctx.shadowColor = '#ffcc00';
+      ctx.shadowBlur = 6;
+      ctx.fillText(`Bästa poäng: ${highscore}`, W / 2, H * 0.92);
+      ctx.shadowBlur = 0;
+    }
+
+    // Store menu button rects for click detection
+    return { btnW, btnH, btnGap, btnStartY, playBtnX, playBtnY, playBtnW, playBtnH };
+  }
+
+  let menuLayout = null;
+
+  function getMenuLayout() {
+    const btnW = Math.min(W * 0.55, 280);
+    const btnH = Math.min(H * 0.07, 48);
+    const btnGap = btnH * 0.4;
+    const btnStartY = H * 0.42;
+    const playBtnW = Math.min(W * 0.5, 240);
+    const playBtnH = Math.min(H * 0.085, 56);
+    const playBtnY = btnStartY + DIFFICULTIES.length * (btnH + btnGap) + btnGap;
+    const playBtnX = W / 2 - playBtnW / 2;
+    return { btnW, btnH, btnGap, btnStartY, playBtnX, playBtnY, playBtnW, playBtnH };
+  }
+
+  // --- Game Over screen ---
+  function drawGameOver() {
+    // Dim overlay
+    ctx.fillStyle = 'rgba(10,10,26,0.85)';
+    ctx.fillRect(0, 0, W, H);
+
+    const titleSize = Math.min(W * 0.09, 52);
+    ctx.font = `bold ${titleSize}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#33ff66';
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = '#33ff66';
+    ctx.fillText('KLART!', W / 2, H * 0.22);
+    ctx.shadowBlur = 0;
+
+    const infoSize = Math.min(W * 0.04, 22);
+    ctx.font = `${infoSize}px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`Tid: ${formatTime(timer)}`, W / 2, H * 0.35);
+    ctx.fillText(`Drag: ${moves}`, W / 2, H * 0.42);
+
+    const scoreSize = Math.min(W * 0.06, 36);
+    ctx.font = `bold ${scoreSize}px 'Segoe UI', sans-serif`;
+    ctx.shadowColor = '#ffcc00';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#ffcc00';
+    ctx.fillText(`Poäng: ${score}`, W / 2, H * 0.52);
+    ctx.shadowBlur = 0;
+
+    if (score >= highscore && highscore > 0) {
+      ctx.font = `bold ${infoSize}px 'Segoe UI', sans-serif`;
+      ctx.fillStyle = '#ff00ff';
+      ctx.shadowColor = '#ff00ff';
+      ctx.shadowBlur = 10;
+      ctx.fillText('NYTT REKORD!', W / 2, H * 0.60);
+      ctx.shadowBlur = 0;
+    } else if (highscore > 0) {
+      ctx.font = `${infoSize}px 'Segoe UI', sans-serif`;
+      ctx.fillStyle = '#8888cc';
+      ctx.fillText(`Bästa: ${highscore}`, W / 2, H * 0.60);
+    }
+
+    // Play again button
+    const btnW = Math.min(W * 0.5, 240);
+    const btnH = Math.min(H * 0.08, 52);
+    const btnX = W / 2 - btnW / 2;
+    const btnY = H * 0.70;
+    const hov = menuHoverBtn === 20;
+
+    ctx.fillStyle = hov ? '#00ffff' : '#0088cc';
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = hov ? 18 : 8;
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, 12);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#0a0a1a';
+    ctx.font = `bold ${Math.min(W * 0.04, 22)}px 'Segoe UI', sans-serif`;
+    ctx.fillText('SPELA IGEN', W / 2, btnY + btnH / 2);
+
+    // Menu button
+    const menuBtnY = btnY + btnH + 15;
+    const mhov = menuHoverBtn === 21;
+    ctx.fillStyle = mhov ? '#ff00ff' : '#8822aa';
+    ctx.shadowColor = '#ff00ff';
+    ctx.shadowBlur = mhov ? 18 : 8;
+    ctx.beginPath();
+    ctx.roundRect(btnX, menuBtnY, btnW, btnH, 12);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('MENY', W / 2, menuBtnY + btnH / 2);
+
+    drawParticles();
+  }
+
+  function getGameOverLayout() {
+    const btnW = Math.min(W * 0.5, 240);
+    const btnH = Math.min(H * 0.08, 52);
+    const btnX = W / 2 - btnW / 2;
+    const btnY = H * 0.70;
+    const menuBtnY = btnY + btnH + 15;
+    return { btnX, btnY, btnW, btnH, menuBtnY };
+  }
+
+  // --- Input handling ---
+  function getPointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * (W / rect.width),
+      y: (clientY - rect.top) * (H / rect.height)
+    };
+  }
+
+  function hitTest(px, py, rx, ry, rw, rh) {
+    return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+  }
+
+  function handleClick(e) {
+    e.preventDefault();
+    const pos = getPointerPos(e);
+
+    if (state === 'menu') {
+      const ml = getMenuLayout();
+      // Difficulty buttons
+      for (let i = 0; i < DIFFICULTIES.length; i++) {
+        const bx = W / 2 - ml.btnW / 2;
+        const by = ml.btnStartY + i * (ml.btnH + ml.btnGap);
+        if (hitTest(pos.x, pos.y, bx, by, ml.btnW, ml.btnH)) {
+          menuSelectedDiff = i;
+          NeonSounds.click();
+          return;
+        }
+      }
+      // Play button
+      if (hitTest(pos.x, pos.y, ml.playBtnX, ml.playBtnY, ml.playBtnW, ml.playBtnH)) {
+        NeonSounds.click();
+        initGame();
+        return;
+      }
+    } else if (state === 'playing') {
+      if (lockInput) return;
+      // Find clicked card
+      for (let i = 0; i < cards.length; i++) {
+        const rect = getCardRect(i);
+        if (hitTest(pos.x, pos.y, rect.x, rect.y, rect.w, rect.h)) {
+          const card = cards[i];
+          // Ignore already flipped or matched cards
+          if (flipped.includes(i) || matched.includes(card.id)) return;
+          if (card.flipAnim > 0.1) return;
+
+          NeonSounds.click();
+          flipCardUp(card);
+          flipped.push(i);
+
+          if (timerStart === 0) timerStart = performance.now();
+
+          if (flipped.length === 2) {
+            moves++;
+            const c1 = cards[flipped[0]];
+            const c2 = cards[flipped[1]];
+
+            if (c1.pairId === c2.pairId) {
+              // Match!
+              matched.push(c1.id, c2.id);
+              const r1 = getCardRect(flipped[0]);
+              const r2 = getCardRect(flipped[1]);
+              spawnParticles(r1.x + r1.w / 2, r1.y + r1.h / 2, c1.color, 25);
+              spawnParticles(r2.x + r2.w / 2, r2.y + r2.h / 2, c2.color, 25);
+              NeonSounds.collect();
+              flipped = [];
+
+              // Check win
+              if (matched.length === cards.length) {
+                setTimeout(() => {
+                  score = calcScore();
+                  if (score > highscore) {
+                    highscore = score;
+                    localStorage.setItem('neon-memory-hi', String(highscore));
+                  }
+                  // Send score to parent
+                  try {
+                    window.parent.postMessage({ type: 'game-score', game: 'neon-memory', score }, '*');
+                  } catch(e) {}
+                  NeonSounds.fanfare();
+                  state = 'gameover';
+                }, 500);
+              }
+            } else {
+              // Mismatch
+              lockInput = true;
+              NeonSounds.hit();
+              setTimeout(() => {
+                flipCardDown(cards[flipped[0]]);
+                flipCardDown(cards[flipped[1]]);
+                flipped = [];
+                lockInput = false;
+              }, 1000);
+            }
+          }
+          return;
+        }
+      }
+    } else if (state === 'gameover') {
+      const gl = getGameOverLayout();
+      if (hitTest(pos.x, pos.y, gl.btnX, gl.btnY, gl.btnW, gl.btnH)) {
+        NeonSounds.click();
+        initGame();
+        return;
+      }
+      if (hitTest(pos.x, pos.y, gl.btnX, gl.menuBtnY, gl.btnW, gl.btnH)) {
+        NeonSounds.click();
+        state = 'menu';
+        return;
+      }
+    }
+  }
+
+  function handleMove(e) {
+    e.preventDefault();
+    const pos = getPointerPos(e);
+    menuHoverBtn = -1;
+
+    if (state === 'menu') {
+      const ml = getMenuLayout();
+      for (let i = 0; i < DIFFICULTIES.length; i++) {
+        const bx = W / 2 - ml.btnW / 2;
+        const by = ml.btnStartY + i * (ml.btnH + ml.btnGap);
+        if (hitTest(pos.x, pos.y, bx, by, ml.btnW, ml.btnH)) {
+          menuHoverBtn = i;
+          return;
+        }
+      }
+      if (hitTest(pos.x, pos.y, ml.playBtnX, ml.playBtnY, ml.playBtnW, ml.playBtnH)) {
+        menuHoverBtn = 10;
+      }
+    } else if (state === 'gameover') {
+      const gl = getGameOverLayout();
+      if (hitTest(pos.x, pos.y, gl.btnX, gl.btnY, gl.btnW, gl.btnH)) {
+        menuHoverBtn = 20;
+      } else if (hitTest(pos.x, pos.y, gl.btnX, gl.menuBtnY, gl.btnW, gl.btnH)) {
+        menuHoverBtn = 21;
+      }
+    }
+  }
+
+  canvas.addEventListener('mousedown', handleClick);
+  canvas.addEventListener('touchstart', handleClick, { passive: false });
+  canvas.addEventListener('mousemove', handleMove);
+  canvas.addEventListener('touchmove', handleMove, { passive: false });
+
+  // --- Main loop ---
+  let lastTime = performance.now();
+
+  function gameLoop(now) {
+    requestAnimationFrame(gameLoop);
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+
+    // Update timer
+    if (state === 'playing' && timerStart > 0 && matched.length < cards.length) {
+      timer = (now - timerStart) / 1000;
+    }
+
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+
+    if (state === 'menu') {
+      drawMenu();
+    } else if (state === 'playing') {
+      updateCards(dt);
+      updateParticles();
+
+      drawHUD();
+      for (let i = 0; i < cards.length; i++) {
+        drawCard(cards[i], i);
+      }
+      drawParticles();
+    } else if (state === 'gameover') {
+      // Draw cards in background
+      for (let i = 0; i < cards.length; i++) {
+        drawCard(cards[i], i);
+      }
+      updateParticles();
+      drawGameOver();
+    }
+  }
+
+  requestAnimationFrame(gameLoop);
+})();
+</script>
+</body>
+</html>

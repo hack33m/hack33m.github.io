@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Draw</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+  </style>
+</head>
+<body>
+<canvas id="game" tabindex="0"></canvas>
+<script src="../../js/sounds.js"></script>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  canvas.focus();
+  window.addEventListener('load', () => canvas.focus());
+
+  // roundRect polyfill
+  if (!ctx.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      if (typeof r === 'number') r = [r,r,r,r];
+      const [tl,tr,br,bl] = r;
+      this.moveTo(x+tl, y);
+      this.lineTo(x+w-tr, y);
+      this.quadraticCurveTo(x+w, y, x+w, y+tr);
+      this.lineTo(x+w, y+h-br);
+      this.quadraticCurveTo(x+w, y+h, x+w-br, y+h);
+      this.lineTo(x+bl, y+h);
+      this.quadraticCurveTo(x, y+h, x, y+h-bl);
+      this.lineTo(x, y+tl);
+      this.quadraticCurveTo(x, y, x+tl, y);
+      this.closePath();
+    };
+  }
+
+  // Hi-DPI
+  let dpr = 1;
+  let W, H;
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Colors
+  const CYAN = '#00d4ff';
+  const PINK = '#ff2d95';
+  const PURPLE = '#a855f7';
+  const GREEN = '#39ff14';
+  const ORANGE = '#ff6a00';
+  const YELLOW = '#ffe600';
+  const BG = '#0a0a1a';
+
+  const NEON_COLORS = [CYAN, PINK, PURPLE, GREEN, ORANGE, YELLOW];
+
+  // Swedish word list (50+)
+  const WORDS = [
+    'hund', 'katt', 'hus', 'sol', 'bil', 'träd', 'fisk', 'blomma', 'fjäril', 'pizza',
+    'båt', 'cykel', 'moln', 'stjärna', 'hjärta', 'skog', 'berg', 'flod', 'bro', 'slott',
+    'raket', 'robot', 'drake', 'krona', 'gitarr', 'piano', 'tårta', 'glass', 'äpple', 'banan',
+    'elefant', 'giraff', 'pingvin', 'delfin', 'kanin', 'uggla', 'orm', 'groda', 'snigel', 'spindel',
+    'flygplan', 'helikopter', 'tåg', 'buss', 'lastbil', 'paraply', 'regnbåge', 'måne', 'vulkan', 'ö',
+    'lampa', 'stol', 'bord', 'bok', 'penna', 'sax', 'nyckel', 'klocka', 'telefon', 'ballong',
+    'fotboll', 'skateboard', 'snögubbe', 'tomte', 'clown', 'dinosaurie', 'enhörning', 'sjöjungfru',
+    'hammare', 'svärd', 'sköld', 'trollstav', 'spöke', 'pumpa', 'jordgubbe'
+  ];
+
+  // Game state
+  const ROUNDS_PER_GAME = 5;
+  const ROUND_TIME = 60;
+  let state = 'menu'; // menu, playing, rating, gameover
+  let currentRound = 0;
+  let score = 0;
+  let currentWord = '';
+  let timeLeft = ROUND_TIME;
+  let timerInterval = null;
+  let usedWords = [];
+
+  // Drawing state
+  let drawColor = CYAN;
+  let brushSize = 6; // small=4, medium=8, large=14
+  const BRUSH_SIZES = [4, 8, 14];
+  let brushSizeIndex = 1;
+  let isEraser = false;
+  let isDrawing = false;
+  let lastX = 0, lastY = 0;
+
+  // Off-screen drawing canvas (to preserve drawings independently)
+  let drawCanvas, drawCtx;
+  function initDrawCanvas() {
+    drawCanvas = document.createElement('canvas');
+    drawCanvas.width = canvas.width;
+    drawCanvas.height = canvas.height;
+    drawCtx = drawCanvas.getContext('2d');
+    drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Fill with dark bg for the drawing area
+    drawCtx.fillStyle = '#111128';
+    drawCtx.fillRect(0, 0, W, H);
+  }
+
+  // UI layout helpers
+  function getToolbarY() { return 60; }
+  function getCanvasTop() { return 110; }
+  function getCanvasBottom() { return H - 70; }
+  function getBottomBarY() { return H - 60; }
+
+  // Pick a random unused word
+  function pickWord() {
+    if (usedWords.length >= WORDS.length) usedWords = [];
+    let word;
+    do {
+      word = WORDS[Math.floor(Math.random() * WORDS.length)];
+    } while (usedWords.includes(word));
+    usedWords.push(word);
+    return word;
+  }
+
+  // Timer
+  function startTimer() {
+    timeLeft = ROUND_TIME;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        clearInterval(timerInterval);
+        endRound();
+      }
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+  }
+
+  // Start game
+  function startGame() {
+    NeonSounds.init();
+    state = 'playing';
+    currentRound = 0;
+    score = 0;
+    usedWords = [];
+    nextRound();
+  }
+
+  function nextRound() {
+    currentRound++;
+    currentWord = pickWord();
+    brushSize = BRUSH_SIZES[1];
+    brushSizeIndex = 1;
+    drawColor = CYAN;
+    isEraser = false;
+    initDrawCanvas();
+    startTimer();
+    state = 'playing';
+  }
+
+  function endRound() {
+    stopTimer();
+    state = 'rating';
+    NeonSounds.collect();
+  }
+
+  function rateRound(good) {
+    if (good) score++;
+    NeonSounds.click();
+    if (currentRound >= ROUNDS_PER_GAME) {
+      state = 'gameover';
+      NeonSounds.fanfare();
+    } else {
+      nextRound();
+    }
+  }
+
+  // Drawing
+  function getDrawPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    return {
+      x: (touch.clientX - rect.left),
+      y: (touch.clientY - rect.top)
+    };
+  }
+
+  function drawLine(x1, y1, x2, y2) {
+    const top = getCanvasTop();
+    const bottom = getCanvasBottom();
+    // Clamp to drawing area
+    if (y1 < top || y2 < top || y1 > bottom || y2 > bottom) return;
+
+    drawCtx.lineCap = 'round';
+    drawCtx.lineJoin = 'round';
+
+    if (isEraser) {
+      drawCtx.globalCompositeOperation = 'source-over';
+      drawCtx.strokeStyle = '#111128';
+      drawCtx.lineWidth = brushSize * 3;
+      drawCtx.shadowBlur = 0;
+      drawCtx.beginPath();
+      drawCtx.moveTo(x1, y1);
+      drawCtx.lineTo(x2, y2);
+      drawCtx.stroke();
+    } else {
+      // Neon glow effect - draw glow layer then bright core
+      drawCtx.globalCompositeOperation = 'lighter';
+      drawCtx.shadowColor = drawColor;
+      drawCtx.shadowBlur = brushSize * 2;
+      drawCtx.strokeStyle = drawColor + '66';
+      drawCtx.lineWidth = brushSize * 2;
+      drawCtx.beginPath();
+      drawCtx.moveTo(x1, y1);
+      drawCtx.lineTo(x2, y2);
+      drawCtx.stroke();
+
+      // Bright core
+      drawCtx.shadowBlur = brushSize;
+      drawCtx.strokeStyle = drawColor;
+      drawCtx.lineWidth = brushSize;
+      drawCtx.beginPath();
+      drawCtx.moveTo(x1, y1);
+      drawCtx.lineTo(x2, y2);
+      drawCtx.stroke();
+
+      // White hot center
+      drawCtx.shadowBlur = 0;
+      drawCtx.strokeStyle = '#ffffff88';
+      drawCtx.lineWidth = brushSize * 0.4;
+      drawCtx.beginPath();
+      drawCtx.moveTo(x1, y1);
+      drawCtx.lineTo(x2, y2);
+      drawCtx.stroke();
+
+      drawCtx.globalCompositeOperation = 'source-over';
+    }
+    drawCtx.shadowBlur = 0;
+  }
+
+  function clearDrawing() {
+    NeonSounds.click();
+    drawCtx.globalCompositeOperation = 'source-over';
+    drawCtx.fillStyle = '#111128';
+    drawCtx.fillRect(0, 0, W, H);
+  }
+
+  // Input handling
+  function onPointerDown(e) {
+    e.preventDefault();
+    if (state === 'menu') {
+      handleMenuClick(e);
+      return;
+    }
+    if (state === 'rating') {
+      handleRatingClick(e);
+      return;
+    }
+    if (state === 'gameover') {
+      handleGameoverClick(e);
+      return;
+    }
+    if (state !== 'playing') return;
+
+    const pos = getDrawPos(e);
+
+    // Check toolbar clicks
+    if (pos.y < getCanvasTop()) {
+      handleToolbarClick(pos);
+      return;
+    }
+    // Check bottom bar clicks
+    if (pos.y > getCanvasBottom()) {
+      handleBottomBarClick(pos);
+      return;
+    }
+
+    isDrawing = true;
+    lastX = pos.x;
+    lastY = pos.y;
+    drawLine(lastX, lastY, lastX + 0.1, lastY + 0.1);
+  }
+
+  function onPointerMove(e) {
+    e.preventDefault();
+    if (!isDrawing || state !== 'playing') return;
+    const pos = getDrawPos(e);
+    drawLine(lastX, lastY, pos.x, pos.y);
+    lastX = pos.x;
+    lastY = pos.y;
+  }
+
+  function onPointerUp(e) {
+    e.preventDefault();
+    isDrawing = false;
+  }
+
+  canvas.addEventListener('mousedown', onPointerDown);
+  canvas.addEventListener('mousemove', onPointerMove);
+  canvas.addEventListener('mouseup', onPointerUp);
+  canvas.addEventListener('mouseleave', onPointerUp);
+  canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+  canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+  canvas.addEventListener('touchend', onPointerUp, { passive: false });
+  canvas.addEventListener('touchcancel', onPointerUp, { passive: false });
+
+  // Toolbar click handling
+  function handleToolbarClick(pos) {
+    const y = getToolbarY();
+    const colorY = y + 2;
+    const colorSize = 28;
+    const colorGap = 8;
+    const totalColorW = NEON_COLORS.length * (colorSize + colorGap) - colorGap;
+    const colorStartX = 15;
+
+    // Color buttons
+    for (let i = 0; i < NEON_COLORS.length; i++) {
+      const cx = colorStartX + i * (colorSize + colorGap);
+      if (pos.x >= cx && pos.x <= cx + colorSize && pos.y >= colorY && pos.y <= colorY + colorSize) {
+        drawColor = NEON_COLORS[i];
+        isEraser = false;
+        NeonSounds.click();
+        return;
+      }
+    }
+
+    // Brush sizes - right side
+    const brushY = y + 2;
+    const brushStartX = W - 200;
+    for (let i = 0; i < BRUSH_SIZES.length; i++) {
+      const bx = brushStartX + i * 38;
+      if (pos.x >= bx && pos.x <= bx + 32 && pos.y >= brushY && pos.y <= brushY + 28) {
+        brushSizeIndex = i;
+        brushSize = BRUSH_SIZES[i];
+        isEraser = false;
+        NeonSounds.click();
+        return;
+      }
+    }
+
+    // Eraser button
+    const eraserX = W - 80;
+    if (pos.x >= eraserX && pos.x <= eraserX + 60 && pos.y >= brushY && pos.y <= brushY + 28) {
+      isEraser = !isEraser;
+      NeonSounds.click();
+      return;
+    }
+  }
+
+  // Bottom bar click handling
+  function handleBottomBarClick(pos) {
+    const barY = getBottomBarY();
+
+    // Clear button
+    const clearX = 15;
+    if (pos.x >= clearX && pos.x <= clearX + 80 && pos.y >= barY && pos.y <= barY + 40) {
+      clearDrawing();
+      return;
+    }
+
+    // Done button
+    const doneX = W - 120;
+    if (pos.x >= doneX && pos.x <= doneX + 105 && pos.y >= barY && pos.y <= barY + 40) {
+      endRound();
+      return;
+    }
+  }
+
+  // Menu click
+  function handleMenuClick(e) {
+    const pos = getDrawPos(e);
+    const btnW = 220;
+    const btnH = 55;
+    const btnX = W / 2 - btnW / 2;
+    const btnY = H / 2 + 40;
+    if (pos.x >= btnX && pos.x <= btnX + btnW && pos.y >= btnY && pos.y <= btnY + btnH) {
+      NeonSounds.init();
+      NeonSounds.click();
+      startGame();
+    }
+  }
+
+  // Rating click
+  function handleRatingClick(e) {
+    const pos = getDrawPos(e);
+    const btnW = 80;
+    const btnH = 80;
+    const gap = 40;
+    const totalW = btnW * 2 + gap;
+    const startX = W / 2 - totalW / 2;
+    const btnY = H / 2 + 80;
+
+    // Thumbs up
+    if (pos.x >= startX && pos.x <= startX + btnW && pos.y >= btnY && pos.y <= btnY + btnH) {
+      rateRound(true);
+      return;
+    }
+    // Thumbs down
+    if (pos.x >= startX + btnW + gap && pos.x <= startX + totalW && pos.y >= btnY && pos.y <= btnY + btnH) {
+      rateRound(false);
+      return;
+    }
+  }
+
+  // Gameover click
+  function handleGameoverClick(e) {
+    const pos = getDrawPos(e);
+    const btnW = 220;
+    const btnH = 55;
+    const btnX = W / 2 - btnW / 2;
+    const btnY = H / 2 + 80;
+    if (pos.x >= btnX && pos.x <= btnX + btnW && pos.y >= btnY && pos.y <= btnY + btnH) {
+      NeonSounds.click();
+      startGame();
+    }
+  }
+
+  // ===== RENDERING =====
+
+  function drawGlowText(text, x, y, color, size, align) {
+    ctx.save();
+    ctx.textAlign = align || 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `bold ${size}px 'Segoe UI', sans-serif`;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    ctx.shadowBlur = 5;
+    ctx.fillText(text, x, y);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = 0.4;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function drawNeonRect(x, y, w, h, color, r, filled) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r || 8);
+    if (filled) {
+      ctx.fillStyle = color + '22';
+      ctx.fill();
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function renderMenu() {
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+
+    // Title
+    const titleY = H / 2 - 80;
+    drawGlowText('NEON DRAW', W / 2, titleY, CYAN, 52);
+
+    // Subtitle
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '18px "Segoe UI", sans-serif';
+    ctx.fillStyle = PURPLE;
+    ctx.shadowColor = PURPLE;
+    ctx.shadowBlur = 8;
+    ctx.fillText('Rita och gissa!', W / 2, titleY + 50);
+    ctx.restore();
+
+    // Decorative drawing icons
+    const iconY = titleY - 10;
+    ctx.save();
+    ctx.strokeStyle = PINK;
+    ctx.shadowColor = PINK;
+    ctx.shadowBlur = 8;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    // Pencil icon left
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - 120, iconY - 20);
+    ctx.lineTo(W / 2 - 100, iconY - 40);
+    ctx.stroke();
+    // Brush icon right
+    ctx.beginPath();
+    ctx.arc(W / 2 + 110, iconY - 30, 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Play button
+    const btnW = 220;
+    const btnH = 55;
+    const btnX = W / 2 - btnW / 2;
+    const btnY = H / 2 + 40;
+    drawNeonRect(btnX, btnY, btnW, btnH, GREEN, 12, true);
+    drawGlowText('SPELA', W / 2, btnY + btnH / 2, GREEN, 26);
+  }
+
+  function renderPlaying() {
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+
+    // Top bar: word + timer + round
+    const topH = 50;
+    ctx.fillStyle = '#0d0d24';
+    ctx.fillRect(0, 0, W, topH);
+
+    // Word
+    drawGlowText('Rita: ' + currentWord.toUpperCase(), W / 2, 26, PINK, 22);
+
+    // Timer
+    const timerColor = timeLeft <= 10 ? ORANGE : CYAN;
+    drawGlowText(timeLeft + 's', W - 50, 26, timerColor, 20);
+
+    // Round
+    ctx.save();
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+    ctx.fillStyle = PURPLE;
+    ctx.shadowColor = PURPLE;
+    ctx.shadowBlur = 6;
+    ctx.fillText('Runda ' + currentRound + '/' + ROUNDS_PER_GAME, 12, 26);
+    ctx.restore();
+
+    // Toolbar
+    renderToolbar();
+
+    // Drawing area - blit from drawCanvas
+    const top = getCanvasTop();
+    const bottom = getCanvasBottom();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, top, W, bottom - top);
+    ctx.clip();
+    ctx.drawImage(drawCanvas, 0, 0, drawCanvas.width, drawCanvas.height, 0, 0, W, H);
+    ctx.restore();
+
+    // Drawing area border
+    ctx.strokeStyle = CYAN + '33';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, top, W, bottom - top);
+
+    // Bottom bar
+    renderBottomBar();
+  }
+
+  function renderToolbar() {
+    const y = getToolbarY();
+    ctx.fillStyle = '#0d0d24cc';
+    ctx.fillRect(0, y - 5, W, 38);
+
+    // Color picker
+    const colorSize = 28;
+    const colorGap = 8;
+    const colorStartX = 15;
+
+    for (let i = 0; i < NEON_COLORS.length; i++) {
+      const cx = colorStartX + i * (colorSize + colorGap);
+      const col = NEON_COLORS[i];
+      const selected = !isEraser && drawColor === col;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(cx, y + 2, colorSize, colorSize, 6);
+      ctx.fillStyle = col;
+      ctx.shadowColor = col;
+      ctx.shadowBlur = selected ? 15 : 4;
+      ctx.fill();
+      if (selected) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Brush sizes
+    const brushStartX = W - 200;
+    const labels = ['S', 'M', 'L'];
+    for (let i = 0; i < 3; i++) {
+      const bx = brushStartX + i * 38;
+      const selected = !isEraser && brushSizeIndex === i;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(bx, y + 2, 32, 28, 6);
+      ctx.fillStyle = selected ? CYAN + '44' : '#222244';
+      ctx.fill();
+      ctx.strokeStyle = selected ? CYAN : '#444466';
+      ctx.lineWidth = selected ? 2 : 1;
+      ctx.shadowColor = selected ? CYAN : 'transparent';
+      ctx.shadowBlur = selected ? 8 : 0;
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 13px "Segoe UI", sans-serif';
+      ctx.fillStyle = selected ? CYAN : '#8888aa';
+      ctx.fillText(labels[i], bx + 16, y + 16);
+      ctx.restore();
+    }
+
+    // Eraser
+    const eraserX = W - 80;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(eraserX, y + 2, 60, 28, 6);
+    ctx.fillStyle = isEraser ? ORANGE + '44' : '#222244';
+    ctx.fill();
+    ctx.strokeStyle = isEraser ? ORANGE : '#444466';
+    ctx.lineWidth = isEraser ? 2 : 1;
+    ctx.shadowColor = isEraser ? ORANGE : 'transparent';
+    ctx.shadowBlur = isEraser ? 8 : 0;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 12px "Segoe UI", sans-serif';
+    ctx.fillStyle = isEraser ? ORANGE : '#8888aa';
+    ctx.fillText('SUDD', eraserX + 30, y + 16);
+    ctx.restore();
+  }
+
+  function renderBottomBar() {
+    const barY = getBottomBarY();
+    ctx.fillStyle = '#0d0d24cc';
+    ctx.fillRect(0, barY - 5, W, 50);
+
+    // Clear button
+    drawNeonRect(15, barY, 80, 38, ORANGE, 8, true);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 15px "Segoe UI", sans-serif';
+    ctx.fillStyle = ORANGE;
+    ctx.shadowColor = ORANGE;
+    ctx.shadowBlur = 6;
+    ctx.fillText('RENSA', 55, barY + 19);
+    ctx.restore();
+
+    // Score
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '15px "Segoe UI", sans-serif';
+    ctx.fillStyle = PURPLE;
+    ctx.shadowColor = PURPLE;
+    ctx.shadowBlur = 6;
+    ctx.fillText('Poäng: ' + score, W / 2, barY + 19);
+    ctx.restore();
+
+    // Done button
+    const doneX = W - 120;
+    drawNeonRect(doneX, barY, 105, 38, GREEN, 8, true);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 15px "Segoe UI", sans-serif';
+    ctx.fillStyle = GREEN;
+    ctx.shadowColor = GREEN;
+    ctx.shadowBlur = 6;
+    ctx.fillText('KLAR!', doneX + 52, barY + 19);
+    ctx.restore();
+  }
+
+  function renderRating() {
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+
+    // Show the drawing smaller at top
+    const drawAreaW = Math.min(W - 40, 400);
+    const drawAreaH = Math.min(H * 0.4, 300);
+    const drawX = W / 2 - drawAreaW / 2;
+    const drawY = 30;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(drawX, drawY, drawAreaW, drawAreaH, 12);
+    ctx.clip();
+    ctx.drawImage(drawCanvas, 0, 0, drawCanvas.width, drawCanvas.height, drawX, drawY, drawAreaW, drawAreaH);
+    ctx.restore();
+
+    // Border
+    drawNeonRect(drawX, drawY, drawAreaW, drawAreaH, CYAN, 12, false);
+
+    // Word reveal
+    const wordY = drawY + drawAreaH + 40;
+    drawGlowText('Ordet var:', W / 2, wordY, PURPLE, 18);
+    drawGlowText(currentWord.toUpperCase(), W / 2, wordY + 40, PINK, 36);
+
+    // Question
+    drawGlowText('Blev det bra?', W / 2, H / 2 + 50, CYAN, 22);
+
+    // Thumbs up / down buttons
+    const btnW = 80;
+    const btnH = 80;
+    const gap = 40;
+    const totalW = btnW * 2 + gap;
+    const startX = W / 2 - totalW / 2;
+    const btnY = H / 2 + 80;
+
+    // Thumbs up
+    drawNeonRect(startX, btnY, btnW, btnH, GREEN, 12, true);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '40px "Segoe UI", sans-serif';
+    ctx.fillText('\u{1F44D}', startX + btnW / 2, btnY + btnH / 2);
+    ctx.restore();
+
+    // Thumbs down
+    drawNeonRect(startX + btnW + gap, btnY, btnW, btnH, ORANGE, 12, true);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '40px "Segoe UI", sans-serif';
+    ctx.fillText('\u{1F44E}', startX + btnW + gap + btnW / 2, btnY + btnH / 2);
+    ctx.restore();
+
+    // Round info
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '15px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#666688';
+    ctx.fillText('Runda ' + currentRound + ' av ' + ROUNDS_PER_GAME, W / 2, btnY + btnH + 30);
+    ctx.restore();
+  }
+
+  function renderGameover() {
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+
+    // Title
+    drawGlowText('SPELET SLUT!', W / 2, H / 2 - 100, CYAN, 40);
+
+    // Score
+    drawGlowText('Ditt resultat:', W / 2, H / 2 - 40, PURPLE, 20);
+    drawGlowText(score + ' / ' + ROUNDS_PER_GAME, W / 2, H / 2 + 10, PINK, 48);
+
+    // Rating text
+    let ratingText = '';
+    if (score === ROUNDS_PER_GAME) ratingText = 'Mästerkonstnär!';
+    else if (score >= 4) ratingText = 'Fantastiskt!';
+    else if (score >= 3) ratingText = 'Bra jobbat!';
+    else if (score >= 1) ratingText = 'Fortsätt öva!';
+    else ratingText = 'Nästa gång blir bättre!';
+
+    drawGlowText(ratingText, W / 2, H / 2 + 50, GREEN, 22);
+
+    // Play again button
+    const btnW = 220;
+    const btnH = 55;
+    const btnX = W / 2 - btnW / 2;
+    const btnY = H / 2 + 80;
+    drawNeonRect(btnX, btnY, btnW, btnH, GREEN, 12, true);
+    drawGlowText('SPELA IGEN', W / 2, btnY + btnH / 2, GREEN, 24);
+  }
+
+  // Main render loop
+  function render() {
+    switch (state) {
+      case 'menu': renderMenu(); break;
+      case 'playing': renderPlaying(); break;
+      case 'rating': renderRating(); break;
+      case 'gameover': renderGameover(); break;
+    }
+    requestAnimationFrame(render);
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

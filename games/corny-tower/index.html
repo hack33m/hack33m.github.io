@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Corny Tower</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a9fcc; overflow: hidden; touch-action: none; -webkit-tap-highlight-color: transparent; }
+canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="../../js/sounds.js"></script>
+<script>
+// roundRect polyfill for Safari
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    if (typeof r === 'number') r = [r, r, r, r];
+    if (!Array.isArray(r)) r = [0, 0, 0, 0];
+    const [tl, tr, br, bl] = r;
+    this.beginPath();
+    this.moveTo(x + tl, y);
+    this.lineTo(x + w - tr, y);
+    this.quadraticCurveTo(x + w, y, x + w, y + tr);
+    this.lineTo(x + w, y + h - br);
+    this.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+    this.lineTo(x + bl, y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - bl);
+    this.lineTo(x, y + tl);
+    this.quadraticCurveTo(x, y, x + tl, y);
+    this.closePath();
+    return this;
+  };
+}
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// Hi-DPI
+let dpr = window.devicePixelRatio || 1;
+let W, H;
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Load Corny image
+const cornyImg = new Image();
+cornyImg.src = '../../images/corny.jpg';
+let cornyLoaded = false;
+cornyImg.onload = () => { cornyLoaded = true; };
+
+// Colors
+const COL = {
+  caramel: '#d4860a',
+  chocolate: '#5c3317',
+  cream: '#fff8e7',
+  caramelLight: '#f5b342',
+  bgTop: '#1a9fcc',
+  bgBot: '#1e3a5f'
+};
+
+// Game constants
+const BLOCK_H = 30;
+const BASE_SPEED = 2;
+const PERFECT_THRESHOLD = 5;
+const GRAVITY = 0.4;
+
+// State
+let state = 'menu'; // menu, playing, gameover
+let blocks = [];
+let currentBlock = null;
+let fallingPieces = [];
+let score = 0;
+let perfectStreak = 0;
+let bonusScore = 0;
+let cameraY = 0;
+let targetCameraY = 0;
+let highscore = parseInt(localStorage.getItem('corny-tower-hi')) || 0;
+let perfectText = null; // {text, x, y, alpha, timer}
+let shakeTimer = 0;
+let shakeAmount = 0;
+
+// Create block texture pattern from corny image
+let blockPattern = null;
+function createBlockPattern() {
+  if (!cornyLoaded) return null;
+  if (blockPattern) return blockPattern;
+  try {
+    blockPattern = ctx.createPattern(cornyImg, 'repeat');
+    return blockPattern;
+  } catch(e) { return null; }
+}
+
+function startGame() {
+  NeonSounds.init();
+  state = 'playing';
+  blocks = [];
+  fallingPieces = [];
+  score = 0;
+  perfectStreak = 0;
+  bonusScore = 0;
+  cameraY = 0;
+  targetCameraY = 0;
+  perfectText = null;
+  shakeTimer = 0;
+
+  // Base block
+  const baseW = Math.min(W * 0.4, 160);
+  blocks.push({
+    x: W / 2 - baseW / 2,
+    y: H - BLOCK_H - 20,
+    w: baseW,
+    h: BLOCK_H
+  });
+
+  spawnBlock();
+}
+
+function spawnBlock() {
+  const last = blocks[blocks.length - 1];
+  const speed = BASE_SPEED + blocks.length * 0.15;
+  currentBlock = {
+    x: 0,
+    y: last.y - BLOCK_H - 60,
+    w: last.w,
+    h: BLOCK_H,
+    speed: speed,
+    dir: 1
+  };
+}
+
+function dropBlock() {
+  if (!currentBlock) return;
+
+  const cb = currentBlock;
+  const last = blocks[blocks.length - 1];
+
+  // Calculate overlap
+  const overlapLeft = Math.max(cb.x, last.x);
+  const overlapRight = Math.min(cb.x + cb.w, last.x + last.w);
+  const overlapW = overlapRight - overlapLeft;
+
+  if (overlapW <= 0) {
+    // Miss - game over
+    fallingPieces.push({
+      x: cb.x, y: cb.y, w: cb.w, h: cb.h,
+      vx: cb.dir * 2, vy: 0, rot: 0, vr: cb.dir * 0.05
+    });
+    currentBlock = null;
+    gameOver();
+    return;
+  }
+
+  // Check if perfect
+  const diff = Math.abs(cb.x - last.x);
+  if (diff < PERFECT_THRESHOLD) {
+    // Perfect placement
+    blocks.push({
+      x: last.x,
+      y: last.y - BLOCK_H,
+      w: last.w,
+      h: BLOCK_H
+    });
+    score++;
+    perfectStreak++;
+    bonusScore += perfectStreak;
+    NeonSounds.coin();
+    perfectText = {
+      text: 'PERFEKT!',
+      x: last.x + last.w / 2,
+      y: last.y - BLOCK_H - 20,
+      alpha: 1,
+      timer: 60,
+      scale: 1.5
+    };
+  } else {
+    // Partial overlap - trim block
+    const trimmedBlock = {
+      x: overlapLeft,
+      y: last.y - BLOCK_H,
+      w: overlapW,
+      h: BLOCK_H
+    };
+    blocks.push(trimmedBlock);
+    score++;
+    perfectStreak = 0;
+
+    // Create falling piece for the cut part
+    NeonSounds.breakSound();
+    if (cb.x < last.x) {
+      // Left side cut
+      fallingPieces.push({
+        x: cb.x, y: cb.y, w: last.x - cb.x, h: cb.h,
+        vx: -1.5, vy: 0, rot: 0, vr: -0.03
+      });
+    }
+    if (cb.x + cb.w > last.x + last.w) {
+      // Right side cut
+      const cutX = last.x + last.w;
+      fallingPieces.push({
+        x: cutX, y: cb.y, w: (cb.x + cb.w) - cutX, h: cb.h,
+        vx: 1.5, vy: 0, rot: 0, vr: 0.03
+      });
+    }
+
+    NeonSounds.bounce();
+  }
+
+  // Shake
+  shakeTimer = 8;
+  shakeAmount = 3;
+
+  // Update camera
+  const newTop = blocks[blocks.length - 1].y;
+  if (newTop < H * 0.4) {
+    targetCameraY = H * 0.4 - newTop;
+  }
+
+  currentBlock = null;
+  setTimeout(() => {
+    if (state === 'playing') spawnBlock();
+  }, 200);
+}
+
+function gameOver() {
+  state = 'gameover';
+  NeonSounds.death();
+  const total = score + bonusScore;
+  if (total > highscore) {
+    highscore = total;
+    localStorage.setItem('corny-tower-hi', highscore);
+  }
+  // Send score to parent
+  try {
+    window.parent.postMessage({ type: 'gameScore', game: 'corny-tower', score: total }, '*');
+  } catch(e) {}
+}
+
+// Drawing functions
+function drawBg() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, COL.bgTop);
+  grad.addColorStop(1, COL.bgBot);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawBlock(b, camY) {
+  const x = b.x;
+  const y = b.y + camY;
+  const w = b.w;
+  const h = b.h;
+
+  if (y > H + 50 || y < -50) return;
+
+  ctx.save();
+
+  // Main block body with corny image texture
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 4);
+
+  // Use corny image as texture if loaded
+  const pat = createBlockPattern();
+  if (pat) {
+    ctx.save();
+    ctx.clip();
+    // Draw the image scaled to fit the block
+    ctx.drawImage(cornyImg, x, y, w, h);
+    // Overlay with semi-transparent caramel for consistent look
+    ctx.fillStyle = 'rgba(212, 134, 10, 0.35)';
+    ctx.fillRect(x, y, w, h);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = COL.caramel;
+    ctx.fill();
+  }
+
+  // Chocolate border
+  ctx.strokeStyle = COL.chocolate;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Wrapper texture - horizontal lines
+  ctx.strokeStyle = 'rgba(92, 51, 23, 0.2)';
+  ctx.lineWidth = 1;
+  for (let ly = y + 6; ly < y + h - 2; ly += 8) {
+    ctx.beginPath();
+    ctx.moveTo(x + 3, ly);
+    ctx.lineTo(x + w - 3, ly);
+    ctx.stroke();
+  }
+
+  // Top highlight
+  ctx.beginPath();
+  ctx.moveTo(x + 4, y + 3);
+  ctx.lineTo(x + w - 4, y + 3);
+  ctx.strokeStyle = 'rgba(245, 179, 66, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Bottom shadow
+  ctx.beginPath();
+  ctx.moveTo(x + 4, y + h - 2);
+  ctx.lineTo(x + w - 4, y + h - 2);
+  ctx.strokeStyle = 'rgba(92, 51, 23, 0.3)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawFallingPiece(p, camY) {
+  ctx.save();
+  const cx = p.x + p.w / 2;
+  const cy = p.y + camY + p.h / 2;
+  ctx.translate(cx, cy);
+  ctx.rotate(p.rot);
+
+  ctx.beginPath();
+  ctx.roundRect(-p.w / 2, -p.h / 2, p.w, p.h, 3);
+  ctx.fillStyle = COL.caramel;
+  ctx.globalAlpha = 0.7;
+  ctx.fill();
+  ctx.strokeStyle = COL.chocolate;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+}
+
+function drawMenu() {
+  drawBg();
+
+  // Corny image
+  if (cornyLoaded) {
+    const imgW = Math.min(W * 0.5, 180);
+    const imgH = imgW * (cornyImg.height / cornyImg.width);
+    const imgX = W / 2 - imgW / 2;
+    const imgY = H * 0.12;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 20;
+    ctx.drawImage(cornyImg, imgX, imgY, imgW, imgH);
+    ctx.restore();
+  }
+
+  // Title
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.font = 'bold ' + Math.min(W * 0.12, 56) + 'px Arial, sans-serif';
+  ctx.fillStyle = COL.chocolate;
+  ctx.fillText('CORNY TOWER', W / 2 + 2, H * 0.52 + 2);
+  ctx.fillStyle = COL.caramelLight;
+  ctx.fillText('CORNY TOWER', W / 2, H * 0.52);
+
+  // Subtitle
+  ctx.font = Math.min(W * 0.05, 20) + 'px Arial, sans-serif';
+  ctx.fillStyle = COL.cream;
+  ctx.fillText('Stapla s\u00e5 h\u00f6gt du kan!', W / 2, H * 0.58);
+
+  // Highscore
+  if (highscore > 0) {
+    ctx.font = 'bold ' + Math.min(W * 0.045, 18) + 'px Arial, sans-serif';
+    ctx.fillStyle = COL.caramelLight;
+    ctx.fillText('B\u00e4sta: ' + highscore + ' po\u00e4ng', W / 2, H * 0.635);
+  }
+
+  // Play button
+  const btnW = Math.min(W * 0.55, 220);
+  const btnH = 56;
+  const btnX = W / 2 - btnW / 2;
+  const btnY = H * 0.7;
+
+  ctx.beginPath();
+  ctx.roundRect(btnX, btnY, btnW, btnH, 14);
+  ctx.fillStyle = COL.caramel;
+  ctx.fill();
+  ctx.strokeStyle = COL.chocolate;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Button highlight
+  ctx.beginPath();
+  ctx.roundRect(btnX + 3, btnY + 3, btnW - 6, btnH / 2 - 3, [11, 11, 0, 0]);
+  ctx.fillStyle = 'rgba(245, 179, 66, 0.35)';
+  ctx.fill();
+
+  ctx.font = 'bold ' + Math.min(W * 0.065, 26) + 'px Arial, sans-serif';
+  ctx.fillStyle = COL.cream;
+  ctx.fillText('SPELA', W / 2, btnY + btnH / 2);
+
+  // Instructions
+  ctx.font = Math.min(W * 0.04, 16) + 'px Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,248,231,0.6)';
+  ctx.fillText('Tryck eller mellanslag f\u00f6r att sl\u00e4ppa', W / 2, H * 0.85);
+
+  ctx.restore();
+}
+
+function drawPlaying() {
+  drawBg();
+
+  ctx.save();
+
+  // Camera shake
+  let sx = 0, sy = 0;
+  if (shakeTimer > 0) {
+    sx = (Math.random() - 0.5) * shakeAmount * 2;
+    sy = (Math.random() - 0.5) * shakeAmount * 2;
+    ctx.translate(sx, sy);
+  }
+
+  const camY = cameraY;
+
+  // Draw blocks
+  for (const b of blocks) {
+    drawBlock(b, camY);
+  }
+
+  // Draw current block
+  if (currentBlock) {
+    drawBlock(currentBlock, camY);
+
+    // Drop guide line (subtle)
+    ctx.strokeStyle = 'rgba(245, 179, 66, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(currentBlock.x, currentBlock.y + currentBlock.h + camY);
+    ctx.lineTo(currentBlock.x, H);
+    ctx.moveTo(currentBlock.x + currentBlock.w, currentBlock.y + currentBlock.h + camY);
+    ctx.lineTo(currentBlock.x + currentBlock.w, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw falling pieces
+  for (const p of fallingPieces) {
+    drawFallingPiece(p, camY);
+  }
+
+  ctx.restore();
+
+  // Perfect text
+  if (perfectText && perfectText.alpha > 0) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = perfectText.alpha;
+    const s = perfectText.scale;
+    ctx.font = 'bold ' + Math.round(28 * s) + 'px Arial, sans-serif';
+    ctx.fillStyle = COL.chocolate;
+    ctx.fillText(perfectText.text, perfectText.x + 2, perfectText.y + cameraY + 2);
+    ctx.fillStyle = COL.caramelLight;
+    ctx.fillText(perfectText.text, perfectText.x, perfectText.y + cameraY);
+    if (perfectStreak > 1) {
+      ctx.font = 'bold 18px Arial, sans-serif';
+      ctx.fillStyle = COL.cream;
+      ctx.fillText('x' + perfectStreak + ' KOMBO!', perfectText.x, perfectText.y + cameraY + 30);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // HUD - Score
+  ctx.save();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.font = 'bold 24px Arial, sans-serif';
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillText('Po\u00e4ng: ' + (score + bonusScore), 17, 17);
+  ctx.fillStyle = COL.cream;
+  ctx.fillText('Po\u00e4ng: ' + (score + bonusScore), 15, 15);
+
+  ctx.font = '16px Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,248,231,0.7)';
+  ctx.fillText('Block: ' + score, 15, 44);
+
+  // Highscore
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 16px Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,248,231,0.6)';
+  ctx.fillText('B\u00e4sta: ' + highscore, W - 15, 17);
+  ctx.restore();
+}
+
+function drawGameOver() {
+  drawPlaying(); // Draw the tower behind
+
+  // Overlay
+  ctx.fillStyle = 'rgba(30, 58, 95, 0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Game Over
+  ctx.font = 'bold ' + Math.min(W * 0.11, 48) + 'px Arial, sans-serif';
+  ctx.fillStyle = COL.chocolate;
+  ctx.fillText('SPELET SLUT', W / 2 + 2, H * 0.28 + 2);
+  ctx.fillStyle = COL.caramelLight;
+  ctx.fillText('SPELET SLUT', W / 2, H * 0.28);
+
+  // Score
+  const total = score + bonusScore;
+  ctx.font = 'bold ' + Math.min(W * 0.08, 36) + 'px Arial, sans-serif';
+  ctx.fillStyle = COL.cream;
+  ctx.fillText(total + ' po\u00e4ng', W / 2, H * 0.38);
+
+  ctx.font = Math.min(W * 0.045, 18) + 'px Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,248,231,0.7)';
+  ctx.fillText(score + ' block + ' + bonusScore + ' bonus', W / 2, H * 0.44);
+
+  // New highscore
+  if (total >= highscore && total > 0) {
+    ctx.font = 'bold ' + Math.min(W * 0.055, 22) + 'px Arial, sans-serif';
+    ctx.fillStyle = COL.caramelLight;
+    ctx.fillText('NYTT REKORD!', W / 2, H * 0.51);
+  }
+
+  // Restart button
+  const btnW = Math.min(W * 0.55, 220);
+  const btnH = 56;
+  const btnX = W / 2 - btnW / 2;
+  const btnY = H * 0.6;
+
+  ctx.beginPath();
+  ctx.roundRect(btnX, btnY, btnW, btnH, 14);
+  ctx.fillStyle = COL.caramel;
+  ctx.fill();
+  ctx.strokeStyle = COL.chocolate;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.roundRect(btnX + 3, btnY + 3, btnW - 6, btnH / 2 - 3, [11, 11, 0, 0]);
+  ctx.fillStyle = 'rgba(245, 179, 66, 0.35)';
+  ctx.fill();
+
+  ctx.font = 'bold ' + Math.min(W * 0.065, 26) + 'px Arial, sans-serif';
+  ctx.fillStyle = COL.cream;
+  ctx.fillText('SPELA IGEN', W / 2, btnY + btnH / 2);
+
+  ctx.restore();
+}
+
+// Update
+function update() {
+  if (state === 'playing') {
+    // Move current block
+    if (currentBlock) {
+      currentBlock.x += currentBlock.speed * currentBlock.dir;
+      if (currentBlock.x + currentBlock.w > W) {
+        currentBlock.dir = -1;
+        currentBlock.x = W - currentBlock.w;
+      }
+      if (currentBlock.x < 0) {
+        currentBlock.dir = 1;
+        currentBlock.x = 0;
+      }
+    }
+
+    // Smooth camera
+    cameraY += (targetCameraY - cameraY) * 0.08;
+
+    // Update falling pieces
+    for (let i = fallingPieces.length - 1; i >= 0; i--) {
+      const p = fallingPieces[i];
+      p.vy += GRAVITY;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      if (p.y > H + 200 - cameraY) {
+        fallingPieces.splice(i, 1);
+      }
+    }
+
+    // Update perfect text
+    if (perfectText) {
+      perfectText.timer--;
+      perfectText.y -= 0.5;
+      if (perfectText.timer < 20) {
+        perfectText.alpha -= 0.05;
+      }
+      perfectText.scale = Math.max(1, perfectText.scale - 0.02);
+      if (perfectText.alpha <= 0) perfectText = null;
+    }
+
+    // Update shake
+    if (shakeTimer > 0) {
+      shakeTimer--;
+      shakeAmount *= 0.85;
+    }
+  }
+}
+
+// Draw
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  if (state === 'menu') drawMenu();
+  else if (state === 'playing') drawPlaying();
+  else if (state === 'gameover') drawGameOver();
+}
+
+// Main loop
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+
+// Input
+function handleAction() {
+  if (state === 'menu') {
+    startGame();
+  } else if (state === 'playing') {
+    dropBlock();
+  } else if (state === 'gameover') {
+    startGame();
+  }
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  handleAction();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' || e.key === ' ') {
+    e.preventDefault();
+    handleAction();
+  }
+});
+</script>
+</body>
+</html>

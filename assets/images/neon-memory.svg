@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#0a0a1a"/>
+  <rect x="80" y="80" width="55" height="70" rx="8" fill="#1a1a3a" stroke="#a855f7" stroke-width="2"/>
+  <rect x="145" y="80" width="55" height="70" rx="8" fill="#1a1a3a" stroke="#00d4ff" stroke-width="2"/>
+  <text x="172" y="122" text-anchor="middle" font-size="28">⚡</text>
+  <rect x="210" y="80" width="55" height="70" rx="8" fill="#1a1a3a" stroke="#ff2d95" stroke-width="2"/>
+  <text x="237" y="122" text-anchor="middle" font-size="28">🎮</text>
+  <rect x="275" y="80" width="55" height="70" rx="8" fill="#1a1a3a" stroke="#a855f7" stroke-width="2"/>
+  <rect x="80" y="160" width="55" height="70" rx="8" fill="#1a1a3a" stroke="#39ff14" stroke-width="2"/>
+  <text x="107" y="202" text-anchor="middle" font-size="28">🎯</text>
+  <rect x="145" y="160" width="55" height="70" rx="8" fill="#1a1a3a" stroke="#ff6a00" stroke-width="2"/>
+  <rect x="210" y="160" width="55" height="70" rx="8" fill="#1a1a3a" stroke="#39ff14" stroke-width="2"/>
+  <text x="237" y="202" text-anchor="middle" font-size="28">🎯</text>
+  <rect x="275" y="160" width="55" height="70" rx="8" fill="#1a1a3a" stroke="#ff2d95" stroke-width="2"/>
+  <text x="302" y="202" text-anchor="middle" font-size="28">🎮</text>
+  <text x="200" y="45" text-anchor="middle" font-family="Segoe UI" font-size="28" font-weight="bold" fill="#a855f7">NEON MEMORY</text>
+</svg>

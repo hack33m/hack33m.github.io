@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#0a0a1a"/>
+  <path d="M0,250 Q50,220 100,235 Q150,250 200,230 Q250,210 300,225 Q350,240 400,220 L400,300 L0,300 Z" fill="#111" stroke="#39ff14" stroke-width="2"/>
+  <rect x="60" y="222" width="30" height="18" rx="3" fill="#00d4ff"/>
+  <line x1="75" y1="225" x2="100" y2="210" stroke="#00d4ff" stroke-width="3" stroke-linecap="round"/>
+  <rect x="290" y="210" width="30" height="18" rx="3" fill="#ff2d95"/>
+  <line x1="305" y1="213" x2="280" y2="198" stroke="#ff2d95" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="180" cy="180" r="8" fill="#ff6a00" opacity="0.8"/>
+  <circle cx="180" cy="180" r="15" fill="none" stroke="#ff6a00" stroke-width="2" opacity="0.4"/>
+  <path d="M160,195 Q170,175 180,180" fill="none" stroke="#ff6a00" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+  <text x="200" y="40" text-anchor="middle" font-family="Segoe UI" font-size="30" font-weight="bold" fill="#ff6a00">NEON TANKS</text>
+</svg>
