@@ -530,6 +530,10 @@ function setupAuth() {
   const modal = document.getElementById('auth-modal');
   if (!modal) return;
 
+  // Attach click listener to the initial login button in HTML
+  const initialLoginBtn = document.getElementById('show-login');
+  if (initialLoginBtn) initialLoginBtn.addEventListener('click', () => openAuthModal('login'));
+
   document.getElementById('auth-close').addEventListener('click', () => modal.classList.remove('visible'));
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('visible'); });
 
@@ -1312,44 +1316,3 @@ function renderShop(user) {
     });
   });
 }
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-wait updateUser({ carSkin: id });
-      if (action === 'unequip-car-skin') await updateUser({ carSkin: null });
-
-      renderShop(getCurrentUser());
-      renderHeaderAuth();
-    });
-  });
-}
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
-// end of file
- end of file
-// end of file
-// end of file
-// end of file
-end of file
-// end of file
-// end of file
- end of file
-end of file
-// end of file
-// end of file
