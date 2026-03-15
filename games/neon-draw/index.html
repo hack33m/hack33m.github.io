@@ -55,9 +55,18 @@
     };
   }
 
-  let dpr=1,W,H;
-  function resize(){dpr=window.devicePixelRatio||1;W=window.innerWidth;H=window.innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);if(drawCanvas){drawCanvas.width=W*dpr;drawCanvas.height=H*dpr;drawCtx.setTransform(dpr,0,0,dpr,0,0);}}
-  resize();window.addEventListener('resize',resize);
+  let dpr=1,W=300,H=500;
+  function resize(){
+    dpr=window.devicePixelRatio||1;
+    W=window.innerWidth||300;H=window.innerHeight||500;
+    canvas.width=W*dpr;canvas.height=H*dpr;
+    canvas.style.width=W+'px';canvas.style.height=H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    if(drawCanvas){drawCanvas.width=W*dpr;drawCanvas.height=H*dpr;drawCtx.setTransform(dpr,0,0,dpr,0,0);}
+  }
+  resize();
+  window.addEventListener('resize',resize);
+  window.addEventListener('load',resize);
 
   const CYAN='#00d4ff',PINK='#ff2d95',PURPLE='#a855f7',GREEN='#39ff14',ORANGE='#ff6a00',YELLOW='#ffe600',BG='#0a0a1a';
   const NEON_COLORS=[CYAN,PINK,PURPLE,GREEN,ORANGE,YELLOW];
