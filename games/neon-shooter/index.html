@@ -19,6 +19,7 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
+<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   // === Canvas & Hi-DPI ===
@@ -256,6 +257,7 @@
   // === Game Start ===
   function startGame() {
     state = 'playing';
+    NeonSounds.init();
     score = 0;
     wave = 0;
     lives = 3;
@@ -279,6 +281,7 @@
   // === Wave Spawning ===
   function startWave() {
     wave++;
+    NeonSounds.fanfare();
     waveActive = true;
     const count = 4 + wave * 2 + Math.floor(wave * 0.5);
     enemiesRemaining = count;
@@ -447,6 +450,7 @@
     if (mouseDown || keys[' ']) {
       if (player.shootTimer <= 0) {
         playerShoot();
+        NeonSounds.shoot();
         player.shootTimer = rate;
       }
     }
@@ -462,6 +466,7 @@
         player.angle = angle(player, nearest);
         if (player.shootTimer <= 0) {
           playerShoot();
+          NeonSounds.shoot();
           player.shootTimer = rate;
         }
       }
@@ -518,6 +523,7 @@
           spawnParticles(b.x, b.y, e.color, 4, 100);
           if (e.hp <= 0) {
             score += e.score;
+            NeonSounds.kill();
             spawnParticles(e.x, e.y, e.color, 16, 180);
             shake(4, 0.12);
             maybeDropPowerup(e.x, e.y);
@@ -574,6 +580,7 @@
       p.bobPhase += dt * 3;
       if (p.life <= 0) { powerups.splice(i, 1); continue; }
       if (dist(player, p) < player.r + p.r + 5) {
+        NeonSounds.powerup();
         if (p.type === 'rapid') player.rapidTimer = 6;
         else if (p.type === 'shield') player.shieldTimer = 5;
         else if (p.type === 'spread') player.spreadTimer = 7;
@@ -603,12 +610,14 @@
   // === Damage ===
   function takeDamage() {
     lives--;
+    NeonSounds.hit();
     player.invincible = 1.5;
     if (lives <= 0) gameOver();
   }
 
   function gameOver() {
     state = 'gameover';
+    NeonSounds.death();
     if (score > hiScore) {
       hiScore = score;
       localStorage.setItem('neon-shooter-hi', hiScore);

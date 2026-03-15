@@ -19,6 +19,7 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
+<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -240,6 +241,7 @@
   function handleClick(px, py) {
     // Check orb
     if (isInOrb(px, py)) {
+      NeonSounds.coin();
       const power = getClickPower();
       coins += power;
       totalCoinsEarned += power;
@@ -260,10 +262,13 @@
         const u = upgrades[i];
         const cost = getCost(u);
         if (coins >= cost) {
+          NeonSounds.upgrade();
           coins -= cost;
           u.level++;
           spawnFloatingText(r.x + r.w/2, r.y, u.name + ' Lvl ' + u.level, u.color);
           reportScore();
+        } else {
+          NeonSounds.click();
         }
         return;
       }
@@ -748,6 +753,7 @@
   }
 
   // ---- Main Loop ----
+  NeonSounds.init();
   load();
 
   function loop() {

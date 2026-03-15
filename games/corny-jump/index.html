@@ -19,6 +19,7 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
+<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -187,6 +188,7 @@
     });
 
     generatePlatforms(player.y, player.y - H() * 2);
+    NeonSounds.init();
   }
 
   function spawnParticles(x, y, color, count) {
@@ -245,6 +247,7 @@
           if (p.type === PLAT_BREAKING) {
             p.broken = true;
             p.breakTimer = 1;
+            NeonSounds.breakSound();
             spawnParticles(p.x + p.w / 2, p.y, CARAMEL_LIGHT, 8);
             continue;
           }
@@ -252,9 +255,11 @@
           player.y = p.y - player.h;
           if (p.type === PLAT_BOOST) {
             player.vy = -15;
+            NeonSounds.boost();
             spawnParticles(player.x + player.w / 2, player.y + player.h, '#ff6a00', 12);
           } else {
             player.vy = -9.5;
+            NeonSounds.bounce();
           }
           spawnParticles(player.x + player.w / 2, player.y + player.h, CARAMEL_LIGHT, 5);
         }
@@ -311,6 +316,7 @@
     // Game over - fell below screen
     if (player.y > cameraY + H() + 50) {
       state = 'gameover';
+      NeonSounds.death();
       if (score > highScore) {
         highScore = score;
         localStorage.setItem('corny-jump-hi', highScore);

@@ -19,6 +19,7 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
+<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -133,6 +134,7 @@
 
   function jump() {
     if (!dino.jumping) {
+      NeonSounds.jump();
       dino.vy = JUMP_FORCE;
       dino.jumping = true;
       dino.ducking = false;
@@ -141,6 +143,7 @@
   }
 
   function startGame() {
+    NeonSounds.init();
     state = 'playing';
     score = 0;
     gameSpeed = 6;
@@ -197,7 +200,10 @@
     groundY = H() * 0.75;
 
     // Score
-    if (frameCount % 5 === 0) score++;
+    if (frameCount % 5 === 0) {
+      score++;
+      if (score % 100 === 0 && score > 0) NeonSounds.collect();
+    }
 
     // Input
     if (keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) jump();
@@ -261,6 +267,7 @@
 
       if (dx + dw > ox && dx < ox + ow && dy + dh > oy && dy < oy + oh) {
         // Hit!
+        NeonSounds.crash();
         state = 'gameover';
         if (score > highScore) {
           highScore = score;
