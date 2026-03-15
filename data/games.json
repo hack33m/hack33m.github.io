@@ -52,5 +52,14 @@
     "thumbnail": "assets/images/neon-league.svg",
     "path": "games/neon-league/index.html",
     "featured": true
+  },
+  {
+    "id": "corny-jump",
+    "title": "Corny Jump",
+    "description": "Hoppa p\u00e5 Corny-bars och n\u00e5 s\u00e5 h\u00f6gt du kan! Akta dig f\u00f6r trasiga bars och samla boost!",
+    "category": "Action",
+    "thumbnail": "assets/images/corny-jump.svg",
+    "path": "games/corny-jump/index.html",
+    "featured": true
   }
 ]

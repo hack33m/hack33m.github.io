@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corny Jump</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a9fcc;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+  </style>
+</head>
+<body>
+<canvas id="game" tabindex="0"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  canvas.focus();
+  window.addEventListener('load', () => canvas.focus());
+
+  // roundRect polyfill
+  if (!ctx.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      if (typeof r === 'number') r = [r,r,r,r];
+      const [tl,tr,br,bl] = r;
+      this.moveTo(x+tl, y);
+      this.lineTo(x+w-tr, y);
+      this.quadraticCurveTo(x+w, y, x+w, y+tr);
+      this.lineTo(x+w, y+h-br);
+      this.quadraticCurveTo(x+w, y+h, x+w-br, y+h);
+      this.lineTo(x+bl, y+h);
+      this.quadraticCurveTo(x, y+h, x, y+h-bl);
+      this.lineTo(x, y+tl);
+      this.quadraticCurveTo(x, y, x+tl, y);
+      this.closePath();
+    };
+  }
+
+  // Hi-DPI
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
+  // Colors - Corny theme
+  const BG_TOP = '#0ea5c9';
+  const BG_BOT = '#1e3a5f';
+  const CARAMEL = '#d4860a';
+  const CARAMEL_LIGHT = '#f5b342';
+  const CHOCOLATE = '#5c3317';
+  const CREAM = '#fff8e7';
+  const CORNY_BLUE = '#1a9fcc';
+
+  // Load Corny image for platforms
+  const cornyImg = new Image();
+  cornyImg.src = '../../images/corny.jpg';
+  let cornyLoaded = false;
+  cornyImg.onload = () => { cornyLoaded = true; };
+
+  // Game state
+  let state = 'menu'; // menu, playing, gameover
+  let score = 0;
+  let highScore = parseInt(localStorage.getItem('corny-jump-hi') || '0');
+  let cameraY = 0;
+  let maxHeight = 0;
+
+  // Player
+  const player = {
+    x: 0, y: 0, vx: 0, vy: 0,
+    w: 40, h: 40,
+    onPlatform: false,
+  };
+
+  // Platforms
+  let platforms = [];
+  const PLAT_W = 100;
+  const PLAT_H = 32;
+  const PLAT_GAP = 23;
+
+  // Platform types
+  const PLAT_NORMAL = 0;
+  const PLAT_MOVING = 1;
+  const PLAT_BREAKING = 2;
+  const PLAT_BOOST = 3;
+
+  // Particles
+  let particles = [];
+
+  // Input
+  let keys = {};
+  let touchX = null;
+  let tiltX = 0;
+  let useGyro = false;
+
+  window.addEventListener('keydown', e => { keys[e.key] = true; if (state === 'menu') startGame(); if (state === 'gameover' && e.key === ' ') startGame(); });
+  window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (state === 'menu') startGame();
+    else if (state === 'gameover') startGame();
+    else touchX = e.touches[0].clientX;
+  });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (state === 'playing') touchX = e.touches[0].clientX;
+  });
+  canvas.addEventListener('touchend', e => { touchX = null; });
+
+  // Gyroscope for mobile tilt
+  if (window.DeviceOrientationEvent) {
+    window.addEventListener('deviceorientation', e => {
+      if (e.gamma !== null) {
+        useGyro = true;
+        tiltX = e.gamma / 30; // -1 to 1 range
+        tiltX = Math.max(-1, Math.min(1, tiltX));
+      }
+    });
+  }
+
+  canvas.addEventListener('click', e => {
+    if (state === 'menu') startGame();
+    else if (state === 'gameover') startGame();
+  });
+
+  function generatePlatforms(fromY, toY) {
+    let y = fromY;
+    while (y > toY) {
+      const gap = PLAT_GAP + Math.random() * 10;
+      y -= gap;
+
+      // Increase difficulty with height
+      const difficulty = Math.min(1, maxHeight / 15000);
+      let type = PLAT_NORMAL;
+      const roll = Math.random();
+      if (roll < 0.05 + difficulty * 0.05) type = PLAT_BOOST;
+      else if (roll < 0.35 + difficulty * 0.1) type = PLAT_MOVING;
+      else if (roll < 0.4 + difficulty * 0.2) type = PLAT_BREAKING;
+
+      const p = {
+        x: Math.random() * (W() - PLAT_W),
+        y: y,
+        w: PLAT_W,
+        h: PLAT_H,
+        type: type,
+        moveDir: Math.random() > 0.5 ? 1 : -1,
+        moveSpeed: 1 + Math.random() * 1.5,
+        broken: false,
+        breakTimer: 0,
+      };
+      platforms.push(p);
+    }
+  }
+
+  function startGame() {
+    state = 'playing';
+    score = 0;
+    cameraY = 0;
+    maxHeight = 0;
+    platforms = [];
+    particles = [];
+    player.x = W() / 2 - player.w / 2;
+    player.y = H() - 150;
+    player.vx = 0;
+    player.vy = 0;
+
+    // Starting platform right under player
+    platforms.push({
+      x: player.x - 20, y: player.y + player.h + 2,
+      w: PLAT_W, h: PLAT_H, type: PLAT_NORMAL,
+      moveDir: 1, moveSpeed: 0, broken: false, breakTimer: 0,
+    });
+
+    generatePlatforms(player.y, player.y - H() * 2);
+  }
+
+  function spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 4 - 2,
+        life: 1,
+        decay: 0.02 + Math.random() * 0.03,
+        size: 2 + Math.random() * 4,
+        color,
+      });
+    }
+  }
+
+  function update() {
+    if (state !== 'playing') return;
+
+    const dt = 1;
+
+    // Input
+    let moveX = 0;
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) moveX = -1;
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) moveX = 1;
+
+    if (touchX !== null) {
+      const center = W() / 2;
+      moveX = (touchX - center) / (center) * 1.5;
+      moveX = Math.max(-1, Math.min(1, moveX));
+    }
+
+    if (useGyro && touchX === null && moveX === 0) {
+      moveX = tiltX;
+    }
+
+    player.vx = moveX * 6;
+    player.vy += 0.35; // gravity
+    player.x += player.vx;
+    player.y += player.vy;
+
+    // Wrap around screen
+    if (player.x + player.w < 0) player.x = W();
+    if (player.x > W()) player.x = -player.w;
+
+    // Platform collision (only when falling)
+    if (player.vy > 0) {
+      for (const p of platforms) {
+        if (p.broken) continue;
+        const px = player.x + 5;
+        const pw = player.w - 10;
+        const py = player.y + player.h;
+        const prevPy = py - player.vy;
+
+        if (px + pw > p.x && px < p.x + p.w && py >= p.y && prevPy <= p.y + 5) {
+          if (p.type === PLAT_BREAKING) {
+            p.broken = true;
+            p.breakTimer = 1;
+            spawnParticles(p.x + p.w / 2, p.y, CARAMEL_LIGHT, 8);
+            continue;
+          }
+
+          player.y = p.y - player.h;
+          if (p.type === PLAT_BOOST) {
+            player.vy = -15;
+            spawnParticles(player.x + player.w / 2, player.y + player.h, '#ff6a00', 12);
+          } else {
+            player.vy = -9.5;
+          }
+          spawnParticles(player.x + player.w / 2, player.y + player.h, CARAMEL_LIGHT, 5);
+        }
+      }
+    }
+
+    // Move moving platforms
+    for (const p of platforms) {
+      if (p.type === PLAT_MOVING && !p.broken) {
+        p.x += p.moveDir * p.moveSpeed;
+        if (p.x <= 0 || p.x + p.w >= W()) p.moveDir *= -1;
+      }
+    }
+
+    // Camera follows player upward
+    const targetCam = player.y - H() * 0.4;
+    if (targetCam < cameraY) {
+      cameraY = targetCam;
+    }
+
+    // Score
+    const height = -(player.y - H());
+    if (height > maxHeight) {
+      maxHeight = height;
+      score = Math.floor(maxHeight / 10);
+    }
+
+    // Generate new platforms above
+    const topMostPlatY = platforms.reduce((min, p) => Math.min(min, p.y), Infinity);
+    if (topMostPlatY > cameraY - H()) {
+      generatePlatforms(topMostPlatY, cameraY - H() * 2);
+    }
+
+    // Remove platforms far below
+    platforms = platforms.filter(p => p.y < cameraY + H() + 100);
+
+    // Update particles
+    particles = particles.filter(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= p.decay;
+      return p.life > 0;
+    });
+
+    // Breaking platform animation
+    for (const p of platforms) {
+      if (p.broken) {
+        p.breakTimer -= 0.05;
+        p.y += 3;
+      }
+    }
+    platforms = platforms.filter(p => !p.broken || p.breakTimer > 0);
+
+    // Game over - fell below screen
+    if (player.y > cameraY + H() + 50) {
+      state = 'gameover';
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('corny-jump-hi', highScore);
+      }
+      // Send score to parent
+      try {
+        window.parent.postMessage({ type: 'game-score', score, game: 'corny-jump' }, '*');
+      } catch(e) {}
+    }
+  }
+
+  function drawBg() {
+    const grad = ctx.createLinearGradient(0, 0, 0, H());
+    grad.addColorStop(0, BG_TOP);
+    grad.addColorStop(1, BG_BOT);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W(), H());
+
+    // Floating Corny crumbs in background
+    ctx.globalAlpha = 0.08;
+    const time = Date.now() / 3000;
+    for (let i = 0; i < 8; i++) {
+      const bx = (W() * (i * 0.13 + 0.05) + Math.sin(time + i) * 30) % W();
+      const by = ((cameraY * 0.1 + i * 120 + Math.cos(time + i * 2) * 20) % H() + H()) % H();
+      ctx.fillStyle = CARAMEL_LIGHT;
+      ctx.beginPath();
+      ctx.arc(bx, by, 15 + i * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawPlatform(p) {
+    const sy = p.y - cameraY;
+    const sx = p.x;
+
+    if (p.broken) {
+      ctx.globalAlpha = p.breakTimer;
+    }
+
+    if (cornyLoaded) {
+      // Draw Corny bar as platform
+      ctx.save();
+      // Rounded clip
+      const r = 8;
+      ctx.beginPath();
+      ctx.moveTo(sx + r, sy);
+      ctx.lineTo(sx + p.w - r, sy);
+      ctx.quadraticCurveTo(sx + p.w, sy, sx + p.w, sy + r);
+      ctx.lineTo(sx + p.w, sy + p.h - r);
+      ctx.quadraticCurveTo(sx + p.w, sy + p.h, sx + p.w - r, sy + p.h);
+      ctx.lineTo(sx + r, sy + p.h);
+      ctx.quadraticCurveTo(sx, sy + p.h, sx, sy + p.h - r);
+      ctx.lineTo(sx, sy + r);
+      ctx.quadraticCurveTo(sx, sy, sx + r, sy);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(cornyImg, sx, sy, p.w, p.h);
+      ctx.restore();
+
+      // Glow based on type
+      if (p.type === PLAT_BOOST) {
+        ctx.shadowColor = '#ff6a00';
+        ctx.shadowBlur = 15;
+        ctx.strokeStyle = '#ff6a00';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx, sy, p.w, p.h);
+        ctx.shadowBlur = 0;
+      } else if (p.type === PLAT_MOVING) {
+        ctx.shadowColor = CARAMEL_LIGHT;
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = CARAMEL_LIGHT;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(sx, sy, p.w, p.h);
+        ctx.shadowBlur = 0;
+      }
+    } else {
+      // Fallback: draw styled rectangle
+      const grad = ctx.createLinearGradient(sx, sy, sx, sy + p.h);
+      if (p.type === PLAT_BOOST) {
+        grad.addColorStop(0, '#ff6a00');
+        grad.addColorStop(1, CARAMEL);
+      } else if (p.type === PLAT_BREAKING) {
+        grad.addColorStop(0, '#8B4513');
+        grad.addColorStop(0.5, CHOCOLATE);
+        grad.addColorStop(1, '#6B3410');
+      } else if (p.type === PLAT_MOVING) {
+        grad.addColorStop(0, CARAMEL_LIGHT);
+        grad.addColorStop(1, CARAMEL);
+      } else {
+        grad.addColorStop(0, CARAMEL_LIGHT);
+        grad.addColorStop(0.5, CARAMEL);
+        grad.addColorStop(1, CHOCOLATE);
+      }
+      ctx.fillStyle = grad;
+
+      // Rounded rect
+      const r = 8;
+      ctx.beginPath();
+      ctx.moveTo(sx + r, sy);
+      ctx.lineTo(sx + p.w - r, sy);
+      ctx.quadraticCurveTo(sx + p.w, sy, sx + p.w, sy + r);
+      ctx.lineTo(sx + p.w, sy + p.h - r);
+      ctx.quadraticCurveTo(sx + p.w, sy + p.h, sx + p.w - r, sy + p.h);
+      ctx.lineTo(sx + r, sy + p.h);
+      ctx.quadraticCurveTo(sx, sy + p.h, sx, sy + p.h - r);
+      ctx.lineTo(sx, sy + r);
+      ctx.quadraticCurveTo(sx, sy, sx + r, sy);
+      ctx.closePath();
+      ctx.fill();
+
+      // Chocolate drizzle lines
+      ctx.strokeStyle = CHOCOLATE;
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(sx + 10 + i * 25, sy + p.h * 0.3);
+        ctx.quadraticCurveTo(sx + 20 + i * 25, sy + p.h * 0.7, sx + 30 + i * 25, sy + p.h * 0.3);
+        ctx.stroke();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  function drawPlayer() {
+    const sx = player.x;
+    const sy = player.y - cameraY;
+    const w = player.w;
+    const h = player.h;
+
+    // Body - round character with Corny colors
+    ctx.save();
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(sx + w / 2, sy + h + 3, w / 2.5, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body
+    const bodyGrad = ctx.createRadialGradient(sx + w / 2, sy + h / 2, 2, sx + w / 2, sy + h / 2, w / 1.5);
+    bodyGrad.addColorStop(0, '#ffe4a0');
+    bodyGrad.addColorStop(0.6, CARAMEL_LIGHT);
+    bodyGrad.addColorStop(1, CARAMEL);
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.arc(sx + w / 2, sy + h / 2, w / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Chocolate coating at bottom
+    ctx.fillStyle = CHOCOLATE;
+    ctx.beginPath();
+    ctx.arc(sx + w / 2, sy + h / 2, w / 2, 0.3, Math.PI - 0.3);
+    ctx.closePath();
+    ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(sx + w * 0.35, sy + h * 0.38, 6, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(sx + w * 0.65, sy + h * 0.38, 6, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pupils - look in movement direction
+    const lookDir = player.vx > 0.5 ? 2 : player.vx < -0.5 ? -2 : 0;
+    ctx.fillStyle = CHOCOLATE;
+    ctx.beginPath();
+    ctx.arc(sx + w * 0.35 + lookDir, sy + h * 0.4, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(sx + w * 0.65 + lookDir, sy + h * 0.4, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Smile
+    ctx.strokeStyle = CHOCOLATE;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (player.vy < 0) {
+      // Happy when going up
+      ctx.arc(sx + w / 2, sy + h * 0.48, 8, 0.1, Math.PI - 0.1);
+    } else {
+      // Worried when falling
+      ctx.arc(sx + w / 2, sy + h * 0.6, 6, Math.PI + 0.3, -0.3);
+    }
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - cameraY, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHUD() {
+    // Score
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 24px Segoe UI, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(`${score}m`, 15, 35);
+    ctx.shadowBlur = 0;
+
+    // High score
+    ctx.font = '14px Segoe UI, sans-serif';
+    ctx.fillStyle = CARAMEL_LIGHT;
+    ctx.fillText(`Bäst: ${highScore}m`, 15, 55);
+  }
+
+  function drawMenu() {
+    drawBg();
+
+    // Title
+    ctx.textAlign = 'center';
+
+    // Corny image as logo
+    if (cornyLoaded) {
+      const imgW = Math.min(280, W() * 0.7);
+      const imgH = imgW * (cornyImg.height / cornyImg.width);
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 20;
+      const r = 15;
+      const ix = W() / 2 - imgW / 2;
+      const iy = H() * 0.15;
+      ctx.beginPath();
+      ctx.moveTo(ix + r, iy);
+      ctx.lineTo(ix + imgW - r, iy);
+      ctx.quadraticCurveTo(ix + imgW, iy, ix + imgW, iy + r);
+      ctx.lineTo(ix + imgW, iy + imgH - r);
+      ctx.quadraticCurveTo(ix + imgW, iy + imgH, ix + imgW - r, iy + imgH);
+      ctx.lineTo(ix + r, iy + imgH);
+      ctx.quadraticCurveTo(ix, iy + imgH, ix, iy + imgH - r);
+      ctx.lineTo(ix, iy + r);
+      ctx.quadraticCurveTo(ix, iy, ix + r, iy);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(cornyImg, ix, iy, imgW, imgH);
+      ctx.restore();
+    }
+
+    // JUMP title
+    ctx.font = `bold ${Math.min(60, W() * 0.12)}px Segoe UI, sans-serif`;
+    ctx.fillStyle = '#fff';
+    ctx.shadowColor = CARAMEL;
+    ctx.shadowBlur = 20;
+    ctx.fillText('JUMP!', W() / 2, H() * 0.48);
+    ctx.shadowBlur = 0;
+
+    // Instructions
+    ctx.font = '18px Segoe UI, sans-serif';
+    ctx.fillStyle = CREAM;
+    ctx.fillText('Hoppa på Corny-bars och nå så högt du kan!', W() / 2, H() * 0.56);
+
+    ctx.font = '16px Segoe UI, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('← → / Piltangenter / Luta telefonen', W() / 2, H() * 0.62);
+
+    // High score
+    if (highScore > 0) {
+      ctx.font = 'bold 20px Segoe UI, sans-serif';
+      ctx.fillStyle = CARAMEL_LIGHT;
+      ctx.fillText(`Rekord: ${highScore}m`, W() / 2, H() * 0.70);
+    }
+
+    // Play button
+    const btnW = 200, btnH = 55;
+    const bx = W() / 2 - btnW / 2, by = H() * 0.76;
+    const grad = ctx.createLinearGradient(bx, by, bx, by + btnH);
+    grad.addColorStop(0, CARAMEL_LIGHT);
+    grad.addColorStop(1, CARAMEL);
+    ctx.fillStyle = grad;
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, btnW, btnH, 15);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 22px Segoe UI, sans-serif';
+    ctx.fillText('SPELA', W() / 2, by + 36);
+
+    ctx.font = '13px Segoe UI, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText('Tryck var som helst', W() / 2, H() * 0.90);
+  }
+
+  function drawGameOver() {
+    // Dim overlay
+    ctx.fillStyle = 'rgba(10, 30, 50, 0.85)';
+    ctx.fillRect(0, 0, W(), H());
+
+    ctx.textAlign = 'center';
+
+    // Game over text
+    ctx.font = `bold ${Math.min(48, W() * 0.1)}px Segoe UI, sans-serif`;
+    ctx.fillStyle = '#fff';
+    ctx.shadowColor = CARAMEL;
+    ctx.shadowBlur = 15;
+    ctx.fillText('Splat!', W() / 2, H() * 0.30);
+    ctx.shadowBlur = 0;
+
+    // Corny fell
+    ctx.font = '18px Segoe UI, sans-serif';
+    ctx.fillStyle = CREAM;
+    ctx.fillText('Corny tappade balansen...', W() / 2, H() * 0.38);
+
+    // Score
+    ctx.font = 'bold 36px Segoe UI, sans-serif';
+    ctx.fillStyle = CARAMEL_LIGHT;
+    ctx.fillText(`${score}m`, W() / 2, H() * 0.50);
+
+    ctx.font = '16px Segoe UI, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('Höjd', W() / 2, H() * 0.54);
+
+    // High score
+    if (score >= highScore) {
+      ctx.font = 'bold 20px Segoe UI, sans-serif';
+      ctx.fillStyle = '#ff6a00';
+      ctx.fillText('NYTT REKORD!', W() / 2, H() * 0.62);
+    } else {
+      ctx.font = '16px Segoe UI, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillText(`Rekord: ${highScore}m`, W() / 2, H() * 0.62);
+    }
+
+    // Retry button
+    const btnW = 200, btnH = 55;
+    const bx = W() / 2 - btnW / 2, by = H() * 0.70;
+    const grad = ctx.createLinearGradient(bx, by, bx, by + btnH);
+    grad.addColorStop(0, CARAMEL_LIGHT);
+    grad.addColorStop(1, CARAMEL);
+    ctx.fillStyle = grad;
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, btnW, btnH, 15);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 22px Segoe UI, sans-serif';
+    ctx.fillText('FÖRSÖK IGEN', W() / 2, by + 36);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W(), H());
+
+    if (state === 'menu') {
+      drawMenu();
+    } else if (state === 'playing') {
+      drawBg();
+      for (const p of platforms) drawPlatform(p);
+      drawParticles();
+      drawPlayer();
+      drawHUD();
+    } else if (state === 'gameover') {
+      drawBg();
+      for (const p of platforms) drawPlatform(p);
+      drawPlayer();
+      drawGameOver();
+    }
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+})();
+</script>
+</body>
+</html>
