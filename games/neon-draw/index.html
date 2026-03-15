@@ -19,7 +19,6 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
-<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -152,7 +151,6 @@
 
   // Start game
   function startGame() {
-    NeonSounds.init();
     state = 'playing';
     currentRound = 0;
     score = 0;
@@ -175,15 +173,12 @@
   function endRound() {
     stopTimer();
     state = 'rating';
-    NeonSounds.collect();
   }
 
   function rateRound(good) {
     if (good) score++;
-    NeonSounds.click();
     if (currentRound >= ROUNDS_PER_GAME) {
       state = 'gameover';
-      NeonSounds.fanfare();
     } else {
       nextRound();
     }
@@ -253,7 +248,6 @@
   }
 
   function clearDrawing() {
-    NeonSounds.click();
     drawCtx.globalCompositeOperation = 'source-over';
     drawCtx.fillStyle = '#111128';
     drawCtx.fillRect(0, 0, W, H);
@@ -333,7 +327,6 @@
       if (pos.x >= cx && pos.x <= cx + colorSize && pos.y >= colorY && pos.y <= colorY + colorSize) {
         drawColor = NEON_COLORS[i];
         isEraser = false;
-        NeonSounds.click();
         return;
       }
     }
@@ -347,7 +340,6 @@
         brushSizeIndex = i;
         brushSize = BRUSH_SIZES[i];
         isEraser = false;
-        NeonSounds.click();
         return;
       }
     }
@@ -356,7 +348,6 @@
     const eraserX = W - 80;
     if (pos.x >= eraserX && pos.x <= eraserX + 60 && pos.y >= brushY && pos.y <= brushY + 28) {
       isEraser = !isEraser;
-      NeonSounds.click();
       return;
     }
   }
@@ -388,8 +379,6 @@
     const btnX = W / 2 - btnW / 2;
     const btnY = H / 2 + 40;
     if (pos.x >= btnX && pos.x <= btnX + btnW && pos.y >= btnY && pos.y <= btnY + btnH) {
-      NeonSounds.init();
-      NeonSounds.click();
       startGame();
     }
   }
@@ -424,7 +413,6 @@
     const btnX = W / 2 - btnW / 2;
     const btnY = H / 2 + 80;
     if (pos.x >= btnX && pos.x <= btnX + btnW && pos.y >= btnY && pos.y <= btnY + btnH) {
-      NeonSounds.click();
       startGame();
     }
   }

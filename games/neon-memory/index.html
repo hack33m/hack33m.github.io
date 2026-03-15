@@ -19,7 +19,6 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
-<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -150,7 +149,6 @@
     lockInput = false;
     particles = [];
     state = 'playing';
-    NeonSounds.init();
   }
 
   // --- Particles ---
@@ -635,13 +633,11 @@
         const by = ml.btnStartY + i * (ml.btnH + ml.btnGap);
         if (hitTest(pos.x, pos.y, bx, by, ml.btnW, ml.btnH)) {
           menuSelectedDiff = i;
-          NeonSounds.click();
           return;
         }
       }
       // Play button
       if (hitTest(pos.x, pos.y, ml.playBtnX, ml.playBtnY, ml.playBtnW, ml.playBtnH)) {
-        NeonSounds.click();
         initGame();
         return;
       }
@@ -656,7 +652,6 @@
           if (flipped.includes(i) || matched.includes(card.id)) return;
           if (card.flipAnim > 0.1) return;
 
-          NeonSounds.click();
           flipCardUp(card);
           flipped.push(i);
 
@@ -674,7 +669,6 @@
               const r2 = getCardRect(flipped[1]);
               spawnParticles(r1.x + r1.w / 2, r1.y + r1.h / 2, c1.color, 25);
               spawnParticles(r2.x + r2.w / 2, r2.y + r2.h / 2, c2.color, 25);
-              NeonSounds.collect();
               flipped = [];
 
               // Check win
@@ -689,14 +683,12 @@
                   try {
                     window.parent.postMessage({ type: 'game-score', game: 'neon-memory', score }, '*');
                   } catch(e) {}
-                  NeonSounds.fanfare();
                   state = 'gameover';
                 }, 500);
               }
             } else {
               // Mismatch
               lockInput = true;
-              NeonSounds.hit();
               setTimeout(() => {
                 flipCardDown(cards[flipped[0]]);
                 flipCardDown(cards[flipped[1]]);
@@ -711,12 +703,10 @@
     } else if (state === 'gameover') {
       const gl = getGameOverLayout();
       if (hitTest(pos.x, pos.y, gl.btnX, gl.btnY, gl.btnW, gl.btnH)) {
-        NeonSounds.click();
         initGame();
         return;
       }
       if (hitTest(pos.x, pos.y, gl.btnX, gl.menuBtnY, gl.btnW, gl.btnH)) {
-        NeonSounds.click();
         state = 'menu';
         return;
       }

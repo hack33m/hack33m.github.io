@@ -19,7 +19,6 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
-<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -294,13 +293,10 @@
 
     if (moved) {
       // Play sound effects
-      NeonSounds.slide();
       if (mergeAnims.length > 0) {
         const hasBigMerge = mergeAnims.some(m => m.value >= 256);
         if (hasBigMerge) {
-          NeonSounds.bigMerge();
         } else {
-          NeonSounds.merge();
         }
       }
 
@@ -330,10 +326,8 @@
 
         if (!keepPlaying && hasWon()) {
           state = 'won';
-          NeonSounds.win();
         } else if (!canMove()) {
           state = 'gameover';
-          NeonSounds.death();
         }
       }, ANIM_DURATION + 20);
     } else {
@@ -910,7 +904,6 @@
   }, { passive: true });
 
   // Start
-  NeonSounds.init();
   requestAnimationFrame(draw);
 })();
 </script>

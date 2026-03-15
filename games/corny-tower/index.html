@@ -12,7 +12,6 @@ canvas { display: block; width: 100vw; height: 100vh; }
 </head>
 <body>
 <canvas id="c"></canvas>
-<script src="../../js/sounds.js"></script>
 <script>
 // roundRect polyfill for Safari
 if (!CanvasRenderingContext2D.prototype.roundRect) {
@@ -104,7 +103,6 @@ function createBlockPattern() {
 }
 
 function startGame() {
-  NeonSounds.init();
   state = 'playing';
   blocks = [];
   fallingPieces = [];
@@ -176,7 +174,6 @@ function dropBlock() {
     score++;
     perfectStreak++;
     bonusScore += perfectStreak;
-    NeonSounds.coin();
     perfectText = {
       text: 'PERFEKT!',
       x: last.x + last.w / 2,
@@ -198,7 +195,6 @@ function dropBlock() {
     perfectStreak = 0;
 
     // Create falling piece for the cut part
-    NeonSounds.breakSound();
     if (cb.x < last.x) {
       // Left side cut
       fallingPieces.push({
@@ -215,7 +211,6 @@ function dropBlock() {
       });
     }
 
-    NeonSounds.bounce();
   }
 
   // Shake
@@ -236,7 +231,6 @@ function dropBlock() {
 
 function gameOver() {
   state = 'gameover';
-  NeonSounds.death();
   const total = score + bonusScore;
   if (total > highscore) {
     highscore = total;

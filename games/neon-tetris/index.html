@@ -12,7 +12,6 @@ canvas{display:block;width:100vw;height:100vh}
 </head>
 <body>
 <canvas id="c"></canvas>
-<script src="../../js/sounds.js"></script>
 <script>
 (()=>{
 'use strict';
@@ -125,7 +124,6 @@ function spawnPiece(){
   lockDelay=0;
   if(!isValid(current,current.x,current.y)){
     state='gameover';
-    if(typeof NeonSounds!=='undefined')NeonSounds.death();
     if(score>hiScore){
       hiScore=score;
       try{localStorage.setItem('neon-tetris-hi',''+hiScore);}catch(e){}
@@ -184,9 +182,6 @@ function checkLines(){
     level=Math.floor(lines/10)+1;
     dropInterval=Math.max(50,1000-((level-1)*80));
     // Sounds
-    if(typeof NeonSounds!=='undefined'){
-      if(n>=4)NeonSounds.bigMerge();
-      else NeonSounds.collect();
     }
     // Spawn particles for cleared rows
     const cs=getCellSize();
@@ -250,7 +245,6 @@ function tryRotate(){
         current.cells=newCells;
         current.x+=kx;
         current.y+=ky;
-        if(typeof NeonSounds!=='undefined')NeonSounds.bounce();
         return;
       }
     }
@@ -581,14 +575,12 @@ function startGame(){
   current=null;
   spawnPiece();
   state='playing';
-  if(typeof NeonSounds!=='undefined')NeonSounds.init();
 }
 
 function moveLeft(){
   if(!current)return;
   if(isValid(current,current.x-1,current.y)){
     current.x--;
-    if(typeof NeonSounds!=='undefined')NeonSounds.slide();
   }
 }
 
@@ -596,7 +588,6 @@ function moveRight(){
   if(!current)return;
   if(isValid(current,current.x+1,current.y)){
     current.x++;
-    if(typeof NeonSounds!=='undefined')NeonSounds.slide();
   }
 }
 

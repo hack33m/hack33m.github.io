@@ -19,7 +19,6 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
-<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -164,7 +163,6 @@
   });
 
   function startGame() {
-    NeonSounds.init();
     state = 'playing';
     score = 0;
     combo = 0;
@@ -261,11 +259,9 @@
     let ate = false;
     if (food && head.x === food.x && head.y === food.y) {
       ate = true;
-      NeonSounds.collect();
       foodEaten++;
       combo++;
       comboTimer = 60;
-      if (combo > 2) NeonSounds.combo(combo);
       const points = 10 * combo;
       score += points;
       spawnParticles(food.x, food.y, food.color, 12);
@@ -281,7 +277,6 @@
 
     // Eat powerup
     if (powerup && head.x === powerup.x && head.y === powerup.y) {
-      NeonSounds.powerup();
       activatePowerup(powerup.type);
       spawnParticles(powerup.x, powerup.y, NEON_YELLOW, 15);
       screenShake = 8;
@@ -350,7 +345,6 @@
   }
 
   function die() {
-    NeonSounds.death();
     state = 'gameover';
     for (const s of snake) spawnParticles(s.x, s.y, NEON_CYAN, 3);
     screenShake = 15;

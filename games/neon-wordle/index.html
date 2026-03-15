@@ -19,7 +19,6 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
-<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   // === Canvas & Hi-DPI ===
@@ -216,7 +215,6 @@
     message = '';
     messageTimer = 0;
     state = 'playing';
-    NeonSounds.init();
   }
 
   // === Submit Guess ===
@@ -226,11 +224,9 @@
     if (!WORD_SET.includes(currentGuess)) {
       shakeTime = 300;
       shakeRow = currentRow;
-      NeonSounds.hit();
       showMessage('Ordet finns inte i listan');
       return;
     }
-    NeonSounds.slide();
     const colors = evaluateGuess(currentGuess, targetWord);
     guesses.push({ letters: currentGuess, colors });
 
@@ -264,7 +260,6 @@
     // Check win/lose
     if (g.colors.every(c => c === 'correct')) {
       state = 'won';
-      NeonSounds.fanfare();
       spawnCelebration();
       stats.played++;
       stats.wins++;
@@ -274,7 +269,6 @@
       showMessage('Fantastiskt!');
     } else if (currentRow >= MAX_GUESSES) {
       state = 'lost';
-      NeonSounds.death();
       stats.played++;
       stats.streak = 0;
       saveStats(stats);
@@ -696,12 +690,10 @@
     } else if (key === '⌫' || key === 'BACKSPACE') {
       if (currentGuess.length > 0) {
         currentGuess = currentGuess.slice(0, -1);
-        NeonSounds.click();
       }
     } else if (key.length === 1 && /[A-ZÅÄÖ]/.test(key)) {
       if (currentGuess.length < WORD_LENGTH) {
         currentGuess += key;
-        NeonSounds.click();
       }
     }
   }
@@ -733,12 +725,10 @@
       const b1 = drawMenu._btn1;
       const b2 = drawMenu._btn2;
       if (b1 && x >= b1.x && x <= b1.x + b1.w && y >= b1.y && y <= b1.y + b1.h) {
-        NeonSounds.click();
         startGame(true);
         return;
       }
       if (b2 && x >= b2.x && x <= b2.x + b2.w && y >= b2.y && y <= b2.y + b2.h) {
-        NeonSounds.click();
         startGame(false);
         return;
       }
@@ -749,12 +739,10 @@
       const b1 = drawEndOverlay._btn1;
       const b2 = drawEndOverlay._btn2;
       if (b1 && x >= b1.x && x <= b1.x + b1.w && y >= b1.y && y <= b1.y + b1.h) {
-        NeonSounds.click();
         startGame(false);
         return;
       }
       if (b2 && x >= b2.x && x <= b2.x + b2.w && y >= b2.y && y <= b2.y + b2.h) {
-        NeonSounds.click();
         state = 'menu';
         return;
       }
@@ -786,8 +774,6 @@
       const colMid = colStart + 250;
       if (revealTimer >= colMid && revealTimer < colMid + dt * 1000 + 20) {
         // Sound at flip midpoint
-        if (g.colors[col] === 'correct') NeonSounds.collect();
-        else NeonSounds.hit();
       }
     }
 

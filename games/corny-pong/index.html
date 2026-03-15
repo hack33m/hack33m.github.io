@@ -19,7 +19,6 @@
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
-<script src="../../js/sounds.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -138,7 +137,6 @@
   }
 
   function startGame() {
-    NeonSounds.init();
     state = 'playing';
     playerScore = 0;
     aiScore = 0;
@@ -475,7 +473,6 @@
       ball.speed += SPEED_INCREMENT;
       ball.vx = Math.cos(angle) * ball.speed;
       ball.vy = Math.sin(angle) * ball.speed;
-      NeonSounds.bounce();
       spawnParticles(ball.x, ball.y, COL.caramelLight, 10);
     }
 
@@ -494,21 +491,18 @@
       ball.speed += SPEED_INCREMENT;
       ball.vx = Math.cos(angle) * ball.speed;
       ball.vy = Math.sin(angle) * ball.speed;
-      NeonSounds.bounce();
       spawnParticles(ball.x, ball.y, COL.caramelLight, 10);
     }
 
     // Score
     if (ball.x + BALL_R < 0) {
       aiScore++;
-      NeonSounds.collect();
       spawnParticles(0, ball.y, '#ff6666', 15);
       checkWin();
       if (state === 'playing') resetBall(1);
     }
     if (ball.x - BALL_R > W()) {
       playerScore++;
-      NeonSounds.collect();
       spawnParticles(W(), ball.y, COL.caramelLight, 15);
       checkWin();
       if (state === 'playing') resetBall(-1);
@@ -521,7 +515,6 @@
     if (playerScore >= WIN_SCORE) {
       winner = 'player';
       state = 'gameover';
-      NeonSounds.death();
       const wins = playerScore;
       if (wins > highScore) {
         highScore = wins;
@@ -531,7 +524,6 @@
     } else if (aiScore >= WIN_SCORE) {
       winner = 'ai';
       state = 'gameover';
-      NeonSounds.death();
       window.parent.postMessage({ type: 'game-score', score: playerScore, game: 'corny-pong' }, '*');
     }
   }
