@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slope Run</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+  </style>
+</head>
+<body>
+<canvas id="game" tabindex="0"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  canvas.focus();
+  window.addEventListener('load', () => canvas.focus());
+
+  // --- roundRect polyfill (Safari) ---
+  if (!ctx.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radii) {
+      let r = typeof radii === 'number' ? radii : (Array.isArray(radii) ? radii[0] : 0);
+      if (r > w / 2) r = w / 2;
+      if (r > h / 2) r = h / 2;
+      this.moveTo(x + r, y);
+      this.lineTo(x + w - r, y);
+      this.quadraticCurveTo(x + w, y, x + w, y + r);
+      this.lineTo(x + w, y + h - r);
+      this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      this.lineTo(x + r, y + h);
+      this.quadraticCurveTo(x, y + h, x, y + h - r);
+      this.lineTo(x, y + r);
+      this.quadraticCurveTo(x, y, x + r, y);
+      this.closePath();
+    };
+  }
+
+  // --- Hi-DPI ---
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
+  // --- Colors ---
+  const CYAN = '#00d4ff';
+  const PINK = '#ff2d95';
+  const PURPLE = '#a855f7';
+  const GREEN = '#39ff14';
+  const ORANGE = '#ff6a00';
+  const RED = '#ff3344';
+  const BG = '#0a0a1a';
+
+  // --- State ---
+  let state = 'menu'; // menu, playing, gameover
+  let score = 0;
+  let highScore = parseInt(localStorage.getItem('slope-run-hi')) || 0;
+  let speed = 0;
+  let baseSpeed = 4;
+  let maxSpeed = 16;
+  let distance = 0;
+  let ballX = 0; // -1 to 1 (lane position)
+  let ballTargetX = 0;
+  let ballVelX = 0;
+  let moveLeft = false;
+  let moveRight = false;
+  let dead = false;
+  let deathTimer = 0;
+  let particles = [];
+  let tiles = [];
+  let tileTimer = 0;
+  let frameCount = 0;
+  let lastTime = 0;
+  let touchStartX = null;
+  let touchCurrentX = null;
+  let bgStars = [];
+
+  // Perspective settings
+  const VANISH_Y = 0.25; // vanishing point Y ratio
+  const HORIZON_WIDTH = 0.08; // track width at horizon
+  const BOTTOM_WIDTH = 0.85; // track width at bottom
+  const TRACK_LANES = 5; // number of tile columns
+  const ROWS_VISIBLE = 28; // tile rows on screen
+  const TILE_DEPTH = 1; // depth per row
+
+  // --- Init stars ---
+  function initStars() {
+    bgStars = [];
+    for (let i = 0; i < 120; i++) {
+      bgStars.push({
+        x: Math.random(),
+        y: Math.random(),
+        size: Math.random() * 1.5 + 0.5,
+        alpha: Math.random() * 0.6 + 0.2,
+        speed: Math.random() * 0.0003 + 0.0001,
+        twinkle: Math.random() * Math.PI * 2
+      });
+    }
+  }
+  initStars();
+
+  // --- Tile system ---
+  // Each tile row: { z: depth, tiles: [type, type, ...] }
+  // types: 'normal', 'gap', 'danger', 'boost'
+  function generateRow(z) {
+    const tiles = [];
+    const difficultyFactor = Math.min(distance / 3000, 1);
+    const gapChance = 0.12 + difficultyFactor * 0.18;
+    const dangerChance = 0.06 + difficultyFactor * 0.14;
+
+    for (let i = 0; i < TRACK_LANES; i++) {
+      const r = Math.random();
+      if (r < gapChance) {
+        tiles.push('gap');
+      } else if (r < gapChance + dangerChance) {
+        tiles.push('danger');
+      } else {
+        tiles.push('normal');
+      }
+    }
+    // Ensure at least one safe lane
+    const safeCount = tiles.filter(t => t === 'normal').length;
+    if (safeCount === 0) {
+      const idx = Math.floor(Math.random() * TRACK_LANES);
+      tiles[idx] = 'normal';
+    }
+    return { z, tiles, dangerTimer: 0, breaking: false };
+  }
+
+  function initTiles() {
+    tiles = [];
+    for (let i = 0; i < ROWS_VISIBLE + 10; i++) {
+      tiles.push(generateRow(i * TILE_DEPTH));
+    }
+  }
+
+  // --- Perspective helpers ---
+  function getRowY(z) {
+    // z=0 is closest (bottom), higher z is further away
+    const t = Math.max(0, Math.min(1, z / (ROWS_VISIBLE * TILE_DEPTH)));
+    const vanY = H() * VANISH_Y;
+    const botY = H() * 1.05;
+    // Non-linear perspective
+    const p = 1 - Math.pow(1 - t, 1.6);
+    return botY - p * (botY - vanY);
+  }
+
+  function getRowWidth(z) {
+    const t = Math.max(0, Math.min(1, z / (ROWS_VISIBLE * TILE_DEPTH)));
+    const p = 1 - Math.pow(1 - t, 1.6);
+    return W() * (BOTTOM_WIDTH - p * (BOTTOM_WIDTH - HORIZON_WIDTH));
+  }
+
+  function getRowHeight(z) {
+    const y1 = getRowY(z);
+    const y2 = getRowY(z + TILE_DEPTH);
+    return y1 - y2;
+  }
+
+  // --- Particles ---
+  function spawnDeathParticles(x, y) {
+    const colors = [CYAN, PINK, PURPLE, GREEN, ORANGE, RED];
+    for (let i = 0; i < 60; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const spd = Math.random() * 6 + 2;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd - 3,
+        size: Math.random() * 4 + 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 1,
+        decay: Math.random() * 0.02 + 0.01
+      });
+    }
+  }
+
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx * dt * 60;
+      p.y += p.vy * dt * 60;
+      p.vy += 0.12 * dt * 60;
+      p.life -= p.decay * dt * 60;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      ctx.globalAlpha = p.life;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }
+
+  // --- Drawing ---
+  function drawBg() {
+    // Dark gradient background
+    const grad = ctx.createLinearGradient(0, 0, 0, H());
+    grad.addColorStop(0, '#05051a');
+    grad.addColorStop(0.5, '#0a0a2a');
+    grad.addColorStop(1, '#0a0a1a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W(), H());
+
+    // Stars
+    const time = frameCount * 0.016;
+    for (const s of bgStars) {
+      const twinkle = Math.sin(time * 2 + s.twinkle) * 0.3 + 0.7;
+      ctx.globalAlpha = s.alpha * twinkle;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(s.x * W(), s.y * H() * 0.5, s.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawTrack() {
+    const cx = W() / 2;
+    const scrollOffset = (distance % TILE_DEPTH) / TILE_DEPTH;
+
+    // Draw grid lines for depth effect
+    for (let i = 0; i < ROWS_VISIBLE; i++) {
+      const z = i + scrollOffset;
+      const y = getRowY(z * TILE_DEPTH);
+      const rw = getRowWidth(z * TILE_DEPTH);
+      const nextY = getRowY((z + 1) * TILE_DEPTH);
+      const nextRW = getRowWidth((z + 1) * TILE_DEPTH);
+      const rowH = nextY - y;
+
+      if (rowH <= 0) continue;
+
+      // Get row from tiles array
+      const tileIndex = i;
+      if (tileIndex >= tiles.length) continue;
+      const row = tiles[tileIndex];
+
+      const tileW = rw / TRACK_LANES;
+      const nextTileW = nextRW / TRACK_LANES;
+
+      for (let j = 0; j < TRACK_LANES; j++) {
+        const type = row.tiles[j];
+        if (type === 'gap') continue;
+
+        // Tile quad corners (perspective trapezoid)
+        const lx1 = cx - rw / 2 + j * tileW;
+        const rx1 = lx1 + tileW;
+        const lx2 = cx - nextRW / 2 + j * nextTileW;
+        const rx2 = lx2 + nextTileW;
+
+        ctx.beginPath();
+        ctx.moveTo(lx2, y);
+        ctx.lineTo(rx2, y);
+        ctx.lineTo(rx1, nextY);
+        ctx.lineTo(lx1, nextY);
+        ctx.closePath();
+
+        // Color based on type
+        const checkerboard = (i + j) % 2 === 0;
+        if (type === 'danger') {
+          const pulse = Math.sin(frameCount * 0.1) * 0.2 + 0.8;
+          if (row.breaking) {
+            ctx.fillStyle = `rgba(255,51,68,${0.5 * (1 - row.dangerTimer / 30)})`;
+          } else {
+            ctx.fillStyle = checkerboard
+              ? `rgba(255,51,68,${0.7 * pulse})`
+              : `rgba(200,20,40,${0.6 * pulse})`;
+          }
+          ctx.fill();
+          ctx.shadowColor = RED;
+          ctx.shadowBlur = 8;
+          ctx.strokeStyle = `rgba(255,51,68,${0.8 * pulse})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        } else {
+          // Normal tile
+          const depthFade = 1 - (z / ROWS_VISIBLE) * 0.6;
+          if (checkerboard) {
+            ctx.fillStyle = `rgba(0,212,255,${0.12 * depthFade})`;
+          } else {
+            ctx.fillStyle = `rgba(168,85,247,${0.1 * depthFade})`;
+          }
+          ctx.fill();
+
+          // Grid border
+          ctx.strokeStyle = `rgba(0,212,255,${0.2 * depthFade})`;
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
+      }
+
+      // Side edge lines
+      const edgeAlpha = 1 - (z / ROWS_VISIBLE) * 0.8;
+      ctx.strokeStyle = `rgba(0,212,255,${0.4 * edgeAlpha})`;
+      ctx.lineWidth = 1.5;
+      // Left edge
+      ctx.beginPath();
+      ctx.moveTo(cx - rw / 2, nextY);
+      ctx.lineTo(cx - nextRW / 2, y);
+      ctx.stroke();
+      // Right edge
+      ctx.beginPath();
+      ctx.moveTo(cx + rw / 2, nextY);
+      ctx.lineTo(cx + nextRW / 2, y);
+      ctx.stroke();
+    }
+
+    // Side walls glow
+    const vanY = H() * VANISH_Y;
+    const botY = H() * 1.05;
+    const topW = W() * HORIZON_WIDTH / 2;
+    const botW = W() * BOTTOM_WIDTH / 2;
+
+    // Left wall glow
+    const lgrd = ctx.createLinearGradient(cx - botW - 40, 0, cx - botW + 20, 0);
+    lgrd.addColorStop(0, 'rgba(0,212,255,0)');
+    lgrd.addColorStop(1, 'rgba(0,212,255,0.06)');
+    ctx.fillStyle = lgrd;
+    ctx.beginPath();
+    ctx.moveTo(cx - topW, vanY);
+    ctx.lineTo(cx - botW, botY);
+    ctx.lineTo(cx - botW - 60, botY);
+    ctx.lineTo(cx - topW - 10, vanY);
+    ctx.fill();
+
+    // Right wall glow
+    const rgrd = ctx.createLinearGradient(cx + botW + 40, 0, cx + botW - 20, 0);
+    rgrd.addColorStop(0, 'rgba(0,212,255,0)');
+    rgrd.addColorStop(1, 'rgba(0,212,255,0.06)');
+    ctx.fillStyle = rgrd;
+    ctx.beginPath();
+    ctx.moveTo(cx + topW, vanY);
+    ctx.lineTo(cx + botW, botY);
+    ctx.lineTo(cx + botW + 60, botY);
+    ctx.lineTo(cx + topW + 10, vanY);
+    ctx.fill();
+  }
+
+  function drawBall() {
+    if (dead) return;
+
+    const cx = W() / 2;
+    const ballZ = 3; // ball is at row 3 depth
+    const scrollOffset = (distance % TILE_DEPTH) / TILE_DEPTH;
+    const z = ballZ + scrollOffset;
+    const y = getRowY(z * TILE_DEPTH);
+    const rw = getRowWidth(z * TILE_DEPTH);
+
+    // Ball X position mapped to track width
+    const trackX = cx + ballX * (rw / 2) * 0.85;
+    const ballSize = rw / TRACK_LANES * 0.4;
+
+    // Ball shadow
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(trackX, y + ballSize * 0.3, ballSize * 1.1, ballSize * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Main ball glow
+    ctx.shadowColor = CYAN;
+    ctx.shadowBlur = 25;
+    const ballGrad = ctx.createRadialGradient(
+      trackX - ballSize * 0.3, y - ballSize * 0.3, ballSize * 0.1,
+      trackX, y, ballSize
+    );
+    ballGrad.addColorStop(0, '#ffffff');
+    ballGrad.addColorStop(0.3, CYAN);
+    ballGrad.addColorStop(0.7, '#0088aa');
+    ballGrad.addColorStop(1, '#004466');
+    ctx.fillStyle = ballGrad;
+    ctx.beginPath();
+    ctx.arc(trackX, y, ballSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Specular highlight
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(trackX - ballSize * 0.25, y - ballSize * 0.25, ballSize * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Trail particles
+    if (frameCount % 2 === 0) {
+      particles.push({
+        x: trackX + (Math.random() - 0.5) * ballSize,
+        y: y + ballSize * 0.5,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: Math.random() * 1 + 0.5,
+        size: Math.random() * 2 + 1,
+        color: CYAN,
+        life: 0.6,
+        decay: 0.02
+      });
+    }
+  }
+
+  function drawHUD() {
+    const w = W();
+    // Score
+    ctx.shadowColor = CYAN;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = CYAN;
+    ctx.font = `bold ${Math.min(28, w * 0.05)}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`Poang: ${score}`, 20, 40);
+
+    // Highscore
+    ctx.shadowColor = PURPLE;
+    ctx.fillStyle = PURPLE;
+    ctx.font = `${Math.min(18, w * 0.035)}px 'Segoe UI', sans-serif`;
+    ctx.fillText(`Bast: ${highScore}`, 20, 65);
+
+    // Speed indicator
+    const speedPct = ((speed - baseSpeed) / (maxSpeed - baseSpeed)) * 100;
+    ctx.shadowColor = ORANGE;
+    ctx.fillStyle = ORANGE;
+    ctx.textAlign = 'right';
+    ctx.font = `${Math.min(18, w * 0.035)}px 'Segoe UI', sans-serif`;
+    ctx.fillText(`Fart: ${Math.floor(speedPct)}%`, w - 20, 40);
+
+    ctx.shadowBlur = 0;
+  }
+
+  // --- Menu ---
+  function drawMenu() {
+    drawBg();
+    // Animated demo track
+    drawTrack();
+
+    const w = W(), h = H();
+    const cx = w / 2;
+
+    // Overlay
+    ctx.fillStyle = 'rgba(10,10,26,0.75)';
+    ctx.fillRect(0, 0, w, h);
+
+    // Title
+    const titleSize = Math.min(64, w * 0.12);
+    ctx.shadowColor = CYAN;
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = CYAN;
+    ctx.font = `bold ${titleSize}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('SLOPE RUN', cx, h * 0.3);
+
+    // Subtitle
+    ctx.shadowColor = PURPLE;
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = PURPLE;
+    ctx.font = `${Math.min(20, w * 0.04)}px 'Segoe UI', sans-serif`;
+    ctx.fillText('Undvik hinder och rulla sa langt du kan!', cx, h * 0.3 + titleSize * 0.6);
+    ctx.shadowBlur = 0;
+
+    // Play button
+    const btnW = Math.min(260, w * 0.6);
+    const btnH = Math.min(60, h * 0.08);
+    const btnX = cx - btnW / 2;
+    const btnY = h * 0.5 - btnH / 2;
+
+    const pulse = Math.sin(frameCount * 0.05) * 4;
+    ctx.shadowColor = GREEN;
+    ctx.shadowBlur = 15 + pulse;
+    ctx.strokeStyle = GREEN;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, 12);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(57,255,20,0.1)';
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = GREEN;
+    ctx.font = `bold ${Math.min(26, w * 0.05)}px 'Segoe UI', sans-serif`;
+    ctx.fillText('SPELA', cx, btnY + btnH / 2 + Math.min(9, w * 0.017));
+
+    // Highscore
+    if (highScore > 0) {
+      ctx.fillStyle = ORANGE;
+      ctx.shadowColor = ORANGE;
+      ctx.shadowBlur = 8;
+      ctx.font = `${Math.min(20, w * 0.04)}px 'Segoe UI', sans-serif`;
+      ctx.fillText(`Hogsta poang: ${highScore}`, cx, h * 0.65);
+      ctx.shadowBlur = 0;
+    }
+
+    // Controls
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = `${Math.min(15, w * 0.03)}px 'Segoe UI', sans-serif`;
+    ctx.fillText('Pilar / A-D / Svep for att styra', cx, h * 0.78);
+
+    // Store button area for click detection
+    menuBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+  }
+
+  let menuBtn = null;
+  let retryBtn = null;
+
+  function drawGameOver() {
+    drawBg();
+    drawTrack();
+    drawParticles();
+
+    const w = W(), h = H();
+    const cx = w / 2;
+
+    // Overlay
+    ctx.fillStyle = 'rgba(10,10,26,0.8)';
+    ctx.fillRect(0, 0, w, h);
+
+    // Title
+    const titleSize = Math.min(52, w * 0.1);
+    ctx.shadowColor = RED;
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = RED;
+    ctx.font = `bold ${titleSize}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('SPELET SLUT', cx, h * 0.28);
+    ctx.shadowBlur = 0;
+
+    // Score
+    ctx.shadowColor = CYAN;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = CYAN;
+    ctx.font = `bold ${Math.min(36, w * 0.07)}px 'Segoe UI', sans-serif`;
+    ctx.fillText(`${score} poang`, cx, h * 0.4);
+
+    // New highscore?
+    if (score >= highScore && score > 0) {
+      ctx.shadowColor = ORANGE;
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = ORANGE;
+      ctx.font = `bold ${Math.min(22, w * 0.04)}px 'Segoe UI', sans-serif`;
+      ctx.fillText('NYTT REKORD!', cx, h * 0.47);
+    }
+    ctx.shadowBlur = 0;
+
+    // Retry button
+    const btnW = Math.min(260, w * 0.6);
+    const btnH = Math.min(60, h * 0.08);
+    const btnX = cx - btnW / 2;
+    const btnY = h * 0.55 - btnH / 2;
+
+    const pulse = Math.sin(frameCount * 0.05) * 4;
+    ctx.shadowColor = GREEN;
+    ctx.shadowBlur = 15 + pulse;
+    ctx.strokeStyle = GREEN;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, 12);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(57,255,20,0.1)';
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = GREEN;
+    ctx.font = `bold ${Math.min(26, w * 0.05)}px 'Segoe UI', sans-serif`;
+    ctx.fillText('FORSOK IGEN', cx, btnY + btnH / 2 + Math.min(9, w * 0.017));
+
+    // Highscore
+    ctx.fillStyle = PURPLE;
+    ctx.font = `${Math.min(18, w * 0.035)}px 'Segoe UI', sans-serif`;
+    ctx.fillText(`Bast: ${highScore}`, cx, h * 0.7);
+
+    retryBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+  }
+
+  // --- Game logic ---
+  function startGame() {
+    state = 'playing';
+    score = 0;
+    distance = 0;
+    speed = baseSpeed;
+    ballX = 0;
+    ballTargetX = 0;
+    ballVelX = 0;
+    dead = false;
+    deathTimer = 0;
+    particles = [];
+    moveLeft = false;
+    moveRight = false;
+    initTiles();
+  }
+
+  function die() {
+    if (dead) return;
+    dead = true;
+    deathTimer = 0;
+
+    // Calculate ball screen position for particles
+    const cx = W() / 2;
+    const scrollOffset = (distance % TILE_DEPTH) / TILE_DEPTH;
+    const z = 3 + scrollOffset;
+    const y = getRowY(z * TILE_DEPTH);
+    const rw = getRowWidth(z * TILE_DEPTH);
+    const trackX = cx + ballX * (rw / 2) * 0.85;
+    spawnDeathParticles(trackX, y);
+
+    // Save score
+    if (score > highScore) {
+      highScore = score;
+      localStorage.setItem('slope-run-hi', highScore.toString());
+    }
+
+    // Send score to parent
+    try {
+      window.parent.postMessage({ type: 'game-score', score, game: 'slope-run' }, '*');
+    } catch (e) {}
+  }
+
+  function checkCollision() {
+    // Ball is at visual row ~3
+    const ballRow = 3;
+    if (ballRow >= tiles.length) return;
+
+    const row = tiles[ballRow];
+    // Map ballX (-1..1) to lane index
+    const normalizedX = (ballX + 1) / 2; // 0..1
+    const laneIndex = Math.floor(normalizedX * TRACK_LANES);
+    const clampedLane = Math.max(0, Math.min(TRACK_LANES - 1, laneIndex));
+
+    const type = row.tiles[clampedLane];
+
+    if (type === 'gap') {
+      die();
+    } else if (type === 'danger') {
+      if (!row.breaking) {
+        row.breaking = true;
+        row.dangerTimer = 0;
+      }
+      die();
+    }
+
+    // Check if ball is off the track edges
+    if (Math.abs(ballX) > 1.05) {
+      die();
+    }
+  }
+
+  function update(dt) {
+    frameCount++;
+
+    if (state === 'playing' && !dead) {
+      // Speed increases over time
+      speed = Math.min(maxSpeed, baseSpeed + distance * 0.001);
+
+      // Move forward
+      distance += speed * dt * 60 * 0.01;
+      score = Math.floor(distance * 10);
+
+      // Move ball left/right
+      const moveSpeed = 0.045;
+      if (moveLeft) ballTargetX = Math.max(-0.95, ballTargetX - moveSpeed * dt * 60);
+      if (moveRight) ballTargetX = Math.min(0.95, ballTargetX + moveSpeed * dt * 60);
+
+      // Touch steering
+      if (touchStartX !== null && touchCurrentX !== null) {
+        const diff = (touchCurrentX - touchStartX) / (W() * 0.3);
+        ballTargetX = Math.max(-0.95, Math.min(0.95, diff));
+      }
+
+      // Smooth ball movement
+      ballX += (ballTargetX - ballX) * 0.18 * dt * 60;
+
+      // Scroll tiles
+      tileTimer += speed * dt * 60 * 0.01;
+      while (tileTimer >= TILE_DEPTH) {
+        tileTimer -= TILE_DEPTH;
+        tiles.shift();
+        const lastZ = tiles.length > 0 ? tiles[tiles.length - 1].z + TILE_DEPTH : 0;
+        tiles.push(generateRow(lastZ));
+      }
+
+      // Update breaking danger tiles
+      for (const row of tiles) {
+        if (row.breaking) {
+          row.dangerTimer += dt * 60;
+        }
+      }
+
+      checkCollision();
+    }
+
+    if (dead) {
+      deathTimer += dt * 60;
+      if (deathTimer > 90) {
+        state = 'gameover';
+      }
+    }
+
+    updateParticles(dt);
+
+    // Animate stars
+    for (const s of bgStars) {
+      s.twinkle += s.speed * dt * 60 * 100;
+    }
+
+    // Menu animation - slowly scroll track
+    if (state === 'menu') {
+      distance += 2 * dt * 60 * 0.01;
+      tileTimer += 2 * dt * 60 * 0.01;
+      while (tileTimer >= TILE_DEPTH) {
+        tileTimer -= TILE_DEPTH;
+        if (tiles.length > 0) tiles.shift();
+        const lastZ = tiles.length > 0 ? tiles[tiles.length - 1].z + TILE_DEPTH : 0;
+        tiles.push(generateRow(lastZ));
+      }
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W(), H());
+
+    if (state === 'menu') {
+      drawMenu();
+    } else if (state === 'playing') {
+      drawBg();
+      drawTrack();
+      drawBall();
+      drawParticles();
+      drawHUD();
+
+      if (dead) {
+        // Flash overlay
+        const flash = Math.max(0, 1 - deathTimer / 15);
+        if (flash > 0) {
+          ctx.fillStyle = `rgba(255,51,68,${flash * 0.3})`;
+          ctx.fillRect(0, 0, W(), H());
+        }
+      }
+    } else if (state === 'gameover') {
+      drawGameOver();
+    }
+  }
+
+  // --- Game loop ---
+  function gameLoop(timestamp) {
+    const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.05) : 1 / 60;
+    lastTime = timestamp;
+
+    update(dt);
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Init tiles for menu background
+  initTiles();
+  requestAnimationFrame(gameLoop);
+
+  // --- Input ---
+  function handleClick(x, y) {
+    if (state === 'menu' && menuBtn) {
+      if (x >= menuBtn.x && x <= menuBtn.x + menuBtn.w &&
+          y >= menuBtn.y && y <= menuBtn.y + menuBtn.h) {
+        startGame();
+      }
+    } else if (state === 'gameover' && retryBtn) {
+      if (x >= retryBtn.x && x <= retryBtn.x + retryBtn.w &&
+          y >= retryBtn.y && y <= retryBtn.y + retryBtn.h) {
+        startGame();
+      }
+    }
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    handleClick(e.clientX, e.clientY);
+  });
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    if (state === 'playing' && !dead) {
+      touchStartX = t.clientX;
+      touchCurrentX = t.clientX;
+      // Store initial ball target for relative movement
+      ballTargetX = ballX;
+    } else {
+      handleClick(t.clientX, t.clientY);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (state === 'playing' && !dead && touchStartX !== null) {
+      touchCurrentX = e.touches[0].clientX;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    touchStartX = null;
+    touchCurrentX = null;
+  }, { passive: false });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+      moveLeft = true;
+      e.preventDefault();
+    }
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+      moveRight = true;
+      e.preventDefault();
+    }
+    if ((e.key === 'Enter' || e.key === ' ') && state === 'menu') {
+      startGame();
+      e.preventDefault();
+    }
+    if ((e.key === 'Enter' || e.key === ' ') && state === 'gameover') {
+      startGame();
+      e.preventDefault();
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+      moveLeft = false;
+    }
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+      moveRight = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

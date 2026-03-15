@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2048 Neon</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+  </style>
+</head>
+<body>
+<canvas id="game" tabindex="0"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  canvas.focus();
+  window.addEventListener('load', () => canvas.focus());
+
+  // roundRect polyfill for Safari
+  if (!ctx.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      if (typeof r === 'number') r = [r,r,r,r];
+      const [tl,tr,br,bl] = r;
+      this.moveTo(x+tl, y);
+      this.lineTo(x+w-tr, y);
+      this.quadraticCurveTo(x+w, y, x+w, y+tr);
+      this.lineTo(x+w, y+h-br);
+      this.quadraticCurveTo(x+w, y+h, x+w-br, y+h);
+      this.lineTo(x+bl, y+h);
+      this.quadraticCurveTo(x, y+h, x, y+h-bl);
+      this.lineTo(x, y+tl);
+      this.quadraticCurveTo(x, y, x+tl, y);
+      this.closePath();
+    };
+  }
+
+  // Hi-DPI
+  let dpr = 1;
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
+  // Neon colors per tile value
+  const TILE_COLORS = {
+    2:    { bg: '#003844', fg: '#00e5ff', glow: '#00e5ff' },
+    4:    { bg: '#0a1a4a', fg: '#4488ff', glow: '#4488ff' },
+    8:    { bg: '#3a1a00', fg: '#ff8c00', glow: '#ff8c00' },
+    16:   { bg: '#3a0a2a', fg: '#ff2d95', glow: '#ff2d95' },
+    32:   { bg: '#3a0000', fg: '#ff3344', glow: '#ff3344' },
+    64:   { bg: '#2a0a3a', fg: '#a855f7', glow: '#a855f7' },
+    128:  { bg: '#0a2a0a', fg: '#39ff14', glow: '#39ff14' },
+    256:  { bg: '#2a2a00', fg: '#ffe600', glow: '#ffe600' },
+    512:  { bg: '#3a2200', fg: '#ffaa00', glow: '#ffaa00' },
+    1024: { bg: '#3a0a3a', fg: '#ff66cc', glow: '#ff66cc' },
+    2048: { bg: '#2a1a00', fg: '#ffd700', glow: '#ffd700' },
+  };
+
+  function getTileColor(val) {
+    if (TILE_COLORS[val]) return TILE_COLORS[val];
+    return { bg: '#1a1a3a', fg: '#ffffff', glow: '#ffffff' };
+  }
+
+  const NEON_CYAN = '#00e5ff';
+  const NEON_PINK = '#ff2d95';
+
+  // Game state
+  let state = 'menu'; // menu, playing, gameover, won
+  let grid = [];
+  let score = 0;
+  let bestScore = parseInt(localStorage.getItem('2048-neon-hi')) || 0;
+  let keepPlaying = false;
+  let animating = false;
+
+  // Tile animations
+  let tileAnims = []; // { row, col, fromRow, fromCol, progress, value }
+  let mergeAnims = []; // { row, col, scale, progress, value }
+  let spawnAnims = []; // { row, col, scale, progress, value }
+  const ANIM_DURATION = 120; // ms
+  const SPAWN_DURATION = 150;
+  let animStart = 0;
+
+  // Menu animation
+  let menuTime = 0;
+
+  // Button hover states
+  let btnPlay = { x:0, y:0, w:0, h:0 };
+  let btnNewGame = { x:0, y:0, w:0, h:0 };
+  let btnContinue = { x:0, y:0, w:0, h:0 };
+  let btnRetry = { x:0, y:0, w:0, h:0 };
+
+  function initGrid() {
+    grid = Array.from({length:4}, () => Array(4).fill(0));
+    score = 0;
+    keepPlaying = false;
+    addRandomTile();
+    addRandomTile();
+  }
+
+  function emptyCells() {
+    const cells = [];
+    for (let r = 0; r < 4; r++)
+      for (let c = 0; c < 4; c++)
+        if (grid[r][c] === 0) cells.push({r, c});
+    return cells;
+  }
+
+  function addRandomTile() {
+    const cells = emptyCells();
+    if (cells.length === 0) return;
+    const {r, c} = cells[Math.floor(Math.random() * cells.length)];
+    const val = Math.random() < 0.9 ? 2 : 4;
+    grid[r][c] = val;
+    spawnAnims.push({ row: r, col: c, scale: 0, startTime: performance.now(), value: val });
+  }
+
+  function canMove() {
+    for (let r = 0; r < 4; r++)
+      for (let c = 0; c < 4; c++) {
+        if (grid[r][c] === 0) return true;
+        if (c < 3 && grid[r][c] === grid[r][c+1]) return true;
+        if (r < 3 && grid[r][c] === grid[r+1][c]) return true;
+      }
+    return false;
+  }
+
+  function hasWon() {
+    for (let r = 0; r < 4; r++)
+      for (let c = 0; c < 4; c++)
+        if (grid[r][c] === 2048) return true;
+    return false;
+  }
+
+  // Slide logic - returns true if anything moved
+  function slide(dir) {
+    if (animating) return false;
+
+    const oldGrid = grid.map(r => [...r]);
+    let moved = false;
+    tileAnims = [];
+    mergeAnims = [];
+
+    // Helper: slide a single row to the left
+    function slideRow(row) {
+      // Remove zeros
+      let tiles = row.filter(v => v !== 0);
+      let result = [];
+      let merges = [];
+      let i = 0;
+      while (i < tiles.length) {
+        if (i + 1 < tiles.length && tiles[i] === tiles[i+1]) {
+          result.push(tiles[i] * 2);
+          merges.push(true);
+          i += 2;
+        } else {
+          result.push(tiles[i]);
+          merges.push(false);
+          i++;
+        }
+      }
+      while (result.length < 4) { result.push(0); merges.push(false); }
+      return { result, merges };
+    }
+
+    // Track tile origins for animation
+    function getOrigins(row) {
+      return row.map((v, i) => v !== 0 ? i : -1);
+    }
+
+    if (dir === 'left') {
+      for (let r = 0; r < 4; r++) {
+        const orig = grid[r].slice();
+        const { result, merges } = slideRow(orig);
+        grid[r] = result;
+        // Build animations
+        let srcIdx = 0;
+        for (let c = 0; c < 4; c++) {
+          if (result[c] === 0) continue;
+          if (merges[c]) {
+            // Find two source tiles
+            while (srcIdx < 4 && orig[srcIdx] === 0) srcIdx++;
+            const s1 = srcIdx; srcIdx++;
+            while (srcIdx < 4 && orig[srcIdx] === 0) srcIdx++;
+            const s2 = srcIdx; srcIdx++;
+            if (s1 !== c) tileAnims.push({ row:r, col:c, fromRow:r, fromCol:s1, value: result[c]/2 });
+            if (s2 !== c) tileAnims.push({ row:r, col:c, fromRow:r, fromCol:s2, value: result[c]/2 });
+            mergeAnims.push({ row:r, col:c, scale:1, startTime: 0, value: result[c] });
+          } else {
+            while (srcIdx < 4 && orig[srcIdx] === 0) srcIdx++;
+            if (srcIdx !== c) tileAnims.push({ row:r, col:c, fromRow:r, fromCol:srcIdx, value: result[c] });
+            srcIdx++;
+          }
+        }
+      }
+    } else if (dir === 'right') {
+      for (let r = 0; r < 4; r++) {
+        const orig = grid[r].slice();
+        const reversed = [...orig].reverse();
+        const { result, merges } = slideRow(reversed);
+        const finalRow = result.reverse();
+        const finalMerges = merges.reverse();
+        grid[r] = finalRow;
+        let srcIdx = 3;
+        for (let c = 3; c >= 0; c--) {
+          if (finalRow[c] === 0) continue;
+          if (finalMerges[c]) {
+            while (srcIdx >= 0 && orig[srcIdx] === 0) srcIdx--;
+            const s1 = srcIdx; srcIdx--;
+            while (srcIdx >= 0 && orig[srcIdx] === 0) srcIdx--;
+            const s2 = srcIdx; srcIdx--;
+            if (s1 !== c) tileAnims.push({ row:r, col:c, fromRow:r, fromCol:s1, value: finalRow[c]/2 });
+            if (s2 !== c) tileAnims.push({ row:r, col:c, fromRow:r, fromCol:s2, value: finalRow[c]/2 });
+            mergeAnims.push({ row:r, col:c, scale:1, startTime: 0, value: finalRow[c] });
+          } else {
+            while (srcIdx >= 0 && orig[srcIdx] === 0) srcIdx--;
+            if (srcIdx !== c) tileAnims.push({ row:r, col:c, fromRow:r, fromCol:srcIdx, value: finalRow[c] });
+            srcIdx--;
+          }
+        }
+      }
+    } else if (dir === 'up') {
+      for (let c = 0; c < 4; c++) {
+        const col = [grid[0][c], grid[1][c], grid[2][c], grid[3][c]];
+        const { result, merges } = slideRow(col);
+        for (let r = 0; r < 4; r++) grid[r][c] = result[r];
+        let srcIdx = 0;
+        for (let r = 0; r < 4; r++) {
+          if (result[r] === 0) continue;
+          if (merges[r]) {
+            while (srcIdx < 4 && col[srcIdx] === 0) srcIdx++;
+            const s1 = srcIdx; srcIdx++;
+            while (srcIdx < 4 && col[srcIdx] === 0) srcIdx++;
+            const s2 = srcIdx; srcIdx++;
+            if (s1 !== r) tileAnims.push({ row:r, col:c, fromRow:s1, fromCol:c, value: result[r]/2 });
+            if (s2 !== r) tileAnims.push({ row:r, col:c, fromRow:s2, fromCol:c, value: result[r]/2 });
+            mergeAnims.push({ row:r, col:c, scale:1, startTime: 0, value: result[r] });
+          } else {
+            while (srcIdx < 4 && col[srcIdx] === 0) srcIdx++;
+            if (srcIdx !== r) tileAnims.push({ row:r, col:c, fromRow:srcIdx, fromCol:c, value: result[r] });
+            srcIdx++;
+          }
+        }
+      }
+    } else if (dir === 'down') {
+      for (let c = 0; c < 4; c++) {
+        const col = [grid[0][c], grid[1][c], grid[2][c], grid[3][c]];
+        const reversed = [...col].reverse();
+        const { result, merges } = slideRow(reversed);
+        const finalCol = result.reverse();
+        const finalMerges = merges.reverse();
+        for (let r = 0; r < 4; r++) grid[r][c] = finalCol[r];
+        let srcIdx = 3;
+        for (let r = 3; r >= 0; r--) {
+          if (finalCol[r] === 0) continue;
+          if (finalMerges[r]) {
+            while (srcIdx >= 0 && col[srcIdx] === 0) srcIdx--;
+            const s1 = srcIdx; srcIdx--;
+            while (srcIdx >= 0 && col[srcIdx] === 0) srcIdx--;
+            const s2 = srcIdx; srcIdx--;
+            if (s1 !== r) tileAnims.push({ row:r, col:c, fromRow:s1, fromCol:c, value: finalCol[r]/2 });
+            if (s2 !== r) tileAnims.push({ row:r, col:c, fromRow:s2, fromCol:c, value: finalCol[r]/2 });
+            mergeAnims.push({ row:r, col:c, scale:1, startTime: 0, value: finalCol[r] });
+          } else {
+            while (srcIdx >= 0 && col[srcIdx] === 0) srcIdx--;
+            if (srcIdx !== r) tileAnims.push({ row:r, col:c, fromRow:srcIdx, fromCol:c, value: finalCol[r] });
+            srcIdx--;
+          }
+        }
+      }
+    }
+
+    // Check if anything actually moved
+    for (let r = 0; r < 4; r++)
+      for (let c = 0; c < 4; c++)
+        if (grid[r][c] !== oldGrid[r][c]) moved = true;
+
+    if (moved) {
+      // Calculate score from merges
+      for (const m of mergeAnims) {
+        score += m.value;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        localStorage.setItem('2048-neon-hi', bestScore);
+      }
+      // Send score
+      try {
+        window.parent.postMessage({ type: 'game-score', score, game: '2048-neon' }, '*');
+      } catch(e) {}
+
+      // Start animations
+      animating = true;
+      animStart = performance.now();
+      for (const m of mergeAnims) m.startTime = animStart;
+
+      setTimeout(() => {
+        animating = false;
+        tileAnims = [];
+        mergeAnims = [];
+        addRandomTile();
+
+        if (!keepPlaying && hasWon()) {
+          state = 'won';
+        } else if (!canMove()) {
+          state = 'gameover';
+        }
+      }, ANIM_DURATION + 20);
+    } else {
+      tileAnims = [];
+      mergeAnims = [];
+    }
+
+    return moved;
+  }
+
+  // Grid layout calculations
+  function getGridLayout() {
+    const w = W();
+    const h = H();
+    const maxGridSize = Math.min(w - 40, h - 180, 500);
+    const gridSize = Math.max(200, maxGridSize);
+    const padding = gridSize * 0.03;
+    const cellSize = (gridSize - padding * 5) / 4;
+    const gx = (w - gridSize) / 2;
+    const gy = (h - gridSize) / 2 + 40;
+    return { gridSize, padding, cellSize, gx, gy };
+  }
+
+  // Drawing
+  function drawRoundedRect(x, y, w, h, r, fill, stroke, glowColor, glowSize) {
+    ctx.save();
+    if (glowColor && glowSize) {
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = glowSize;
+    }
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function drawTile(x, y, size, value, scale) {
+    const tc = getTileColor(value);
+    const s = scale || 1;
+    const cx = x + size/2;
+    const cy = y + size/2;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(s, s);
+    ctx.translate(-cx, -cy);
+
+    // Glow
+    ctx.shadowColor = tc.glow;
+    ctx.shadowBlur = value >= 128 ? 20 : 12;
+
+    // Background
+    ctx.beginPath();
+    ctx.roundRect(x, y, size, size, 8);
+    ctx.fillStyle = tc.bg;
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = tc.fg;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+
+    // Special glow for 2048
+    if (value === 2048) {
+      const t = performance.now() / 1000;
+      const hue = (t * 60) % 360;
+      ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+      ctx.shadowBlur = 25;
+      ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // Text
+    const text = String(value);
+    let fontSize = size * 0.4;
+    if (value >= 1000) fontSize = size * 0.28;
+    else if (value >= 100) fontSize = size * 0.33;
+
+    ctx.font = `bold ${fontSize}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = tc.fg;
+    ctx.shadowColor = tc.glow;
+    ctx.shadowBlur = 10;
+    ctx.fillText(text, x + size/2, y + size/2);
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+  }
+
+  function drawButton(text, x, y, w, h, color, hovered) {
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = hovered ? 25 : 15;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 10);
+    ctx.fillStyle = hovered ? color + '33' : '#0a0a1a';
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.font = `bold ${h * 0.4}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    ctx.fillText(text, x + w/2, y + h/2);
+    ctx.restore();
+  }
+
+  function drawMenu(now) {
+    const w = W(), h = H();
+    menuTime += 0.016;
+
+    // Title "2048"
+    const titleSize = Math.min(w * 0.25, 120);
+    ctx.save();
+
+    // Animated glow
+    const glowPhase = Math.sin(menuTime * 2) * 0.3 + 0.7;
+    const hue = (menuTime * 30) % 360;
+
+    ctx.font = `bold ${titleSize}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Shadow layers
+    ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+    ctx.shadowBlur = 40 * glowPhase;
+    ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
+    ctx.fillText('2048', w/2, h * 0.32);
+
+    ctx.shadowBlur = 20;
+    ctx.fillText('2048', w/2, h * 0.32);
+    ctx.shadowBlur = 0;
+
+    // Subtitle
+    ctx.font = `${Math.min(w * 0.04, 20)}px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = '#557799';
+    ctx.fillText('NEON EDITION', w/2, h * 0.32 + titleSize * 0.55);
+
+    ctx.restore();
+
+    // Play button
+    const bw = Math.min(220, w * 0.5);
+    const bh = 55;
+    const bx = w/2 - bw/2;
+    const by = h * 0.55;
+    btnPlay = { x: bx, y: by, w: bw, h: bh };
+    drawButton('SPELA', bx, by, bw, bh, NEON_CYAN, false);
+
+    // Best score
+    if (bestScore > 0) {
+      ctx.font = `16px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#556677';
+      ctx.fillText(`B\u00e4sta po\u00e4ng: ${bestScore}`, w/2, h * 0.72);
+    }
+
+    // Controls hint
+    ctx.font = `14px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = '#334455';
+    ctx.textAlign = 'center';
+    ctx.fillText('Piltangenter / WASD / Svep', w/2, h * 0.82);
+  }
+
+  function drawPlaying(now) {
+    const w = W(), h = H();
+    const { gridSize, padding, cellSize, gx, gy } = getGridLayout();
+
+    // Score area
+    const scoreY = gy - 55;
+
+    // Score box
+    ctx.save();
+    ctx.shadowColor = NEON_CYAN;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.roundRect(gx, scoreY, gridSize * 0.35, 45, 8);
+    ctx.fillStyle = '#0d0d2a';
+    ctx.fill();
+    ctx.strokeStyle = NEON_CYAN + '66';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.font = `10px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#668899';
+    ctx.fillText('PO\u00c4NG', gx + gridSize * 0.175, scoreY + 15);
+    ctx.font = `bold 18px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = NEON_CYAN;
+    ctx.fillText(score, gx + gridSize * 0.175, scoreY + 35);
+    ctx.restore();
+
+    // Best score box
+    ctx.save();
+    ctx.shadowColor = NEON_PINK;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.roundRect(gx + gridSize * 0.37, scoreY, gridSize * 0.35, 45, 8);
+    ctx.fillStyle = '#0d0d2a';
+    ctx.fill();
+    ctx.strokeStyle = NEON_PINK + '66';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.font = `10px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#886688';
+    ctx.fillText('B\u00c4STA', gx + gridSize * 0.545, scoreY + 15);
+    ctx.font = `bold 18px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = NEON_PINK;
+    ctx.fillText(bestScore, gx + gridSize * 0.545, scoreY + 35);
+    ctx.restore();
+
+    // New game button
+    const nbw = gridSize * 0.25;
+    const nbx = gx + gridSize - nbw;
+    btnNewGame = { x: nbx, y: scoreY, w: nbw, h: 45 };
+    ctx.save();
+    ctx.shadowColor = '#a855f7';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.roundRect(nbx, scoreY, nbw, 45, 8);
+    ctx.fillStyle = '#0d0d2a';
+    ctx.fill();
+    ctx.strokeStyle = '#a855f7' + '88';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.font = `bold 12px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#a855f7';
+    ctx.fillText('NYTT', nbx + nbw/2, scoreY + 17);
+    ctx.fillText('SPEL', nbx + nbw/2, scoreY + 32);
+    ctx.restore();
+
+    // Grid background
+    ctx.save();
+    ctx.shadowColor = NEON_CYAN;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.roundRect(gx, gy, gridSize, gridSize, 12);
+    ctx.fillStyle = '#0d0d2a';
+    ctx.fill();
+    ctx.strokeStyle = NEON_CYAN + '33';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // Empty cells
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const cx = gx + padding + c * (cellSize + padding);
+        const cy = gy + padding + r * (cellSize + padding);
+        ctx.beginPath();
+        ctx.roundRect(cx, cy, cellSize, cellSize, 8);
+        ctx.fillStyle = '#151530';
+        ctx.fill();
+      }
+    }
+
+    // Determine animation progress
+    const animProgress = animating ? Math.min(1, (now - animStart) / ANIM_DURATION) : 1;
+    const eased = animProgress < 1 ? 1 - Math.pow(1 - animProgress, 3) : 1; // easeOutCubic
+
+    // Draw tiles with animations
+    // First, determine which cells are being animated (slide target)
+    const slidingTo = new Set();
+    if (animating) {
+      for (const a of tileAnims) slidingTo.add(`${a.row},${a.col}`);
+    }
+
+    // Draw non-animated tiles
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (grid[r][c] === 0) continue;
+        // Skip tiles that are targets of sliding animations (they'll be drawn via anim)
+        if (animating && slidingTo.has(`${r},${c}`)) continue;
+
+        const cx = gx + padding + c * (cellSize + padding);
+        const cy = gy + padding + r * (cellSize + padding);
+
+        // Check for spawn animation
+        let scale = 1;
+        const sp = spawnAnims.find(s => s.row === r && s.col === c);
+        if (sp) {
+          const spProgress = Math.min(1, (now - sp.startTime) / SPAWN_DURATION);
+          scale = spProgress < 1 ? 0.1 + 0.9 * (1 - Math.pow(1 - spProgress, 2)) : 1;
+          if (spProgress >= 1) {
+            spawnAnims = spawnAnims.filter(s => s !== sp);
+          }
+        }
+
+        drawTile(cx, cy, cellSize, grid[r][c], scale);
+      }
+    }
+
+    // Draw sliding tiles
+    if (animating) {
+      // Group anims by target
+      const targetGroups = {};
+      for (const a of tileAnims) {
+        const key = `${a.row},${a.col}`;
+        if (!targetGroups[key]) targetGroups[key] = [];
+        targetGroups[key].push(a);
+      }
+
+      for (const a of tileAnims) {
+        const fromX = gx + padding + a.fromCol * (cellSize + padding);
+        const fromY = gx + padding + a.fromRow * (cellSize + padding);
+        // Wait, gy not gx for Y
+        const fromXc = gx + padding + a.fromCol * (cellSize + padding);
+        const fromYc = gy + padding + a.fromRow * (cellSize + padding);
+        const toX = gx + padding + a.col * (cellSize + padding);
+        const toY = gy + padding + a.row * (cellSize + padding);
+
+        const cx = fromXc + (toX - fromXc) * eased;
+        const cy = fromYc + (toY - fromYc) * eased;
+
+        drawTile(cx, cy, cellSize, a.value, 1);
+      }
+
+      // Draw merge targets (they appear at destination at full anim)
+      for (const m of mergeAnims) {
+        if (eased >= 0.9) {
+          const cx = gx + padding + m.col * (cellSize + padding);
+          const cy = gy + padding + m.row * (cellSize + padding);
+          // Pop scale effect
+          const mergeProgress = (eased - 0.9) / 0.1;
+          const popScale = 1 + 0.15 * Math.sin(mergeProgress * Math.PI);
+          drawTile(cx, cy, cellSize, m.value, popScale);
+        }
+      }
+    }
+
+    // Clean up old spawn anims
+    spawnAnims = spawnAnims.filter(s => (now - s.startTime) < SPAWN_DURATION);
+  }
+
+  function drawOverlay(title, subtitle, btnText, btnRef, color) {
+    const w = W(), h = H();
+    const { gridSize, gx, gy } = getGridLayout();
+
+    // Semi-transparent overlay
+    ctx.fillStyle = 'rgba(10, 10, 26, 0.85)';
+    ctx.fillRect(gx, gy, gridSize, gridSize);
+
+    // Title
+    const titleSize = Math.min(gridSize * 0.15, 50);
+    ctx.save();
+    ctx.font = `bold ${titleSize}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+    ctx.fillText(title, gx + gridSize/2, gy + gridSize * 0.35);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // Subtitle
+    if (subtitle) {
+      ctx.font = `${Math.min(gridSize * 0.06, 18)}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#889999';
+      ctx.fillText(subtitle, gx + gridSize/2, gy + gridSize * 0.48);
+    }
+
+    // Button
+    const bw = Math.min(200, gridSize * 0.5);
+    const bh = 48;
+    const bx = gx + gridSize/2 - bw/2;
+    const by = gy + gridSize * 0.58;
+    btnRef.x = bx; btnRef.y = by; btnRef.w = bw; btnRef.h = bh;
+    drawButton(btnText, bx, by, bw, bh, color, false);
+  }
+
+  function drawGameOver() {
+    drawPlaying(performance.now());
+    drawOverlay('GAME OVER', `Po\u00e4ng: ${score}`, 'F\u00d6RS\u00d6K IGEN', btnRetry, NEON_PINK);
+  }
+
+  function drawWon() {
+    drawPlaying(performance.now());
+    drawOverlay('DU VANN!', 'Du n\u00e5dde 2048!', 'FORTS\u00c4TT', btnContinue, '#ffd700');
+  }
+
+  function draw() {
+    const now = performance.now();
+    const w = W(), h = H();
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Background
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, w, h);
+
+    // Subtle grid pattern
+    ctx.strokeStyle = '#111133';
+    ctx.lineWidth = 0.5;
+    const gridSpacing = 40;
+    for (let x = 0; x < w; x += gridSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = 0; y < h; y += gridSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    if (state === 'menu') drawMenu(now);
+    else if (state === 'playing') drawPlaying(now);
+    else if (state === 'gameover') drawGameOver();
+    else if (state === 'won') drawWon();
+
+    requestAnimationFrame(draw);
+  }
+
+  // Input handling
+  function handleDirection(dir) {
+    if (state !== 'playing') return;
+    slide(dir);
+  }
+
+  // Keyboard
+  document.addEventListener('keydown', (e) => {
+    if (state === 'menu') {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        initGrid();
+        state = 'playing';
+      }
+      return;
+    }
+    if (state === 'gameover') {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        initGrid();
+        state = 'playing';
+      }
+      return;
+    }
+    if (state === 'won') {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        keepPlaying = true;
+        state = 'playing';
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowLeft': case 'a': case 'A':
+        e.preventDefault(); handleDirection('left'); break;
+      case 'ArrowRight': case 'd': case 'D':
+        e.preventDefault(); handleDirection('right'); break;
+      case 'ArrowUp': case 'w': case 'W':
+        e.preventDefault(); handleDirection('up'); break;
+      case 'ArrowDown': case 's': case 'S':
+        e.preventDefault(); handleDirection('down'); break;
+    }
+  });
+
+  // Mouse/touch for buttons
+  function getClickPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function hitTest(pos, btn) {
+    return pos.x >= btn.x && pos.x <= btn.x + btn.w &&
+           pos.y >= btn.y && pos.y <= btn.y + btn.h;
+  }
+
+  function handleClick(e) {
+    const pos = getClickPos(e);
+
+    if (state === 'menu') {
+      if (hitTest(pos, btnPlay)) {
+        initGrid();
+        state = 'playing';
+      }
+    } else if (state === 'playing') {
+      if (hitTest(pos, btnNewGame)) {
+        initGrid();
+        state = 'playing';
+      }
+    } else if (state === 'gameover') {
+      if (hitTest(pos, btnRetry)) {
+        initGrid();
+        state = 'playing';
+      }
+    } else if (state === 'won') {
+      if (hitTest(pos, btnContinue)) {
+        keepPlaying = true;
+        state = 'playing';
+      }
+    }
+  }
+
+  canvas.addEventListener('click', handleClick);
+
+  // Swipe handling
+  let touchStartX = 0, touchStartY = 0;
+  let touchStartTime = 0;
+  let swiped = false;
+
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = performance.now();
+      swiped = false;
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (swiped || e.touches.length !== 1) return;
+
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    if (dist > 30) {
+      swiped = true;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        handleDirection(dx > 0 ? 'right' : 'left');
+      } else {
+        handleDirection(dy > 0 ? 'down' : 'up');
+      }
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (e) => {
+    // If it was a tap (not a swipe), treat as click for buttons
+    if (!swiped && performance.now() - touchStartTime < 300) {
+      const pos = { x: touchStartX, y: touchStartY };
+      const rect = canvas.getBoundingClientRect();
+      pos.x -= rect.left;
+      pos.y -= rect.top;
+
+      if (state === 'menu' && hitTest(pos, btnPlay)) {
+        initGrid(); state = 'playing';
+      } else if (state === 'playing' && hitTest(pos, btnNewGame)) {
+        initGrid(); state = 'playing';
+      } else if (state === 'gameover' && hitTest(pos, btnRetry)) {
+        initGrid(); state = 'playing';
+      } else if (state === 'won' && hitTest(pos, btnContinue)) {
+        keepPlaying = true; state = 'playing';
+      }
+    }
+  }, { passive: true });
+
+  // Start
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

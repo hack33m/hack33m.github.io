@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Clicker</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+  </style>
+</head>
+<body>
+<canvas id="game" tabindex="0"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  canvas.focus();
+  window.addEventListener('load', () => canvas.focus());
+
+  // roundRect polyfill
+  if (!ctx.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      if (typeof r === 'number') r = [r,r,r,r];
+      const [tl,tr,br,bl] = r;
+      this.moveTo(x+tl, y);
+      this.lineTo(x+w-tr, y);
+      this.quadraticCurveTo(x+w, y, x+w, y+tr);
+      this.lineTo(x+w, y+h-br);
+      this.quadraticCurveTo(x+w, y+h, x+w-br, y+h);
+      this.lineTo(x+bl, y+h);
+      this.quadraticCurveTo(x, y+h, x, y+h-bl);
+      this.lineTo(x, y+tl);
+      this.quadraticCurveTo(x, y, x+tl, y);
+      this.closePath();
+    };
+  }
+
+  // Hi-DPI
+  let dpr = 1;
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
+  // Neon colors
+  const CYAN = '#00d4ff';
+  const PINK = '#ff2d95';
+  const PURPLE = '#a855f7';
+  const GREEN = '#39ff14';
+  const ORANGE = '#ff6a00';
+
+  // ---- Game State ----
+  let coins = 0;
+  let displayCoins = 0;
+  let totalCoinsEarned = 0;
+  let lastTick = Date.now();
+  let lastSave = Date.now();
+
+  const upgrades = [
+    { id: 'auto',   name: 'Auto-Klick',    desc: 'Genererar energi/sek',  icon: '\u26A1', color: CYAN,   level: 0, baseCost: 10,    costMul: 1.15, baseVal: 1 },
+    { id: 'kraft',  name: 'Kraft',          desc: 'Mer per klick',         icon: '\uD83D\uDCA5', color: PINK,   level: 0, baseCost: 25,    costMul: 1.18, baseVal: 1 },
+    { id: 'speed',  name: 'Hastighet',      desc: 'Snabbare auto-klick',   icon: '\uD83D\uDE80', color: GREEN,  level: 0, baseCost: 100,   costMul: 1.25, baseVal: 0.05 },
+    { id: 'multi',  name: 'Multiplikator',  desc: 'Multiplicerar allt',    icon: '\u2728', color: PURPLE, level: 0, baseCost: 500,   costMul: 1.5,  baseVal: 0.25 },
+  ];
+
+  function getCost(u) { return Math.floor(u.baseCost * Math.pow(u.costMul, u.level)); }
+  function getClickPower() {
+    const kraft = upgrades[1];
+    const multi = upgrades[3];
+    const base = 1 + kraft.level * kraft.baseVal;
+    const mul = 1 + multi.level * multi.baseVal;
+    return base * mul;
+  }
+  function getAutoRate() {
+    const auto = upgrades[0];
+    const speed = upgrades[2];
+    const multi = upgrades[3];
+    const base = auto.level * auto.baseVal;
+    const speedMul = 1 + speed.level * speed.baseVal;
+    const mul = 1 + multi.level * multi.baseVal;
+    return base * speedMul * mul;
+  }
+
+  // ---- Particles ----
+  let particles = [];
+  let floatingTexts = [];
+
+  function spawnClickParticles(x, y, count) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 3;
+      const colors = [CYAN, PINK, PURPLE, GREEN, ORANGE];
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1,
+        decay: 0.015 + Math.random() * 0.02,
+        size: 2 + Math.random() * 4,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      });
+    }
+  }
+
+  function spawnFloatingText(x, y, text, color) {
+    floatingTexts.push({ x, y, text, color, life: 1, decay: 0.018 });
+  }
+
+  // ---- Orb state ----
+  let orbPulse = 0;
+  let orbClickScale = 1;
+  let orbHover = false;
+
+  // ---- Layout ----
+  function isMobile() { return W() < 700; }
+
+  function getOrbCenter() {
+    if (isMobile()) {
+      return { x: W() / 2, y: H() * 0.32 };
+    }
+    return { x: W() * 0.38, y: H() * 0.45 };
+  }
+
+  function getOrbRadius() {
+    const base = isMobile() ? Math.min(W(), H()) * 0.18 : Math.min(W(), H()) * 0.15;
+    return Math.max(50, Math.min(base, 130));
+  }
+
+  // ---- Shop layout ----
+  let shopScroll = 0;
+  let shopMaxScroll = 0;
+  let draggingShop = false;
+  let dragStartY = 0;
+  let dragStartScroll = 0;
+
+  function getShopRect() {
+    if (isMobile()) {
+      const y = H() * 0.6;
+      return { x: 10, y, w: W() - 20, h: H() - y - 10 };
+    }
+    return { x: W() * 0.62, y: 80, w: W() * 0.35, h: H() - 100 };
+  }
+
+  function getUpgradeRects() {
+    const shop = getShopRect();
+    const itemH = isMobile() ? 70 : 80;
+    const gap = 8;
+    const rects = [];
+    for (let i = 0; i < upgrades.length; i++) {
+      rects.push({
+        x: shop.x + 8,
+        y: shop.y + 40 + i * (itemH + gap) - shopScroll,
+        w: shop.w - 16,
+        h: itemH
+      });
+    }
+    shopMaxScroll = Math.max(0, (upgrades.length * (itemH + gap) + 50) - (shop.h));
+    return rects;
+  }
+
+  // ---- Save / Load ----
+  const SAVE_KEY = 'idle-clicker-save';
+
+  function save() {
+    const data = {
+      coins,
+      totalCoinsEarned,
+      upgrades: upgrades.map(u => u.level),
+      timestamp: Date.now()
+    };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      coins = data.coins || 0;
+      totalCoinsEarned = data.totalCoinsEarned || 0;
+      displayCoins = coins;
+      if (data.upgrades) {
+        data.upgrades.forEach((lvl, i) => {
+          if (upgrades[i]) upgrades[i].level = lvl;
+        });
+      }
+      // Offline earnings
+      if (data.timestamp) {
+        const elapsed = (Date.now() - data.timestamp) / 1000;
+        const capped = Math.min(elapsed, 7200); // 2 hours max
+        const earned = Math.floor(getAutoRate() * capped);
+        if (earned > 0) {
+          coins += earned;
+          totalCoinsEarned += earned;
+          offlineEarnings = earned;
+          offlineShowTimer = 4;
+        }
+      }
+    } catch(e) {}
+  }
+
+  let offlineEarnings = 0;
+  let offlineShowTimer = 0;
+
+  // ---- Input ----
+  function getInputPos(e) {
+    if (e.touches && e.touches.length > 0) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function isInOrb(px, py) {
+    const c = getOrbCenter();
+    const r = getOrbRadius();
+    const dx = px - c.x, dy = py - c.y;
+    return dx*dx + dy*dy <= (r+20)*(r+20);
+  }
+
+  function isInRect(px, py, rect) {
+    return px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h;
+  }
+
+  function handleClick(px, py) {
+    // Check orb
+    if (isInOrb(px, py)) {
+      const power = getClickPower();
+      coins += power;
+      totalCoinsEarned += power;
+      orbClickScale = 1.18;
+      spawnClickParticles(px, py, 8 + Math.floor(power / 5));
+      spawnFloatingText(px + (Math.random()-0.5)*40, py - 30, '+' + formatNum(power), CYAN);
+      reportScore();
+      return;
+    }
+
+    // Check upgrades
+    const rects = getUpgradeRects();
+    const shop = getShopRect();
+    for (let i = 0; i < upgrades.length; i++) {
+      const r = rects[i];
+      if (r.y + r.h < shop.y || r.y > shop.y + shop.h) continue; // clipped
+      if (isInRect(px, py, r)) {
+        const u = upgrades[i];
+        const cost = getCost(u);
+        if (coins >= cost) {
+          coins -= cost;
+          u.level++;
+          spawnFloatingText(r.x + r.w/2, r.y, u.name + ' Lvl ' + u.level, u.color);
+          reportScore();
+        }
+        return;
+      }
+    }
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    const p = getInputPos(e);
+    const shop = getShopRect();
+    if (isInRect(p.x, p.y, shop)) {
+      draggingShop = true;
+      dragStartY = p.y;
+      dragStartScroll = shopScroll;
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    const p = getInputPos(e);
+    orbHover = isInOrb(p.x, p.y);
+    if (draggingShop) {
+      shopScroll = dragStartScroll - (p.y - dragStartY);
+      shopScroll = Math.max(0, Math.min(shopScroll, shopMaxScroll));
+    }
+  });
+
+  canvas.addEventListener('mouseup', (e) => {
+    const p = getInputPos(e);
+    if (draggingShop && Math.abs(p.y - dragStartY) < 8) {
+      handleClick(p.x, p.y);
+    } else if (!draggingShop) {
+      handleClick(p.x, p.y);
+    }
+    draggingShop = false;
+  });
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const p = getInputPos(e);
+    const shop = getShopRect();
+    if (isInRect(p.x, p.y, shop)) {
+      draggingShop = true;
+      dragStartY = p.y;
+      dragStartScroll = shopScroll;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const p = getInputPos(e);
+    if (draggingShop) {
+      shopScroll = dragStartScroll - (p.y - dragStartY);
+      shopScroll = Math.max(0, Math.min(shopScroll, shopMaxScroll));
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    const p = e.changedTouches ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY } : { x: 0, y: 0 };
+    if (draggingShop && Math.abs(p.y - dragStartY) < 12) {
+      handleClick(p.x, p.y);
+    } else if (!draggingShop) {
+      handleClick(p.x, p.y);
+    }
+    draggingShop = false;
+  }, { passive: false });
+
+  canvas.addEventListener('wheel', (e) => {
+    const p = { x: e.clientX, y: e.clientY };
+    const shop = getShopRect();
+    if (isInRect(p.x, p.y, shop)) {
+      shopScroll += e.deltaY * 0.5;
+      shopScroll = Math.max(0, Math.min(shopScroll, shopMaxScroll));
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  // ---- Formatting ----
+  function formatNum(n) {
+    if (n >= 1e15) return (n/1e15).toFixed(1) + 'Q';
+    if (n >= 1e12) return (n/1e12).toFixed(1) + 'T';
+    if (n >= 1e9)  return (n/1e9).toFixed(1) + 'B';
+    if (n >= 1e6)  return (n/1e6).toFixed(1) + 'M';
+    if (n >= 1e4)  return (n/1e3).toFixed(1) + 'K';
+    if (n >= 100)  return Math.floor(n).toString();
+    if (n % 1 !== 0) return n.toFixed(1);
+    return Math.floor(n).toString();
+  }
+
+  // ---- Score reporting ----
+  function reportScore() {
+    try {
+      window.parent.postMessage({ type: 'game-score', score: Math.floor(totalCoinsEarned), game: 'idle-clicker' }, '*');
+    } catch(e) {}
+  }
+
+  // ---- Background stars ----
+  const stars = [];
+  for (let i = 0; i < 80; i++) {
+    stars.push({
+      x: Math.random(),
+      y: Math.random(),
+      size: 0.5 + Math.random() * 1.5,
+      speed: 0.1 + Math.random() * 0.3,
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+
+  // ---- Drawing ----
+  let time = 0;
+
+  function drawBackground() {
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, W(), H());
+
+    // Stars
+    for (const s of stars) {
+      const alpha = 0.3 + 0.3 * Math.sin(time * s.speed + s.phase);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(s.x * W(), s.y * H(), s.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Subtle radial gradient behind orb
+    const c = getOrbCenter();
+    const grad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, getOrbRadius() * 3);
+    grad.addColorStop(0, 'rgba(0,212,255,0.05)');
+    grad.addColorStop(0.5, 'rgba(168,85,247,0.02)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W(), H());
+  }
+
+  function drawOrb() {
+    const c = getOrbCenter();
+    const baseR = getOrbRadius();
+    const pulse = Math.sin(time * 2) * 4;
+    const r = baseR + pulse;
+    const scale = orbClickScale;
+
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.scale(scale, scale);
+
+    // Outer glow layers
+    for (let i = 3; i >= 0; i--) {
+      const glowR = r + i * 18;
+      const alpha = 0.04 - i * 0.008;
+      const grad = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, glowR);
+      grad.addColorStop(0, `rgba(0,212,255,${alpha})`);
+      grad.addColorStop(0.6, `rgba(168,85,247,${alpha * 0.7})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Main orb gradient
+    const orbGrad = ctx.createRadialGradient(-r*0.25, -r*0.25, r*0.1, 0, 0, r);
+    orbGrad.addColorStop(0, '#88eeff');
+    orbGrad.addColorStop(0.3, CYAN);
+    orbGrad.addColorStop(0.7, PURPLE);
+    orbGrad.addColorStop(1, '#2a0050');
+    ctx.fillStyle = orbGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inner shine
+    const shineGrad = ctx.createRadialGradient(-r*0.3, -r*0.35, 0, -r*0.15, -r*0.2, r*0.6);
+    shineGrad.addColorStop(0, 'rgba(255,255,255,0.35)');
+    shineGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = shineGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Edge glow ring
+    ctx.strokeStyle = `rgba(0,212,255,${0.4 + 0.2 * Math.sin(time * 3)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 2, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Rotating energy arcs
+    for (let i = 0; i < 3; i++) {
+      const angle = time * 1.2 + i * (Math.PI * 2 / 3);
+      const arcLen = 0.6 + 0.2 * Math.sin(time * 2 + i);
+      ctx.strokeStyle = `rgba(0,212,255,${0.25 + 0.15 * Math.sin(time * 2 + i)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 10, angle, angle + arcLen);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // Hover indicator
+    if (orbHover) {
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 16, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }
+
+  function drawFloatingTexts() {
+    for (const ft of floatingTexts) {
+      ctx.globalAlpha = ft.life;
+      ctx.fillStyle = ft.color;
+      ctx.shadowColor = ft.color;
+      ctx.shadowBlur = 10;
+      ctx.font = `bold ${16 + (1 - ft.life) * 8}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(ft.text, ft.x, ft.y);
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }
+
+  function drawHUD() {
+    // Title
+    ctx.fillStyle = CYAN;
+    ctx.shadowColor = CYAN;
+    ctx.shadowBlur = 15;
+    ctx.font = `bold ${isMobile() ? 18 : 24}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    const titleX = isMobile() ? W() / 2 : W() * 0.38;
+    ctx.fillText('NEON CLICKER', titleX, 35);
+    ctx.shadowBlur = 0;
+
+    // Coins display
+    const coinStr = formatNum(Math.floor(displayCoins));
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${isMobile() ? 28 : 36}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    const coinX = isMobile() ? W() / 2 : W() * 0.38;
+    const coinY = isMobile() ? H() * 0.58 : H() * 0.78;
+    ctx.shadowColor = CYAN;
+    ctx.shadowBlur = 12;
+    ctx.fillText('\u26A1 ' + coinStr, coinX, coinY);
+    ctx.shadowBlur = 0;
+
+    // Per second
+    const rate = getAutoRate();
+    if (rate > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = `${isMobile() ? 13 : 16}px 'Segoe UI', sans-serif`;
+      ctx.fillText(formatNum(rate) + ' /sek', coinX, coinY + 24);
+    }
+
+    // Per click
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.font = `${isMobile() ? 11 : 13}px 'Segoe UI', sans-serif`;
+    ctx.fillText(formatNum(getClickPower()) + ' /klick', coinX, coinY + 44);
+
+    // Offline earnings banner
+    if (offlineShowTimer > 0) {
+      const alpha = Math.min(1, offlineShowTimer);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.beginPath();
+      ctx.roundRect(W()/2 - 140, H()/2 - 40, 280, 80, 12);
+      ctx.fill();
+      ctx.strokeStyle = GREEN;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(W()/2 - 140, H()/2 - 40, 280, 80, 12);
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Offline-inkomst!', W()/2, H()/2 - 10);
+      ctx.fillStyle = GREEN;
+      ctx.font = 'bold 22px "Segoe UI", sans-serif';
+      ctx.fillText('+' + formatNum(offlineEarnings) + ' \u26A1', W()/2, H()/2 + 22);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawShop() {
+    const shop = getShopRect();
+    const rects = getUpgradeRects();
+
+    // Shop background
+    ctx.fillStyle = 'rgba(10,10,30,0.85)';
+    ctx.beginPath();
+    ctx.roundRect(shop.x, shop.y, shop.w, shop.h, 14);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,212,255,0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(shop.x, shop.y, shop.w, shop.h, 14);
+    ctx.stroke();
+
+    // Shop title
+    ctx.fillStyle = PINK;
+    ctx.shadowColor = PINK;
+    ctx.shadowBlur = 8;
+    ctx.font = `bold ${isMobile() ? 15 : 18}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText('UPPGRADERINGAR', shop.x + 14, shop.y + 28);
+    ctx.shadowBlur = 0;
+
+    // Clip to shop area
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(shop.x, shop.y + 36, shop.w, shop.h - 36, [0, 0, 14, 14]);
+    ctx.clip();
+
+    for (let i = 0; i < upgrades.length; i++) {
+      const u = upgrades[i];
+      const r = rects[i];
+      const cost = getCost(u);
+      const canBuy = coins >= cost;
+
+      // Skip if completely outside
+      if (r.y + r.h < shop.y + 36 || r.y > shop.y + shop.h) continue;
+
+      // Background
+      ctx.fillStyle = canBuy ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)';
+      ctx.beginPath();
+      ctx.roundRect(r.x, r.y, r.w, r.h, 10);
+      ctx.fill();
+
+      // Border
+      ctx.strokeStyle = canBuy ? `${u.color}66` : 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(r.x, r.y, r.w, r.h, 10);
+      ctx.stroke();
+
+      // Icon
+      ctx.font = `${isMobile() ? 22 : 28}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(u.icon, r.x + (isMobile() ? 25 : 32), r.y + (isMobile() ? 42 : 48));
+
+      // Name + level
+      ctx.textAlign = 'left';
+      ctx.fillStyle = canBuy ? '#fff' : 'rgba(255,255,255,0.4)';
+      ctx.font = `bold ${isMobile() ? 13 : 15}px 'Segoe UI', sans-serif`;
+      const textX = r.x + (isMobile() ? 50 : 65);
+      ctx.fillText(u.name, textX, r.y + (isMobile() ? 24 : 28));
+
+      // Level badge
+      ctx.fillStyle = u.color;
+      ctx.font = `bold ${isMobile() ? 10 : 12}px 'Segoe UI', sans-serif`;
+      const lvlText = 'Lvl ' + u.level;
+      const nameW = ctx.measureText(u.name).width;
+      ctx.fillText(lvlText, textX + nameW + 8, r.y + (isMobile() ? 24 : 28));
+
+      // Description
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.font = `${isMobile() ? 10 : 12}px 'Segoe UI', sans-serif`;
+      ctx.fillText(u.desc, textX, r.y + (isMobile() ? 40 : 45));
+
+      // Effect value
+      let effectText = '';
+      if (u.id === 'auto') effectText = formatNum(u.level * u.baseVal) + '/sek';
+      if (u.id === 'kraft') effectText = '+' + formatNum(u.level * u.baseVal) + '/klick';
+      if (u.id === 'speed') effectText = 'x' + (1 + u.level * u.baseVal).toFixed(2);
+      if (u.id === 'multi') effectText = 'x' + (1 + u.level * u.baseVal).toFixed(2);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.font = `${isMobile() ? 9 : 11}px 'Segoe UI', sans-serif`;
+      ctx.fillText(effectText, textX, r.y + (isMobile() ? 54 : 60));
+
+      // Cost button
+      const btnW = isMobile() ? 70 : 85;
+      const btnH = isMobile() ? 28 : 32;
+      const btnX = r.x + r.w - btnW - 8;
+      const btnY = r.y + (r.h - btnH) / 2;
+
+      ctx.fillStyle = canBuy ? `${u.color}22` : 'rgba(255,255,255,0.03)';
+      ctx.beginPath();
+      ctx.roundRect(btnX, btnY, btnW, btnH, 6);
+      ctx.fill();
+      ctx.strokeStyle = canBuy ? u.color : 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(btnX, btnY, btnW, btnH, 6);
+      ctx.stroke();
+
+      ctx.fillStyle = canBuy ? '#fff' : 'rgba(255,255,255,0.3)';
+      ctx.font = `bold ${isMobile() ? 11 : 13}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('\u26A1' + formatNum(cost), btnX + btnW/2, btnY + btnH/2 + (isMobile() ? 4 : 5));
+    }
+
+    ctx.restore();
+
+    // Scroll indicator
+    if (shopMaxScroll > 0) {
+      const barH = Math.max(20, (shop.h - 40) * ((shop.h - 40) / ((shop.h - 40) + shopMaxScroll)));
+      const barY = shop.y + 38 + (shopScroll / shopMaxScroll) * ((shop.h - 42) - barH);
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.beginPath();
+      ctx.roundRect(shop.x + shop.w - 5, barY, 3, barH, 2);
+      ctx.fill();
+    }
+  }
+
+  // ---- Update ----
+  function update(dt) {
+    time += dt;
+
+    // Animated coins display
+    const diff = coins - displayCoins;
+    displayCoins += diff * Math.min(1, dt * 8);
+    if (Math.abs(diff) < 0.5) displayCoins = coins;
+
+    // Orb click animation decay
+    orbClickScale += (1 - orbClickScale) * Math.min(1, dt * 12);
+
+    // Auto income
+    const rate = getAutoRate();
+    if (rate > 0) {
+      const earned = rate * dt;
+      coins += earned;
+      totalCoinsEarned += earned;
+    }
+
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy -= 0.02; // slight upward drift
+      p.life -= p.decay;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // Floating texts
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+      const ft = floatingTexts[i];
+      ft.y -= 1.2;
+      ft.life -= ft.decay;
+      if (ft.life <= 0) floatingTexts.splice(i, 1);
+    }
+
+    // Offline banner
+    if (offlineShowTimer > 0) offlineShowTimer -= dt;
+
+    // Auto-save every 30 seconds
+    if (Date.now() - lastSave > 30000) {
+      save();
+      lastSave = Date.now();
+    }
+
+    // Report score periodically
+    if (Math.floor(time) % 5 === 0 && Math.abs(time - Math.floor(time)) < dt) {
+      reportScore();
+    }
+  }
+
+  function draw() {
+    drawBackground();
+    drawParticles();
+    drawOrb();
+    drawFloatingTexts();
+    drawHUD();
+    drawShop();
+  }
+
+  // ---- Main Loop ----
+  load();
+
+  function loop() {
+    const now = Date.now();
+    const dt = Math.min((now - lastTick) / 1000, 0.1);
+    lastTick = now;
+
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  requestAnimationFrame(loop);
+
+  // Save on unload
+  window.addEventListener('beforeunload', save);
+  window.addEventListener('pagehide', save);
+})();
+</script>
+</body>
+</html>

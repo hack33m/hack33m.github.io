@@ -70,5 +70,59 @@
     "thumbnail": "assets/images/neon-rex.svg",
     "path": "games/neon-rex/index.html",
     "featured": true
+  },
+  {
+    "id": "neon-snake",
+    "title": "Neon Snake",
+    "description": "\u00c4t, v\u00e4x och undvik dig sj\u00e4lv! Samla powerups f\u00f6r sk\u00f6ld, speed och mer.",
+    "category": "Action",
+    "thumbnail": "assets/images/neon-snake.svg",
+    "path": "games/neon-snake/index.html",
+    "featured": true
+  },
+  {
+    "id": "neon-drift",
+    "title": "Neon Drift",
+    "description": "K\u00f6r och drifta genom neonbanor! Undvik hinder och h\u00e5ll dig p\u00e5 v\u00e4gen.",
+    "category": "Action",
+    "thumbnail": "assets/images/neon-drift.svg",
+    "path": "games/neon-drift/index.html",
+    "featured": true
+  },
+  {
+    "id": "slope-run",
+    "title": "Slope Run",
+    "description": "Styr bollen ner\u00f6ver sluttningen! Undvik gap och farliga plattor.",
+    "category": "Action",
+    "thumbnail": "assets/images/slope-run.svg",
+    "path": "games/slope-run/index.html",
+    "featured": true
+  },
+  {
+    "id": "neon-shooter",
+    "title": "Neon Shooter",
+    "description": "\u00d6verlev v\u00e5gor av fiender! Skjut, samla powerups och s\u00e4tt rekord.",
+    "category": "Action",
+    "thumbnail": "assets/images/neon-shooter.svg",
+    "path": "games/neon-shooter/index.html",
+    "featured": true
+  },
+  {
+    "id": "idle-clicker",
+    "title": "Idle Clicker",
+    "description": "Klicka p\u00e5 orben, k\u00f6p uppgraderingar och bygg ett neonimperium!",
+    "category": "Pussel",
+    "thumbnail": "assets/images/idle-clicker.svg",
+    "path": "games/idle-clicker/index.html",
+    "featured": true
+  },
+  {
+    "id": "2048-neon",
+    "title": "2048",
+    "description": "Klassiska 2048-pusslet med neonstil! Slida brickor och n\u00e5 2048.",
+    "category": "Pussel",
+    "thumbnail": "assets/images/2048-neon.svg",
+    "path": "games/2048-neon/index.html",
+    "featured": true
   }
 ]
