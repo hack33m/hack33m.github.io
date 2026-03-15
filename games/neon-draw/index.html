@@ -55,6 +55,7 @@
     };
   }
 
+  let drawCanvas=null, drawCtx=null;
   let dpr=1,W=300,H=500;
   function resize(){
     dpr=window.devicePixelRatio||1;
@@ -62,7 +63,7 @@
     canvas.width=W*dpr;canvas.height=H*dpr;
     canvas.style.width=W+'px';canvas.style.height=H+'px';
     ctx.setTransform(dpr,0,0,dpr,0,0);
-    if(drawCanvas){drawCanvas.width=W*dpr;drawCanvas.height=H*dpr;drawCtx.setTransform(dpr,0,0,dpr,0,0);}
+    if(typeof drawCanvas!=='undefined'&&drawCanvas){drawCanvas.width=W*dpr;drawCanvas.height=H*dpr;drawCtx.setTransform(dpr,0,0,dpr,0,0);}
   }
   resize();
   window.addEventListener('resize',resize);
@@ -89,7 +90,7 @@
   let drawColor=CYAN, brushSize=8, isEraser=false, isDrawing=false, lastX=0, lastY=0;
   const BRUSH_SIZES=[4,8,14];
   let brushIdx=1;
-  let drawCanvas, drawCtx;
+  // drawCanvas declared above resize()
 
   function initDrawCanvas(){
     drawCanvas=document.createElement('canvas');
