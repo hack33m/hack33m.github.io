@@ -385,8 +385,23 @@ async function spendCoins(amount) {
   return true;
 }
 
-async function addEventScore(points) {
+// Weekly event challenges - must match event.html
+const WEEKLY_CHALLENGES = [
+  'neon-dash', 'neon-bird', 'neon-rex', 'neon-snake',
+  'corny-jump', 'block-blast', 'idle-clicker', 'neon-wordle'
+];
+
+function getEventWeekGameId() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const weekNum = Math.floor((now - start) / (7 * 24 * 60 * 60 * 1000));
+  return WEEKLY_CHALLENGES[weekNum % WEEKLY_CHALLENGES.length];
+}
+
+async function addEventScore(points, gameId) {
   if (!currentUserData) return;
+  // Only count points from this week's challenge game
+  if (gameId && gameId !== getEventWeekGameId()) return;
   try {
     const now = new Date();
     const day = now.getDay();
@@ -395,7 +410,6 @@ async function addEventScore(points) {
     monday.setDate(diff);
     const weekId = monday.toISOString().split('T')[0];
 
-    // Check if user is in this week's event
     const { data: existing } = await supabaseClient
       .from('weekly_event_scores')
       .select('score')
@@ -530,8 +544,8 @@ function renderHeaderAuth() {
   const coinsDisplay = `<a href="shop.html" class="coins-display" title="Öppna shop">🪙 ${user.coins || 0}</a>`;
 
   container.innerHTML = `
-    ${adminBtn}
     ${eventBtn}
+    ${adminBtn}
     ${coinsDisplay}
     <div class="user-menu-wrapper">
       <button class="user-menu-btn" id="user-menu-btn">
@@ -931,8 +945,9 @@ function initGamePage() {
       if (earned > 0) {
         await addCoins(earned);
         renderHeaderAuth();
-        // Add points to weekly event
-        await addEventScore(earned);
+        // Add points to weekly event (only for this week's game)
+        const eventGameId = e.data.game || '';
+        await addEventScore(earned, eventGameId);
       }
     }
   });

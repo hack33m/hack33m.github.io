@@ -29,8 +29,28 @@
     }
     .event-timer span { color: var(--text-secondary); font-size: 13px; font-weight: 400; }
 
+    .event-challenge {
+      padding: 24px; margin-bottom: 24px; text-align: center;
+      background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.08));
+      border: 1px solid rgba(99,102,241,0.2); border-radius: 16px;
+    }
+    .event-challenge h2 { font-size: 18px; margin-bottom: 8px; color: #a78bfa; }
+    .event-challenge .challenge-game {
+      font-size: 28px; font-weight: 800; margin: 12px 0 8px;
+    }
+    .event-challenge .challenge-desc {
+      color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;
+    }
+    .event-challenge .play-btn {
+      display: inline-block; padding: 10px 28px;
+      background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff;
+      font-size: 14px; font-weight: 700; border-radius: 10px; border: none; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .event-challenge .play-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(99,102,241,0.3); }
+
     .event-info {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 30px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;
     }
     .event-info-card {
       padding: 20px; background: var(--card-bg); border: 1px solid var(--border);
@@ -60,7 +80,8 @@
     .prize-rank.silver { background: rgba(192,192,192,0.2); color: #c0c0c0; }
     .prize-rank.bronze { background: rgba(205,127,50,0.2); color: #cd7f32; }
     .prize-text { font-size: 15px; font-weight: 600; }
-    .prize-coins { margin-left: auto; color: #fbbf24; font-weight: 700; font-size: 15px; }
+    .prize-reward { margin-left: auto; font-weight: 700; font-size: 14px; color: #fbbf24; text-align: right; }
+    .prize-reward-sub { font-size: 11px; color: var(--text-secondary); font-weight: 400; }
 
     .leaderboard-section { margin-bottom: 30px; }
     .leaderboard-section h2 { font-size: 20px; margin-bottom: 16px; }
@@ -83,7 +104,7 @@
     .lb-score { font-weight: 800; font-size: 16px; color: #fbbf24; }
     .lb-empty { text-align: center; padding: 40px; color: var(--text-secondary); font-size: 15px; }
 
-    .event-join-section { text-align: center; margin-bottom: 30px; }
+    .event-join-section { text-align: center; margin-bottom: 24px; }
     .event-join-btn {
       padding: 14px 40px; font-size: 16px; font-weight: 800;
       background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #000;
@@ -93,6 +114,7 @@
     .event-join-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(251,191,36,0.3); }
     .event-join-btn:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
     .event-status { margin-top: 12px; font-size: 14px; color: var(--text-secondary); }
+    .event-status.error { color: #f87171; }
 
     .back-link {
       display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px;
@@ -101,10 +123,18 @@
     }
     .back-link:hover { color: var(--text-primary); }
 
+    .rules-section {
+      padding: 20px; margin-bottom: 30px;
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px;
+    }
+    .rules-section h2 { font-size: 18px; margin-bottom: 12px; }
+    .rules-section ul { padding-left: 20px; color: var(--text-secondary); font-size: 14px; line-height: 1.8; }
+
     @media (max-width: 600px) {
       .event-hero h1 { font-size: 24px; }
       .event-info { grid-template-columns: 1fr; }
       .event-hero { padding: 28px 16px; }
+      .challenge-game { font-size: 22px !important; }
     }
   </style>
 </head>
@@ -127,11 +157,18 @@
     <div class="event-hero">
       <span class="event-emoji">🏆</span>
       <h1>Veckans Event</h1>
-      <p>Spela spel och samla poäng! Topplistan nollställs varje fredag kl 18:00.</p>
+      <p id="event-subtitle">Veckans utmaning! Topplistan nollställs varje fredag kl 18:00.</p>
       <div class="event-timer">
         <span>Slutar om</span><br>
         <span id="countdown">--:--:--</span>
       </div>
+    </div>
+
+    <div class="event-challenge" id="challenge-section">
+      <h2>🎯 Veckans utmaning</h2>
+      <div class="challenge-game" id="challenge-game">Neon Dash</div>
+      <div class="challenge-desc" id="challenge-desc">Få högsta poängen i Neon Dash denna vecka!</div>
+      <a class="play-btn" id="play-btn" href="game.html?id=neon-dash">🎮 Spela nu</a>
     </div>
 
     <div class="event-info">
@@ -154,21 +191,30 @@
 
     <div class="prize-section">
       <h2>🎁 Priser</h2>
-      <div class="prize-list">
+      <div class="prize-list" id="prize-list">
         <div class="prize-item">
           <div class="prize-rank gold">🥇</div>
           <div class="prize-text">1:a plats</div>
-          <div class="prize-coins">🪙 500</div>
+          <div class="prize-reward">
+            🍫 Corny IRL + Admin i 1 vecka
+            <div class="prize-reward-sub">+ 500 coins</div>
+          </div>
         </div>
         <div class="prize-item">
           <div class="prize-rank silver">🥈</div>
           <div class="prize-text">2:a plats</div>
-          <div class="prize-coins">🪙 250</div>
+          <div class="prize-reward">
+            Admin i 3 dagar
+            <div class="prize-reward-sub">+ 250 coins</div>
+          </div>
         </div>
         <div class="prize-item">
           <div class="prize-rank bronze">🥉</div>
           <div class="prize-text">3:e plats</div>
-          <div class="prize-coins">🪙 100</div>
+          <div class="prize-reward">
+            🪙 100 coins
+            <div class="prize-reward-sub">+ hemlig titel</div>
+          </div>
         </div>
       </div>
     </div>
@@ -179,23 +225,64 @@
         <div class="lb-empty">Laddar...</div>
       </div>
     </div>
+
+    <div class="rules-section">
+      <h2>📋 Regler</h2>
+      <ul>
+        <li>Gå med i eventet och spela veckans spel för att samla poäng</li>
+        <li>Bara poäng från veckans utvalda spel räknas</li>
+        <li>Topplistan nollställs varje fredag kl 18:00</li>
+        <li>Priser delas ut av admin efter varje vecka</li>
+        <li>Fusk = diskvalificering</li>
+      </ul>
+    </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="js/supabase-config.js"></script>
   <script>
   (async () => {
+    // ===== Weekly challenges - rotate each week =====
+    const WEEKLY_CHALLENGES = [
+      { gameId: 'neon-dash', title: 'Neon Dash', desc: 'Få högsta poängen i Neon Dash!', emoji: '⚡' },
+      { gameId: 'neon-bird', title: 'Neon Bird', desc: 'Flyg längst i Neon Bird!', emoji: '🐦' },
+      { gameId: 'neon-rex', title: 'Neon Rex', desc: 'Spring längst med dinosaurien!', emoji: '🦖' },
+      { gameId: 'neon-snake', title: 'Neon Snake', desc: 'Bli längst i Neon Snake!', emoji: '🐍' },
+      { gameId: 'corny-jump', title: 'Corny Jump', desc: 'Hoppa högst i Corny Jump!', emoji: '🍫' },
+      { gameId: 'block-blast', title: 'Corny Crunch', desc: 'Få flest poäng i Corny Crunch!', emoji: '🧩' },
+      { gameId: 'idle-clicker', title: 'Neon Clicker', desc: 'Klicka mest energi i Neon Clicker!', emoji: '⚡' },
+      { gameId: 'neon-wordle', title: 'Neon Wordle', desc: 'Gissa flest ord i Neon Wordle!', emoji: '🟩' },
+    ];
+
+    // Pick challenge based on week number
+    function getWeekNumber() {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), 0, 1);
+      const diff = now - start;
+      return Math.floor(diff / (7 * 24 * 60 * 60 * 1000));
+    }
+
+    const weekNum = getWeekNumber();
+    const challenge = WEEKLY_CHALLENGES[weekNum % WEEKLY_CHALLENGES.length];
+
+    // Update challenge UI
+    document.getElementById('challenge-game').textContent = challenge.emoji + ' ' + challenge.title;
+    document.getElementById('challenge-desc').textContent = challenge.desc;
+    document.getElementById('play-btn').href = 'game.html?id=' + challenge.gameId;
+    document.getElementById('event-subtitle').textContent = 'Denna vecka: ' + challenge.title + '! Topplistan nollställs varje fredag kl 18:00.';
+
     // ===== Auth =====
     let currentUser = null;
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-      const { data } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
-      if (data) currentUser = { uid: data.id, username: data.username, avatar: data.avatar || '😀', coins: data.coins || 0, role: data.role };
-    }
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session) {
+        const { data } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
+        if (data) currentUser = { uid: data.id, username: data.username, avatar: data.avatar || '😀', coins: data.coins || 0, role: data.role };
+      }
+    } catch (e) {}
 
     // ===== Week calculation =====
     function getWeekId() {
-      // Week ID = Monday date string of current week
       const now = new Date();
       const day = now.getDay();
       const diff = now.getDate() - day + (day === 0 ? -6 : 1);
@@ -206,7 +293,7 @@
 
     function getNextFriday18() {
       const now = new Date();
-      const day = now.getDay(); // 0=Sun, 5=Fri
+      const day = now.getDay();
       let daysUntilFri = (5 - day + 7) % 7;
       if (daysUntilFri === 0 && now.getHours() >= 18) daysUntilFri = 7;
       const fri = new Date(now);
@@ -239,42 +326,51 @@
     const lbList = document.getElementById('lb-list');
 
     async function loadLeaderboard() {
-      const { data, error } = await supabaseClient
-        .from('weekly_event_scores')
-        .select('user_id, score, profiles(username, avatar)')
-        .eq('week_id', weekId)
-        .order('score', { ascending: false })
-        .limit(20);
+      try {
+        const { data, error } = await supabaseClient
+          .from('weekly_event_scores')
+          .select('user_id, score, profiles(username, avatar)')
+          .eq('week_id', weekId)
+          .order('score', { ascending: false })
+          .limit(20);
 
-      if (error || !data || data.length === 0) {
-        lbList.innerHTML = '<div class="lb-empty">Ingen har gått med ännu. Bli först!</div>';
-        updateMyStats(null, data);
-        return;
+        if (error) {
+          lbList.innerHTML = '<div class="lb-empty">Kunde inte ladda topplistan. Tabellen kanske inte finns ännu.</div>';
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          lbList.innerHTML = '<div class="lb-empty">Ingen har gått med ännu. Bli först!</div>';
+          updateMyStats(null, []);
+          return;
+        }
+
+        lbList.innerHTML = '';
+        data.forEach((entry, i) => {
+          const profile = entry.profiles || {};
+          const isMe = currentUser && entry.user_id === currentUser.uid;
+          const topClass = i === 0 ? 'top-1' : i === 1 ? 'top-2' : i === 2 ? 'top-3' : '';
+          const row = document.createElement('div');
+          row.className = `lb-row ${topClass} ${isMe ? 'is-me' : ''}`;
+          row.innerHTML = `
+            <div class="lb-pos">${i < 3 ? ['🥇','🥈','🥉'][i] : '#' + (i+1)}</div>
+            <div class="lb-avatar">${escapeHtml(profile.avatar || '😀')}</div>
+            <div class="lb-name">${escapeHtml(profile.username || 'Okänd')}</div>
+            <div class="lb-score">${entry.score.toLocaleString()} p</div>
+          `;
+          lbList.appendChild(row);
+        });
+
+        updateMyStats(currentUser, data);
+      } catch (e) {
+        lbList.innerHTML = '<div class="lb-empty">Fel vid laddning.</div>';
       }
-
-      lbList.innerHTML = '';
-      data.forEach((entry, i) => {
-        const profile = entry.profiles || {};
-        const isMe = currentUser && entry.user_id === currentUser.uid;
-        const topClass = i === 0 ? 'top-1' : i === 1 ? 'top-2' : i === 2 ? 'top-3' : '';
-        const row = document.createElement('div');
-        row.className = `lb-row ${topClass} ${isMe ? 'is-me' : ''}`;
-        row.innerHTML = `
-          <div class="lb-pos">${i < 3 ? ['🥇','🥈','🥉'][i] : '#' + (i+1)}</div>
-          <div class="lb-avatar">${profile.avatar || '😀'}</div>
-          <div class="lb-name">${escapeHtml(profile.username || 'Okänd')}</div>
-          <div class="lb-score">${entry.score.toLocaleString()} p</div>
-        `;
-        lbList.appendChild(row);
-      });
-
-      updateMyStats(currentUser, data);
     }
 
     function updateMyStats(user, data) {
       const myScoreEl = document.getElementById('my-score');
       const myRankEl = document.getElementById('my-rank');
-      if (!user || !data) { myScoreEl.textContent = '0'; myRankEl.textContent = '-'; return; }
+      if (!user || !data || data.length === 0) { myScoreEl.textContent = '0'; myRankEl.textContent = '-'; return; }
       const idx = data.findIndex(e => e.user_id === user.uid);
       if (idx >= 0) {
         myScoreEl.textContent = data[idx].score.toLocaleString();
@@ -295,34 +391,56 @@
       joinStatus.textContent = 'Logga in för att delta!';
     } else {
       // Check if already joined
-      const { data: existing } = await supabaseClient
-        .from('weekly_event_scores')
-        .select('score')
-        .eq('user_id', currentUser.uid)
-        .eq('week_id', weekId)
-        .single();
+      try {
+        const { data: existing } = await supabaseClient
+          .from('weekly_event_scores')
+          .select('score')
+          .eq('user_id', currentUser.uid)
+          .eq('week_id', weekId)
+          .single();
 
-      if (existing) {
-        joinSection.innerHTML = '<p class="event-status">✅ Du är med i veckans event! Spela spel för att samla poäng.</p>';
-      }
+        if (existing) {
+          joinSection.innerHTML = '<p class="event-status">✅ Du är med! Spela <strong>' + challenge.title + '</strong> för att samla poäng.</p>';
+        }
+      } catch (e) {}
     }
 
     joinBtn.addEventListener('click', async () => {
       if (!currentUser) return;
       joinBtn.disabled = true;
       joinBtn.textContent = 'Ansluter...';
+      joinStatus.textContent = '';
+      joinStatus.className = 'event-status';
 
-      const { error } = await supabaseClient
-        .from('weekly_event_scores')
-        .upsert({ user_id: currentUser.uid, week_id: weekId, score: 0 }, { onConflict: 'user_id,week_id' });
+      try {
+        const { error } = await supabaseClient
+          .from('weekly_event_scores')
+          .insert({ user_id: currentUser.uid, week_id: weekId, score: 0 });
 
-      if (error) {
-        joinStatus.textContent = 'Kunde inte gå med. Försök igen!';
+        if (error) {
+          if (error.code === '23505') {
+            // Already joined (duplicate key)
+            joinSection.innerHTML = '<p class="event-status">✅ Du är med! Spela <strong>' + challenge.title + '</strong> för att samla poäng.</p>';
+          } else if (error.code === '42P01') {
+            joinStatus.textContent = 'Event-systemet är inte klart ännu. Kontakta admin!';
+            joinStatus.className = 'event-status error';
+            joinBtn.disabled = false;
+            joinBtn.textContent = 'Gå med i veckans event!';
+          } else {
+            joinStatus.textContent = 'Fel: ' + error.message;
+            joinStatus.className = 'event-status error';
+            joinBtn.disabled = false;
+            joinBtn.textContent = 'Gå med i veckans event!';
+          }
+        } else {
+          joinSection.innerHTML = '<p class="event-status">✅ Du är med! Spela <strong>' + challenge.title + '</strong> för att samla poäng.</p>';
+          loadLeaderboard();
+        }
+      } catch (e) {
+        joinStatus.textContent = 'Nätverksfel. Försök igen!';
+        joinStatus.className = 'event-status error';
         joinBtn.disabled = false;
         joinBtn.textContent = 'Gå med i veckans event!';
-      } else {
-        joinSection.innerHTML = '<p class="event-status">✅ Du är med i veckans event! Spela spel för att samla poäng.</p>';
-        loadLeaderboard();
       }
     });
 
