@@ -84,10 +84,11 @@
   const STATE = { MENU: 0, LOBBY: 1, COUNTDOWN: 2, PLAYING: 3, GOAL_SCORED: 4, GAMEOVER: 5 };
   let state = STATE.MENU;
   let menuSelection = 0;
+  let localPlayerCount = 2;
   const menuOptions = [
-    { label: 'Lokal (2 spelare)', desc: 'Spela p\u00e5 samma tangentbord' },
-    { label: 'Online V\u00e4nner', desc: 'Skapa eller g\u00e5 med i ett rum' },
-    { label: 'Online Random', desc: 'Spela mot en slumpm\u00e4ssig motst\u00e5ndare' }
+    { label: () => 'Lokal (' + localPlayerCount + ' spelare' + (localPlayerCount === 3 ? ' \u2022 1v2' : localPlayerCount === 4 ? ' \u2022 2v2' : '') + ')', desc: '\u25C4 \u25BA f\u00f6r att \u00e4ndra antal' },
+    { label: () => 'Online V\u00e4nner', desc: 'Skapa eller g\u00e5 med i ett rum' },
+    { label: () => 'Online Random', desc: 'Spela mot en slumpm\u00e4ssig motst\u00e5ndare' }
   ];
 
   // ========== MULTIPLAYER ==========
@@ -130,6 +131,8 @@
     if (state === STATE.MENU) {
       if (e.key === 'arrowup' || e.key === 'w') menuSelection = (menuSelection + 2) % 3;
       if (e.key === 'arrowdown' || e.key === 's') menuSelection = (menuSelection + 1) % 3;
+      if (menuSelection === 0 && (e.key === 'arrowleft' || e.key === 'a')) { localPlayerCount = localPlayerCount <= 2 ? 4 : localPlayerCount - 1; }
+      if (menuSelection === 0 && (e.key === 'arrowright' || e.key === 'd')) { localPlayerCount = localPlayerCount >= 4 ? 2 : localPlayerCount + 1; }
       if (e.key === 'enter' || e.key === ' ') selectMenuOption();
     }
     if (state === STATE.GAMEOVER && e.key === 'enter') backToMenu();
@@ -153,6 +156,12 @@
         const bx = W() / 2 - bw / 2;
         const by = startY + i * (bh + 16);
         if (cx >= bx && cx <= bx + bw && cy >= by && cy <= by + bh) {
+          if (i === 0) {
+            // Left third = decrease, right third = increase, middle = start
+            const third = bw / 3;
+            if (cx < bx + third) { localPlayerCount = localPlayerCount <= 2 ? 4 : localPlayerCount - 1; return; }
+            if (cx > bx + third * 2) { localPlayerCount = localPlayerCount >= 4 ? 2 : localPlayerCount + 1; return; }
+          }
           menuSelection = i;
           selectMenuOption();
           return;
@@ -344,6 +353,35 @@
   }
 
   // ========== INIT GAME ==========
+  function getNumPlayers() {
+    return isOnline ? lobbyPlayers : localPlayerCount;
+  }
+
+  function getTeamAssignments(n) {
+    // 2P: [0,1] (1v1), 3P: [0,1,1] (1v2), 4P: [0,1,0,1] (2v2)
+    if (n === 3) return [0, 1, 1];
+    if (n === 4) return [0, 1, 0, 1];
+    return [0, 1];
+  }
+
+  function getSpawnPositions(n) {
+    if (n === 3) return [
+      { x: FIELD_W * 0.25, y: FIELD_H / 2, angle: 0 },
+      { x: FIELD_W * 0.75, y: FIELD_H * 0.35, angle: Math.PI },
+      { x: FIELD_W * 0.75, y: FIELD_H * 0.65, angle: Math.PI }
+    ];
+    if (n === 4) return [
+      { x: FIELD_W * 0.25, y: FIELD_H * 0.35, angle: 0 },
+      { x: FIELD_W * 0.75, y: FIELD_H * 0.35, angle: Math.PI },
+      { x: FIELD_W * 0.25, y: FIELD_H * 0.65, angle: 0 },
+      { x: FIELD_W * 0.75, y: FIELD_H * 0.65, angle: Math.PI }
+    ];
+    return [
+      { x: FIELD_W * 0.25, y: FIELD_H / 2, angle: 0 },
+      { x: FIELD_W * 0.75, y: FIELD_H / 2, angle: Math.PI }
+    ];
+  }
+
   function initGame() {
     score = [0, 0];
     gameTimer = MATCH_TIME;
@@ -352,10 +390,17 @@
     goalFlash = 0;
     frameCount = 0;
 
-    cars = [
-      { x: FIELD_W * 0.25, y: FIELD_H / 2, angle: 0, vx: 0, vy: 0, speed: 0, team: 0, boost: BOOST_MAX, boosting: false, netInput: null },
-      { x: FIELD_W * 0.75, y: FIELD_H / 2, angle: Math.PI, vx: 0, vy: 0, speed: 0, team: 1, boost: BOOST_MAX, boosting: false, netInput: null }
-    ];
+    const n = getNumPlayers();
+    const teams = getTeamAssignments(n);
+    const spawns = getSpawnPositions(n);
+    cars = [];
+    for (let i = 0; i < n; i++) {
+      cars.push({
+        x: spawns[i].x, y: spawns[i].y, angle: spawns[i].angle,
+        vx: 0, vy: 0, speed: 0, team: teams[i],
+        boost: BOOST_MAX, boosting: false, netInput: null
+      });
+    }
 
     ball = { x: FIELD_W / 2, y: FIELD_H / 2, vx: 0, vy: 0 };
 
@@ -374,10 +419,11 @@
   }
 
   function resetPositions() {
-    cars[0].x = FIELD_W * 0.25; cars[0].y = FIELD_H / 2; cars[0].angle = 0;
-    cars[0].vx = 0; cars[0].vy = 0; cars[0].speed = 0;
-    cars[1].x = FIELD_W * 0.75; cars[1].y = FIELD_H / 2; cars[1].angle = Math.PI;
-    cars[1].vx = 0; cars[1].vy = 0; cars[1].speed = 0;
+    const spawns = getSpawnPositions(cars.length);
+    cars.forEach((car, i) => {
+      car.x = spawns[i].x; car.y = spawns[i].y; car.angle = spawns[i].angle;
+      car.vx = 0; car.vy = 0; car.speed = 0;
+    });
     ball.x = FIELD_W / 2; ball.y = FIELD_H / 2; ball.vx = 0; ball.vy = 0;
   }
 
@@ -418,13 +464,17 @@
           input = { up: keys['w'] || keys['arrowup'], down: keys['s'] || keys['arrowdown'],
                     left: keys['a'] || keys['arrowleft'], right: keys['d'] || keys['arrowright'],
                     boost: keys['shift'] || keys[' '] };
-        } else return;
+        } else return; // Host controls physics for all remote cars
       } else {
         // Local
         if (i === 0) {
           input = { up: keys['w'], down: keys['s'], left: keys['a'], right: keys['d'], boost: keys['shift'] };
-        } else {
+        } else if (i === 1) {
           input = { up: keys['arrowup'], down: keys['arrowdown'], left: keys['arrowleft'], right: keys['arrowright'], boost: keys['/'] || keys['.'] };
+        } else if (i === 2) {
+          input = { up: keys['i'], down: keys['k'], left: keys['j'], right: keys['l'], boost: keys['h'] };
+        } else if (i === 3) {
+          input = { up: keys['8'], down: keys['5'], left: keys['4'], right: keys['6'], boost: keys['0'] };
         }
       }
 
@@ -512,7 +562,7 @@
         const a = cars[i], b = cars[j];
         const dx = b.x - a.x, dy = b.y - a.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const minDist = (CAR_W + CAR_H) / 2;
+        const minDist = CAR_W;
         if (dist < minDist && dist > 0) {
           const nx = dx / dist, ny = dy / dist;
           const overlap = minDist - dist;
@@ -934,7 +984,7 @@
       ctx.globalAlpha = 0.6;
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText((isOnline ? 'P' : 'Spelare ') + (i + 1), car.x, car.y - CAR_H / 2 - 8);
+      ctx.fillText('P' + (i + 1), car.x, car.y - CAR_H / 2 - 8);
       ctx.globalAlpha = 1;
     });
   }
@@ -986,8 +1036,17 @@
     cars.forEach((car, i) => {
       const bw = 80;
       const bh = 8;
-      const bx = i === 0 ? offX + 10 : W() - offX - bw - 10;
-      const by = H() - offY / 2 - 4;
+      const n = cars.length;
+      let bx, by;
+      if (car.team === 0) {
+        const teamIdx = cars.filter((c, ci) => ci < i && c.team === 0).length;
+        bx = offX + 10;
+        by = H() - offY / 2 - 4 - teamIdx * 18;
+      } else {
+        const teamIdx = cars.filter((c, ci) => ci < i && c.team === 1).length;
+        bx = W() - offX - bw - 10;
+        by = H() - offY / 2 - 4 - teamIdx * 18;
+      }
 
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.fillRect(bx, by, bw, bh);
@@ -998,10 +1057,10 @@
       ctx.lineWidth = 1;
       ctx.strokeRect(bx, by, bw, bh);
 
-      ctx.fillStyle = hexToRgba(TEAM_COLORS[i], 0.6);
+      ctx.fillStyle = hexToRgba(TEAM_COLORS[car.team], 0.6);
       ctx.font = '10px sans-serif';
-      ctx.textAlign = i === 0 ? 'left' : 'right';
-      ctx.fillText('BOOST', i === 0 ? bx : bx + bw, by - 3);
+      ctx.textAlign = car.team === 0 ? 'left' : 'right';
+      ctx.fillText('P' + (i + 1), car.team === 0 ? bx : bx + bw, by - 3);
     });
 
     // Controls hint
@@ -1010,7 +1069,10 @@
       ctx.fillStyle = hexToRgba('#ffffff', alpha * 0.3);
       ctx.font = '11px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('P1: WASD + Shift(boost)  |  P2: Pilar + .(boost)', W() / 2, H() - 8);
+      let hint = 'P1: WASD+Shift  |  P2: Pilar+.';
+      if (cars.length >= 3) hint += '  |  P3: IJKL+H';
+      if (cars.length >= 4) hint += '  |  P4: 8456+0';
+      ctx.fillText(hint, W() / 2, H() - 8);
     }
   }
 
@@ -1104,7 +1166,7 @@
 
       ctx.fillStyle = sel ? '#fff' : 'rgba(255,255,255,0.7)';
       ctx.font = 'bold 16px sans-serif';
-      ctx.fillText(opt.label, W() / 2, by + 26);
+      ctx.fillText(typeof opt.label === 'function' ? opt.label() : opt.label, W() / 2, by + 26);
       ctx.fillStyle = 'rgba(255,255,255,0.4)';
       ctx.font = '12px sans-serif';
       ctx.fillText(opt.desc, W() / 2, by + 44);
@@ -1112,7 +1174,10 @@
 
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.font = '11px sans-serif';
-    ctx.fillText('P1: WASD + Shift(boost)  |  P2: Pilar + .(boost)', W() / 2, H() - 30);
+    let ctrlHint = 'P1: WASD+Shift  |  P2: Pilar+.';
+    if (localPlayerCount >= 3) ctrlHint += '  |  P3: IJKL+H';
+    if (localPlayerCount >= 4) ctrlHint += '  |  P4: 8456+0';
+    ctx.fillText(ctrlHint, W() / 2, H() - 30);
   }
 
   function drawLobby() {
@@ -1172,12 +1237,19 @@
       ctx.fillStyle = '#fff'; ctx.font = '18px sans-serif';
       ctx.fillText(lobbyPlayers + ' spelare anslutna', cx, H() / 2 + 50);
 
+      const teams = getTeamAssignments(lobbyPlayers);
       for (let i = 0; i < lobbyPlayers; i++) {
-        ctx.fillStyle = TEAM_COLORS[i];
-        ctx.shadowColor = TEAM_COLORS[i]; ctx.shadowBlur = 8;
+        const tc = TEAM_COLORS[teams[i]] || TEAM_COLORS[i % 2];
+        ctx.fillStyle = tc;
+        ctx.shadowColor = tc; ctx.shadowBlur = 8;
         ctx.beginPath();
         ctx.arc(cx - (lobbyPlayers - 1) * 20 + i * 40, H() / 2 + 80, 10, 0, Math.PI * 2);
         ctx.fill(); ctx.shadowBlur = 0;
+      }
+      if (lobbyPlayers >= 3) {
+        ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '13px sans-serif';
+        const modeText = lobbyPlayers === 3 ? '1v2' : '2v2';
+        ctx.fillText(modeText, cx, H() / 2 + 110);
       }
 
       if (isHost && lobbyPlayers >= 2) {
