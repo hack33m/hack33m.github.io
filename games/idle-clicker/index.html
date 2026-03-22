@@ -108,6 +108,9 @@
     loadedCornyImgs.push(img);
   });
   let activeCornyItems = []; // {x, y, img, life, size}
+  let cornyOrbIndex = 0;
+  let cornyOrbTimer = 0;
+  const cornyFlavorNames = ['Choklad', 'Banan', 'Jordn\u00f6t', 'Kokos', 'Brownie', 'Karamell', 'M\u00f6rk', 'Vit', 'Jordgubb'];
 
   function getDiamondInterval() {
     const dia = upgrades.find(u => u.id === 'diamond');
@@ -604,64 +607,140 @@
     const pulse = Math.sin(time * 2) * 4;
     const r = baseR + pulse;
     const scale = orbClickScale;
+    const cornyU = upgrades.find(u => u.id === 'corny');
+    const isCornyOrb = cornyU && cornyU.level > 0;
 
     ctx.save();
     ctx.translate(c.x, c.y);
     ctx.scale(scale, scale);
 
-    // Outer glow layers
-    for (let i = 3; i >= 0; i--) {
-      const glowR = r + i * 18;
-      const alpha = 0.04 - i * 0.008;
-      const grad = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, glowR);
-      grad.addColorStop(0, `rgba(0,212,255,${alpha})`);
-      grad.addColorStop(0.6, `rgba(168,85,247,${alpha * 0.7})`);
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grad;
+    if (isCornyOrb) {
+      // CORNY ORB MODE
+      const img = loadedCornyImgs[cornyOrbIndex];
+      const glowColor = '#cc6600';
+
+      // Outer glow
+      for (let i = 3; i >= 0; i--) {
+        const glowR = r + i * 18;
+        const alpha = 0.06 - i * 0.012;
+        const grad = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, glowR);
+        grad.addColorStop(0, `rgba(204,102,0,${alpha})`);
+        grad.addColorStop(0.6, `rgba(255,170,0,${alpha * 0.7})`);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Circular clip for corny image
+      ctx.save();
       ctx.beginPath();
-      ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.clip();
+      if (img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, -r, -r, r * 2, r * 2);
+      } else {
+        ctx.fillStyle = '#cc6600';
+        ctx.fillRect(-r, -r, r * 2, r * 2);
+      }
+      // Slight overlay shine
+      const shineGrad = ctx.createRadialGradient(-r*0.3, -r*0.35, 0, 0, 0, r);
+      shineGrad.addColorStop(0, 'rgba(255,255,255,0.25)');
+      shineGrad.addColorStop(0.5, 'rgba(255,255,255,0.05)');
+      shineGrad.addColorStop(1, 'rgba(0,0,0,0.15)');
+      ctx.fillStyle = shineGrad;
+      ctx.fillRect(-r, -r, r * 2, r * 2);
+      ctx.restore();
+
+      // Edge glow ring
+      ctx.strokeStyle = `rgba(204,102,0,${0.5 + 0.3 * Math.sin(time * 3)})`;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Rotating energy arcs (orange)
+      for (let i = 0; i < 3; i++) {
+        const angle = time * 1.2 + i * (Math.PI * 2 / 3);
+        const arcLen = 0.6 + 0.2 * Math.sin(time * 2 + i);
+        ctx.strokeStyle = `rgba(255,170,0,${0.3 + 0.2 * Math.sin(time * 2 + i)})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 10, angle, angle + arcLen);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+
+      // Flavor name below orb
+      ctx.fillStyle = '#cc6600';
+      ctx.shadowColor = '#cc6600';
+      ctx.shadowBlur = 8;
+      ctx.font = `bold ${isMobile() ? 12 : 14}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('\uD83C\uDF6B ' + cornyFlavorNames[cornyOrbIndex], c.x, c.y + r + 22);
+      ctx.shadowBlur = 0;
+
+    } else {
+      // NORMAL ORB MODE
+      // Outer glow layers
+      for (let i = 3; i >= 0; i--) {
+        const glowR = r + i * 18;
+        const alpha = 0.04 - i * 0.008;
+        const grad = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, glowR);
+        grad.addColorStop(0, `rgba(0,212,255,${alpha})`);
+        grad.addColorStop(0.6, `rgba(168,85,247,${alpha * 0.7})`);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Main orb gradient
+      const orbGrad = ctx.createRadialGradient(-r*0.25, -r*0.25, r*0.1, 0, 0, r);
+      orbGrad.addColorStop(0, '#88eeff');
+      orbGrad.addColorStop(0.3, CYAN);
+      orbGrad.addColorStop(0.7, PURPLE);
+      orbGrad.addColorStop(1, '#2a0050');
+      ctx.fillStyle = orbGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.fill();
-    }
 
-    // Main orb gradient
-    const orbGrad = ctx.createRadialGradient(-r*0.25, -r*0.25, r*0.1, 0, 0, r);
-    orbGrad.addColorStop(0, '#88eeff');
-    orbGrad.addColorStop(0.3, CYAN);
-    orbGrad.addColorStop(0.7, PURPLE);
-    orbGrad.addColorStop(1, '#2a0050');
-    ctx.fillStyle = orbGrad;
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fill();
+      // Inner shine
+      const shineGrad = ctx.createRadialGradient(-r*0.3, -r*0.35, 0, -r*0.15, -r*0.2, r*0.6);
+      shineGrad.addColorStop(0, 'rgba(255,255,255,0.35)');
+      shineGrad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = shineGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
 
-    // Inner shine
-    const shineGrad = ctx.createRadialGradient(-r*0.3, -r*0.35, 0, -r*0.15, -r*0.2, r*0.6);
-    shineGrad.addColorStop(0, 'rgba(255,255,255,0.35)');
-    shineGrad.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = shineGrad;
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Edge glow ring
-    ctx.strokeStyle = `rgba(0,212,255,${0.4 + 0.2 * Math.sin(time * 3)})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(0, 0, r + 2, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Rotating energy arcs
-    for (let i = 0; i < 3; i++) {
-      const angle = time * 1.2 + i * (Math.PI * 2 / 3);
-      const arcLen = 0.6 + 0.2 * Math.sin(time * 2 + i);
-      ctx.strokeStyle = `rgba(0,212,255,${0.25 + 0.15 * Math.sin(time * 2 + i)})`;
+      // Edge glow ring
+      ctx.strokeStyle = `rgba(0,212,255,${0.4 + 0.2 * Math.sin(time * 3)})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(0, 0, r + 10, angle, angle + arcLen);
+      ctx.arc(0, 0, r + 2, 0, Math.PI * 2);
       ctx.stroke();
-    }
 
-    ctx.restore();
+      // Rotating energy arcs
+      for (let i = 0; i < 3; i++) {
+        const angle = time * 1.2 + i * (Math.PI * 2 / 3);
+        const arcLen = 0.6 + 0.2 * Math.sin(time * 2 + i);
+        ctx.strokeStyle = `rgba(0,212,255,${0.25 + 0.15 * Math.sin(time * 2 + i)})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 10, angle, angle + arcLen);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
 
     // Hover indicator
     if (orbHover) {
@@ -967,6 +1046,19 @@
     for (let i = activeCornyItems.length - 1; i >= 0; i--) {
       activeCornyItems[i].life -= dt;
       if (activeCornyItems[i].life <= 0) activeCornyItems.splice(i, 1);
+    }
+
+    // CORNY orb flavor rotation (every 60s)
+    const cornyU = upgrades.find(u => u.id === 'corny');
+    if (cornyU && cornyU.level > 0) {
+      cornyOrbTimer += dt;
+      if (cornyOrbTimer >= 60) {
+        cornyOrbTimer = 0;
+        const oldIdx = cornyOrbIndex;
+        while (cornyOrbIndex === oldIdx) cornyOrbIndex = Math.floor(Math.random() * loadedCornyImgs.length);
+        const c = getOrbCenter();
+        spawnFloatingText(c.x, c.y - getOrbRadius() - 30, '\uD83C\uDF6B Ny smak: ' + cornyFlavorNames[cornyOrbIndex] + '!', '#cc6600');
+      }
     }
 
     // Offline banner
