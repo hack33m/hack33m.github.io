@@ -642,6 +642,22 @@ button {
   transform: translateY(-1px);
 }
 
+.event-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #000;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 50px;
+  transition: opacity var(--transition), transform var(--transition);
+  white-space: nowrap;
+}
+
+.event-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
 .admin-notif {
   position: absolute;
   top: -6px;

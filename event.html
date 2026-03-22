@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Veckans Event - Elias Spelportal</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .event-page { max-width: 700px; margin: 30px auto; padding: 0 16px; }
+    .event-hero {
+      text-align: center; padding: 40px 20px; margin-bottom: 30px;
+      background: linear-gradient(135deg, rgba(251,191,36,0.1), rgba(168,85,247,0.1));
+      border: 1px solid rgba(251,191,36,0.2); border-radius: 20px;
+      position: relative; overflow: hidden;
+    }
+    .event-hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 30% 20%, rgba(251,191,36,0.08), transparent 60%);
+    }
+    .event-hero h1 { font-size: 32px; margin-bottom: 8px; position: relative; }
+    .event-hero .event-emoji { font-size: 48px; display: block; margin-bottom: 12px; }
+    .event-hero p { color: var(--text-secondary); font-size: 15px; position: relative; }
+    .event-timer {
+      display: inline-block; margin-top: 16px; padding: 10px 24px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; font-size: 18px; font-weight: 700; color: #fbbf24;
+      position: relative;
+    }
+    .event-timer span { color: var(--text-secondary); font-size: 13px; font-weight: 400; }
+
+    .event-info {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 30px;
+    }
+    .event-info-card {
+      padding: 20px; background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 14px; text-align: center;
+    }
+    .event-info-card .info-icon { font-size: 28px; display: block; margin-bottom: 8px; }
+    .event-info-card .info-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+    .event-info-card .info-value { font-size: 22px; font-weight: 800; margin-top: 4px; }
+
+    .prize-section {
+      padding: 24px; margin-bottom: 30px;
+      background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(251,191,36,0.02));
+      border: 1px solid rgba(251,191,36,0.15); border-radius: 16px;
+    }
+    .prize-section h2 { font-size: 20px; margin-bottom: 16px; }
+    .prize-list { display: flex; flex-direction: column; gap: 10px; }
+    .prize-item {
+      display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+      background: rgba(255,255,255,0.04); border-radius: 10px;
+    }
+    .prize-rank {
+      width: 36px; height: 36px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; font-size: 18px; font-weight: 800;
+      flex-shrink: 0;
+    }
+    .prize-rank.gold { background: rgba(251,191,36,0.2); color: #fbbf24; }
+    .prize-rank.silver { background: rgba(192,192,192,0.2); color: #c0c0c0; }
+    .prize-rank.bronze { background: rgba(205,127,50,0.2); color: #cd7f32; }
+    .prize-text { font-size: 15px; font-weight: 600; }
+    .prize-coins { margin-left: auto; color: #fbbf24; font-weight: 700; font-size: 15px; }
+
+    .leaderboard-section { margin-bottom: 30px; }
+    .leaderboard-section h2 { font-size: 20px; margin-bottom: 16px; }
+    .lb-list { display: flex; flex-direction: column; gap: 6px; }
+    .lb-row {
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+      transition: all 0.2s;
+    }
+    .lb-row.top-1 { border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.06); }
+    .lb-row.top-2 { border-color: rgba(192,192,192,0.2); background: rgba(192,192,192,0.04); }
+    .lb-row.top-3 { border-color: rgba(205,127,50,0.2); background: rgba(205,127,50,0.04); }
+    .lb-row.is-me { border-color: rgba(96,165,250,0.3); background: rgba(96,165,250,0.06); }
+    .lb-pos { width: 28px; text-align: center; font-weight: 800; font-size: 16px; color: var(--text-secondary); }
+    .lb-row.top-1 .lb-pos { color: #fbbf24; }
+    .lb-row.top-2 .lb-pos { color: #c0c0c0; }
+    .lb-row.top-3 .lb-pos { color: #cd7f32; }
+    .lb-avatar { font-size: 24px; }
+    .lb-name { font-weight: 700; font-size: 15px; flex: 1; }
+    .lb-score { font-weight: 800; font-size: 16px; color: #fbbf24; }
+    .lb-empty { text-align: center; padding: 40px; color: var(--text-secondary); font-size: 15px; }
+
+    .event-join-section { text-align: center; margin-bottom: 30px; }
+    .event-join-btn {
+      padding: 14px 40px; font-size: 16px; font-weight: 800;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #000;
+      border: none; border-radius: 12px; cursor: pointer;
+      transition: all 0.2s; display: inline-block;
+    }
+    .event-join-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(251,191,36,0.3); }
+    .event-join-btn:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
+    .event-status { margin-top: 12px; font-size: 14px; color: var(--text-secondary); }
+
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px;
+      color: var(--text-secondary); font-size: 14px; font-weight: 600;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--text-primary); }
+
+    @media (max-width: 600px) {
+      .event-hero h1 { font-size: 24px; }
+      .event-info { grid-template-columns: 1fr; }
+      .event-hero { padding: 28px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo" id="logo">
+        <span class="logo-icon">🎮</span>
+        <span class="logo-text">Elias Spel</span>
+      </div>
+      <div class="header-auth" id="header-auth">
+        <button class="auth-btn login-btn" id="show-login">Logga in</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="event-page">
+    <a href="index.html" class="back-link">← Tillbaka</a>
+
+    <div class="event-hero">
+      <span class="event-emoji">🏆</span>
+      <h1>Veckans Event</h1>
+      <p>Spela spel och samla poäng! Topplistan nollställs varje fredag kl 18:00.</p>
+      <div class="event-timer">
+        <span>Slutar om</span><br>
+        <span id="countdown">--:--:--</span>
+      </div>
+    </div>
+
+    <div class="event-info">
+      <div class="event-info-card">
+        <span class="info-icon">🎯</span>
+        <div class="info-label">Din poäng</div>
+        <div class="info-value" id="my-score">0</div>
+      </div>
+      <div class="event-info-card">
+        <span class="info-icon">📊</span>
+        <div class="info-label">Din placering</div>
+        <div class="info-value" id="my-rank">-</div>
+      </div>
+    </div>
+
+    <div class="event-join-section" id="join-section">
+      <button class="event-join-btn" id="join-btn">Gå med i veckans event!</button>
+      <p class="event-status" id="join-status"></p>
+    </div>
+
+    <div class="prize-section">
+      <h2>🎁 Priser</h2>
+      <div class="prize-list">
+        <div class="prize-item">
+          <div class="prize-rank gold">🥇</div>
+          <div class="prize-text">1:a plats</div>
+          <div class="prize-coins">🪙 500</div>
+        </div>
+        <div class="prize-item">
+          <div class="prize-rank silver">🥈</div>
+          <div class="prize-text">2:a plats</div>
+          <div class="prize-coins">🪙 250</div>
+        </div>
+        <div class="prize-item">
+          <div class="prize-rank bronze">🥉</div>
+          <div class="prize-text">3:e plats</div>
+          <div class="prize-coins">🪙 100</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="leaderboard-section">
+      <h2>🏅 Topplista</h2>
+      <div class="lb-list" id="lb-list">
+        <div class="lb-empty">Laddar...</div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script>
+  (async () => {
+    // ===== Auth =====
+    let currentUser = null;
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      const { data } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
+      if (data) currentUser = { uid: data.id, username: data.username, avatar: data.avatar || '😀', coins: data.coins || 0, role: data.role };
+    }
+
+    // ===== Week calculation =====
+    function getWeekId() {
+      // Week ID = Monday date string of current week
+      const now = new Date();
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(now);
+      monday.setDate(diff);
+      return monday.toISOString().split('T')[0];
+    }
+
+    function getNextFriday18() {
+      const now = new Date();
+      const day = now.getDay(); // 0=Sun, 5=Fri
+      let daysUntilFri = (5 - day + 7) % 7;
+      if (daysUntilFri === 0 && now.getHours() >= 18) daysUntilFri = 7;
+      const fri = new Date(now);
+      fri.setDate(fri.getDate() + daysUntilFri);
+      fri.setHours(18, 0, 0, 0);
+      return fri;
+    }
+
+    // ===== Countdown =====
+    const countdownEl = document.getElementById('countdown');
+    function updateCountdown() {
+      const now = new Date();
+      const target = getNextFriday18();
+      const diff = target - now;
+      if (diff <= 0) { countdownEl.textContent = 'Event avslutat!'; return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      let text = '';
+      if (d > 0) text += d + 'd ';
+      text += h + 'h ' + m + 'm ' + s + 's';
+      countdownEl.textContent = text;
+    }
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+
+    // ===== Leaderboard =====
+    const weekId = getWeekId();
+    const lbList = document.getElementById('lb-list');
+
+    async function loadLeaderboard() {
+      const { data, error } = await supabaseClient
+        .from('weekly_event_scores')
+        .select('user_id, score, profiles(username, avatar)')
+        .eq('week_id', weekId)
+        .order('score', { ascending: false })
+        .limit(20);
+
+      if (error || !data || data.length === 0) {
+        lbList.innerHTML = '<div class="lb-empty">Ingen har gått med ännu. Bli först!</div>';
+        updateMyStats(null, data);
+        return;
+      }
+
+      lbList.innerHTML = '';
+      data.forEach((entry, i) => {
+        const profile = entry.profiles || {};
+        const isMe = currentUser && entry.user_id === currentUser.uid;
+        const topClass = i === 0 ? 'top-1' : i === 1 ? 'top-2' : i === 2 ? 'top-3' : '';
+        const row = document.createElement('div');
+        row.className = `lb-row ${topClass} ${isMe ? 'is-me' : ''}`;
+        row.innerHTML = `
+          <div class="lb-pos">${i < 3 ? ['🥇','🥈','🥉'][i] : '#' + (i+1)}</div>
+          <div class="lb-avatar">${profile.avatar || '😀'}</div>
+          <div class="lb-name">${escapeHtml(profile.username || 'Okänd')}</div>
+          <div class="lb-score">${entry.score.toLocaleString()} p</div>
+        `;
+        lbList.appendChild(row);
+      });
+
+      updateMyStats(currentUser, data);
+    }
+
+    function updateMyStats(user, data) {
+      const myScoreEl = document.getElementById('my-score');
+      const myRankEl = document.getElementById('my-rank');
+      if (!user || !data) { myScoreEl.textContent = '0'; myRankEl.textContent = '-'; return; }
+      const idx = data.findIndex(e => e.user_id === user.uid);
+      if (idx >= 0) {
+        myScoreEl.textContent = data[idx].score.toLocaleString();
+        myRankEl.textContent = '#' + (idx + 1);
+      } else {
+        myScoreEl.textContent = '0';
+        myRankEl.textContent = '-';
+      }
+    }
+
+    // ===== Join =====
+    const joinBtn = document.getElementById('join-btn');
+    const joinStatus = document.getElementById('join-status');
+    const joinSection = document.getElementById('join-section');
+
+    if (!currentUser) {
+      joinBtn.disabled = true;
+      joinStatus.textContent = 'Logga in för att delta!';
+    } else {
+      // Check if already joined
+      const { data: existing } = await supabaseClient
+        .from('weekly_event_scores')
+        .select('score')
+        .eq('user_id', currentUser.uid)
+        .eq('week_id', weekId)
+        .single();
+
+      if (existing) {
+        joinSection.innerHTML = '<p class="event-status">✅ Du är med i veckans event! Spela spel för att samla poäng.</p>';
+      }
+    }
+
+    joinBtn.addEventListener('click', async () => {
+      if (!currentUser) return;
+      joinBtn.disabled = true;
+      joinBtn.textContent = 'Ansluter...';
+
+      const { error } = await supabaseClient
+        .from('weekly_event_scores')
+        .upsert({ user_id: currentUser.uid, week_id: weekId, score: 0 }, { onConflict: 'user_id,week_id' });
+
+      if (error) {
+        joinStatus.textContent = 'Kunde inte gå med. Försök igen!';
+        joinBtn.disabled = false;
+        joinBtn.textContent = 'Gå med i veckans event!';
+      } else {
+        joinSection.innerHTML = '<p class="event-status">✅ Du är med i veckans event! Spela spel för att samla poäng.</p>';
+        loadLeaderboard();
+      }
+    });
+
+    await loadLeaderboard();
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  })();
+  </script>
+</body>
+</html>

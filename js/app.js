@@ -385,6 +385,34 @@ async function spendCoins(amount) {
   return true;
 }
 
+async function addEventScore(points) {
+  if (!currentUserData) return;
+  try {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(now);
+    monday.setDate(diff);
+    const weekId = monday.toISOString().split('T')[0];
+
+    // Check if user is in this week's event
+    const { data: existing } = await supabaseClient
+      .from('weekly_event_scores')
+      .select('score')
+      .eq('user_id', currentUserData.uid)
+      .eq('week_id', weekId)
+      .single();
+
+    if (existing) {
+      await supabaseClient
+        .from('weekly_event_scores')
+        .update({ score: existing.score + points })
+        .eq('user_id', currentUserData.uid)
+        .eq('week_id', weekId);
+    }
+  } catch (e) {}
+}
+
 async function claimGameCoins(gameId) {
   if (!currentUserData) return false;
   const today = new Date().toISOString().split('T')[0];
@@ -498,10 +526,12 @@ function renderHeaderAuth() {
       }
     });
   }
+  const eventBtn = `<a href="event.html" class="event-btn">🏆 Event</a>`;
   const coinsDisplay = `<a href="shop.html" class="coins-display" title="Öppna shop">🪙 ${user.coins || 0}</a>`;
 
   container.innerHTML = `
     ${adminBtn}
+    ${eventBtn}
     ${coinsDisplay}
     <div class="user-menu-wrapper">
       <button class="user-menu-btn" id="user-menu-btn">
@@ -512,6 +542,7 @@ function renderHeaderAuth() {
       <div class="user-dropdown" id="user-dropdown">
         <a href="profile.html" class="dropdown-item">👤 Min profil</a>
         <a href="shop.html" class="dropdown-item">🛒 Shop</a>
+        <a href="event.html" class="dropdown-item">🏆 Veckans Event</a>
         <button class="dropdown-item" id="open-settings">⚙️ Inställningar</button>
         <button class="dropdown-item dropdown-logout" id="header-logout">🚪 Logga ut</button>
       </div>
@@ -900,6 +931,8 @@ function initGamePage() {
       if (earned > 0) {
         await addCoins(earned);
         renderHeaderAuth();
+        // Add points to weekly event
+        await addEventScore(earned);
       }
     }
   });
