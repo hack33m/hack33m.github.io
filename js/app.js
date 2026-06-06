@@ -799,7 +799,11 @@ function renderFeaturedGames() {
   const g = document.getElementById('featured-grid');
   if (!g) return;
   g.innerHTML = '';
-  allGames.filter(x => x.featured).forEach(x => g.appendChild(createGameCard(x)));
+  // Om en sida är "soloFeatured" (t.ex. en aktiv födelsedagshälsning) visas BARA den.
+  // När den utgår faller listan automatiskt tillbaka till de vanliga utvalda spelen.
+  const solo = allGames.filter(x => x.featured && x.soloFeatured);
+  const list = solo.length ? solo : allGames.filter(x => x.featured);
+  list.forEach(x => g.appendChild(createGameCard(x)));
 }
 
 function renderAllGames(games) {

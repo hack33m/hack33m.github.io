@@ -7,6 +7,7 @@
     "thumbnail": "assets/images/grattis-efe.svg",
     "path": "grattis-efe/index.html",
     "featured": true,
+    "soloFeatured": true,
     "expires": "2026-06-14"
   },
   {
