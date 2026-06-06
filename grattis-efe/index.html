@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🎉 Grattis Efe! 🎉</title>
+<style>
+  :root {
+    --bg1: #1a1140;
+    --bg2: #3b1d6e;
+    --accent: #ffd23f;
+    --pink: #ff5ca8;
+    --cyan: #38e8ff;
+    --card: rgba(255, 255, 255, 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    color: #fff;
+    background: linear-gradient(160deg, var(--bg1), var(--bg2));
+    overflow-x: hidden;
+    text-align: center;
+    min-height: 100%;
+  }
+
+  /* Confetti sits behind everything */
+  #confetti {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 2;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  h1 {
+    font-size: clamp(2.4rem, 9vw, 4.5rem);
+    line-height: 1.05;
+    margin-bottom: 10px;
+    background: linear-gradient(90deg, var(--accent), var(--pink), var(--cyan));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: pop 0.8s ease-out;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.6); opacity: 0; }
+    70% { transform: scale(1.08); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .subtitle {
+    font-size: clamp(1rem, 4vw, 1.4rem);
+    opacity: 0.9;
+    margin-bottom: 30px;
+  }
+
+  /* Photo */
+  .photo-frame {
+    width: 220px;
+    height: 220px;
+    margin: 0 auto 30px;
+    border-radius: 50%;
+    border: 6px solid var(--accent);
+    box-shadow: 0 0 0 6px var(--pink), 0 12px 40px rgba(0,0,0,0.5);
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 40%, #5a2da0, #2a1259);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: float 4s ease-in-out infinite;
+  }
+  .photo-frame img { width: 100%; height: 100%; object-fit: cover; }
+  .stickman { width: 130px; height: auto; }
+  .stickman .wave {
+    transform-origin: 50px 57px;
+    animation: wave 0.9s ease-in-out infinite;
+  }
+  @keyframes wave {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-22deg); }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-14px) rotate(2deg); }
+  }
+
+  .message {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 26px 24px;
+    margin: 0 auto 50px;
+    max-width: 560px;
+    font-size: 1.15rem;
+    line-height: 1.6;
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+
+  .btn {
+    display: inline-block;
+    background: linear-gradient(90deg, var(--pink), var(--accent));
+    color: #2a1259;
+    font-weight: bold;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 999px;
+    font-size: 1.05rem;
+    cursor: pointer;
+    margin: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 6px 20px rgba(255,92,168,0.4);
+  }
+  .btn:hover { transform: translateY(-3px) scale(1.04); }
+  .btn:active { transform: translateY(0) scale(0.98); }
+
+  section.game {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 24px 20px;
+    margin: 24px auto;
+    max-width: 560px;
+    backdrop-filter: blur(6px);
+  }
+  section.game h2 {
+    margin-bottom: 6px;
+    font-size: 1.5rem;
+    color: var(--accent);
+  }
+  section.game p.hint { opacity: 0.8; margin-bottom: 16px; font-size: 0.95rem; }
+
+  /* Game 1: catch */
+  #catchArea {
+    position: relative;
+    height: 320px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+  }
+  .falling {
+    position: absolute;
+    font-size: 2.2rem;
+    top: -50px;
+    will-change: transform;
+  }
+  .score { font-weight: bold; font-size: 1.2rem; margin: 12px 0; }
+
+  /* Game 2: memory */
+  #memoryGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    max-width: 360px;
+    margin: 0 auto;
+  }
+  .card-tile {
+    aspect-ratio: 1;
+    background: linear-gradient(135deg, var(--bg2), var(--pink));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    cursor: pointer;
+    transform: rotateY(0);
+    transition: transform 0.3s, background 0.3s;
+  }
+  .card-tile.flipped { background: rgba(255,255,255,0.15); }
+  .card-tile.matched { background: rgba(56,232,255,0.25); cursor: default; }
+  .card-tile span { opacity: 0; transition: opacity 0.2s; }
+  .card-tile.flipped span, .card-tile.matched span { opacity: 1; }
+
+  /* Game 3: quiz */
+  .quiz-q { font-size: 1.15rem; margin-bottom: 16px; font-weight: bold; }
+  .quiz-opts { display: flex; flex-direction: column; gap: 10px; max-width: 360px; margin: 0 auto; }
+  .quiz-opt {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+  }
+  .quiz-opt:hover { background: rgba(255,255,255,0.2); }
+  .quiz-opt.correct { background: rgba(56,232,255,0.5); }
+  .quiz-opt.wrong { background: rgba(255,92,168,0.5); }
+
+  footer { margin-top: 50px; opacity: 0.7; font-size: 0.9rem; }
+
+  .emoji-rain { animation: float 3s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<canvas id="confetti"></canvas>
+
+<div class="wrap">
+  <h1>Grattis på födelsedagen,<br />Efe! 🎂</h1>
+  <p class="subtitle">Idag firar vi dig! 🎈🎉</p>
+
+  <div class="photo-frame">
+    <!-- BYT UT bilden: ersätt hela <svg>...</svg> nedan med <img src="efe.jpg" alt="Efe"> -->
+    <svg class="stickman" viewBox="0 0 100 120" aria-label="Streckgubbe">
+      <!-- partyhatt -->
+      <polygon points="50,1 39,21 61,21" fill="#ff5ca8" stroke="#fff" stroke-width="1.5"/>
+      <circle cx="50" cy="1" r="3.5" fill="#ffd23f"/>
+      <!-- huvud -->
+      <circle cx="50" cy="33" r="12" fill="none" stroke="#fff" stroke-width="3"/>
+      <!-- ögon -->
+      <circle cx="45.5" cy="31" r="1.6" fill="#fff"/>
+      <circle cx="54.5" cy="31" r="1.6" fill="#fff"/>
+      <!-- leende -->
+      <path d="M44 36 Q50 42 56 36" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+      <!-- kropp -->
+      <line x1="50" y1="45" x2="50" y2="80" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <!-- ben -->
+      <line x1="50" y1="80" x2="38" y2="106" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <line x1="50" y1="80" x2="62" y2="106" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <!-- vänster arm (stilla) -->
+      <line x1="50" y1="57" x2="33" y2="69" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <!-- höger arm (vinkar) -->
+      <g class="wave">
+        <line x1="50" y1="57" x2="68" y2="45" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="message">
+    Grattis på födelsedagen Efe! Jag hoppas du får en underbar dag
+    och många fina presenter.<br /><br />
+    Från Elia<br /><br />
+    <em>Till den rikaste killen i Efes rum 👑</em>
+  </div>
+
+  <button class="btn" onclick="blast()">🎉 Mer konfetti!</button>
+
+  <!-- QUIZ -->
+  <section class="game">
+    <h2>❓ Hur väl känner du Efe?</h2>
+    <p class="hint">Svara på frågorna och se hur många rätt du får!</p>
+    <div id="quizBox"></div>
+    <div class="score" id="quizResult"></div>
+    <button class="btn" id="quizRestart" style="display:none" onclick="restartQuiz()">Spela igen</button>
+  </section>
+
+  <footer>Gjord av Elia</footer>
+</div>
+
+<script>
+/* ---------- KONFETTI ---------- */
+const canvas = document.getElementById('confetti');
+const ctx = canvas.getContext('2d');
+let W, H, pieces = [];
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+resize();
+addEventListener('resize', resize);
+
+const colors = ['#ffd23f', '#ff5ca8', '#38e8ff', '#7cff6b', '#ffffff'];
+function makePiece() {
+  return {
+    x: Math.random() * W,
+    y: Math.random() * -H,
+    r: 4 + Math.random() * 6,
+    c: colors[Math.floor(Math.random() * colors.length)],
+    vy: 1 + Math.random() * 3,
+    vx: -1 + Math.random() * 2,
+    rot: Math.random() * Math.PI,
+    vr: -0.1 + Math.random() * 0.2
+  };
+}
+function seed(n) { for (let i = 0; i < n; i++) pieces.push(makePiece()); }
+seed(120);
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  pieces.forEach(p => {
+    p.y += p.vy; p.x += p.vx; p.rot += p.vr;
+    if (p.y > H + 20) { p.y = -20; p.x = Math.random() * W; }
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.fillStyle = p.c;
+    ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 1.6);
+    ctx.restore();
+  });
+  // trim back to baseline so blasts fade out
+  if (pieces.length > 120) pieces.splice(0, 1);
+  requestAnimationFrame(draw);
+}
+draw();
+function blast() { seed(150); }
+
+/* ---------- QUIZ OM EFE ---------- */
+/* type 'mc' = flerval (a/b/c/d), "a" = index på rätt svar.
+   type 'text' = skriv svaret själv, "accept" = lista på godkända svar (gemener). */
+const quiz = [
+  { type: 'mc', q: 'Hur gammal fyller Efe?', opts: ['10 år', '11 år', '12 år', '13 år'], a: 2 },
+  { type: 'mc', q: 'Vilket datum fyller Efe år?', opts: ['5 maj', '5 juni', '15 juni', '5 juli'], a: 1 },
+  { type: 'text', q: 'Vilket är Efes favoritlag? (gissa själv — skriv svaret!)',
+    accept: ['beşiktaş', 'besiktas', 'beşiktas', 'besiktaş', 'bjk', 'beşiktaş jk', 'besiktas jk'],
+    answerLabel: 'Beşiktaş (BJK)' },
+  { type: 'mc', q: 'Vilken siffra står ofta med i Efes användarnamn?', opts: ['1899', '1903', '2014', '1923'], a: 1 },
+  { type: 'text', q: 'Varför just 1903? (gissa själv — skriv svaret!)',
+    accept: ['grundades', 'grundade', 'bildades', 'startade', 'grundår', 'bjk grundades', 'beşiktaş grundades', 'besiktas grundades', 'året laget grundades'],
+    answerLabel: 'Det är året BJK grundades' },
+  { type: 'mc', q: 'Vilken fotbollsklubb spelar Efe i nu?', opts: ['Kvarby', 'Husie IF', 'Malmö FF', 'Beşiktaş'], a: 1 },
+  { type: 'mc', q: 'Vilken klubb spelade Efe i innan?', opts: ['Husie IF', 'Kvarby', 'IFK Malmö', 'Bunkeflo'], a: 1 },
+  { type: 'mc', q: 'Vad heter Efes lillebror?', opts: ['Isak', 'Noah', 'Liam', 'Adam'], a: 0 },
+  { type: 'mc', q: 'Vilken klass går Efe i?', opts: ['3:an', '4:an', '5:an', '6:an'], a: 2 },
+  { type: 'mc', q: 'Vilken klass går lillebror Isak i?', opts: ['1:an', '2:an', '3:an', 'Förskola'], a: 1 },
+  { type: 'mc', q: 'Vart ska Efe kanske resa i sommar?', opts: ['Mallorca & Makedonien', 'Grekland & Italien', 'Turkiet & Kroatien', 'Norge & Danmark'], a: 0 }
+];
+let quizIdx = 0, quizCorrect = 0;
+
+function renderQuiz() {
+  const box = document.getElementById('quizBox');
+  if (quizIdx >= quiz.length) {
+    box.innerHTML = '';
+    let msg = '🎉 Du fick ' + quizCorrect + ' av ' + quiz.length + ' rätt!';
+    if (quizCorrect === quiz.length) msg += ' Du är en sann Efe-expert! 🏆';
+    else if (quizCorrect >= quiz.length / 2) msg += ' Bra jobbat! 👏';
+    else msg += ' Dags att lära känna Efe lite bättre! 😄';
+    document.getElementById('quizResult').textContent = msg;
+    document.getElementById('quizRestart').style.display = 'inline-block';
+    blast();
+    return;
+  }
+  const item = quiz[quizIdx];
+  let html = '<div class="quiz-q">' + (quizIdx + 1) + '. ' + item.q + '</div>';
+  if (item.type === 'text') {
+    html += '<div class="quiz-opts">' +
+      '<input id="quizInput" class="quiz-opt" type="text" placeholder="Skriv ditt svar här..." ' +
+      'onkeydown="if(event.key===\'Enter\')answerText()" />' +
+      '<button class="btn" onclick="answerText()">Svara</button>' +
+      '</div>';
+  } else {
+    html += '<div class="quiz-opts">';
+    item.opts.forEach((opt, i) => {
+      html += '<button class="quiz-opt" onclick="answerQuiz(' + i + ', this)">' + opt + '</button>';
+    });
+    html += '</div>';
+  }
+  box.innerHTML = html;
+  const inp = document.getElementById('quizInput');
+  if (inp) inp.focus();
+}
+
+function answerQuiz(i, btn) {
+  const item = quiz[quizIdx];
+  const buttons = btn.parentNode.querySelectorAll('.quiz-opt');
+  buttons.forEach(b => b.disabled = true);
+  if (i === item.a) { btn.classList.add('correct'); quizCorrect++; blast(); }
+  else { btn.classList.add('wrong'); buttons[item.a].classList.add('correct'); }
+  setTimeout(() => { quizIdx++; renderQuiz(); }, 1100);
+}
+
+/* Levenshtein-avstånd: hur många tecken skiljer två ord åt */
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
+
+/* Godkänt om svaret innehåller, eller är NÄRA (liten stavfel-tolerans), ett rätt svar */
+function isCloseAnswer(val, accept) {
+  const words = val.split(/\s+/).filter(w => w.length >= 2);
+  return accept.some(a => {
+    if (val.includes(a)) return true;                       // innehåller hela svaret
+    if (a.includes(val) && val.length >= 3) return true;    // skrev en del av svaret
+    const tol = Math.max(1, Math.floor(a.length * 0.34));   // ~1/3 av tecknen får skilja
+    if (levenshtein(val, a) <= tol) return true;            // hela inmatningen är nära
+    return words.some(w => levenshtein(w, a) <= tol);       // något ord är nära
+  });
+}
+
+function answerText() {
+  const item = quiz[quizIdx];
+  const inp = document.getElementById('quizInput');
+  if (!inp || inp.disabled) return;
+  const val = inp.value.trim().toLowerCase();
+  if (!val) return;
+  inp.disabled = true;
+  const correct = isCloseAnswer(val, item.accept);
+  if (correct) { inp.classList.add('correct'); quizCorrect++; blast(); }
+  else { inp.classList.add('wrong'); inp.value = inp.value + '  →  Rätt svar: ' + item.answerLabel; }
+  setTimeout(() => { quizIdx++; renderQuiz(); }, 1500);
+}
+
+function restartQuiz() {
+  quizIdx = 0; quizCorrect = 0;
+  document.getElementById('quizResult').textContent = '';
+  document.getElementById('quizRestart').style.display = 'none';
+  renderQuiz();
+}
+
+/* init quiz */
+renderQuiz();
+</script>
+</body>
+</html>
