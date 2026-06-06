@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a1140"/>
+      <stop offset="1" stop-color="#3b1d6e"/>
+    </linearGradient>
+    <linearGradient id="txt" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffd23f"/>
+      <stop offset="0.5" stop-color="#ff5ca8"/>
+      <stop offset="1" stop-color="#38e8ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <!-- konfetti -->
+  <g>
+    <rect x="40" y="30" width="8" height="12" fill="#ffd23f" transform="rotate(20 44 36)"/>
+    <rect x="120" y="20" width="8" height="12" fill="#38e8ff" transform="rotate(-15 124 26)"/>
+    <rect x="300" y="40" width="8" height="12" fill="#7cff6b" transform="rotate(30 304 46)"/>
+    <rect x="350" y="80" width="8" height="12" fill="#ff5ca8" transform="rotate(-25 354 86)"/>
+    <rect x="60" y="120" width="8" height="12" fill="#ff5ca8" transform="rotate(40 64 126)"/>
+    <rect x="340" y="180" width="8" height="12" fill="#ffd23f" transform="rotate(15 344 186)"/>
+    <rect x="30" y="220" width="8" height="12" fill="#38e8ff" transform="rotate(-30 34 226)"/>
+    <circle cx="200" cy="35" r="4" fill="#7cff6b"/>
+    <circle cx="80" cy="70" r="4" fill="#ff5ca8"/>
+    <circle cx="320" cy="120" r="4" fill="#ffd23f"/>
+  </g>
+  <!-- text -->
+  <text x="200" y="150" font-family="Trebuchet MS, sans-serif" font-size="46" font-weight="bold"
+        text-anchor="middle" fill="url(#txt)">GRATTIS</text>
+  <text x="200" y="200" font-family="Trebuchet MS, sans-serif" font-size="52" font-weight="bold"
+        text-anchor="middle" fill="url(#txt)">EFE!</text>
+  <!-- tårta -->
+  <text x="200" y="265" font-size="44" text-anchor="middle">🎂</text>
+</svg>

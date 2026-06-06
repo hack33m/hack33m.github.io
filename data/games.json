@@ -1,5 +1,15 @@
 [
   {
+    "id": "grattis-efe",
+    "title": "🎉 Grattis Efe!",
+    "description": "En födelsedagshälsning till Efe — konfetti, ett brev och ett quiz om hur väl du känner honom!",
+    "category": "Fest",
+    "thumbnail": "assets/images/grattis-efe.svg",
+    "path": "grattis-efe/index.html",
+    "featured": true,
+    "expires": "2026-06-14"
+  },
+  {
     "id": "neon-dash",
     "title": "Neon Dash",
     "description": "Zig-zagga genom neonkorridoren och undvik hindren! Hur långt kan du nå?",

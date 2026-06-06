@@ -756,6 +756,9 @@ async function loadGames() {
   try {
     const r = await fetch('data/games.json?v=' + Date.now());
     allGames = await r.json();
+    // Tidsbegränsade sidor (t.ex. födelsedagshälsningar) försvinner efter sitt "expires"-datum
+    const today = new Date().toISOString().slice(0, 10);
+    allGames = allGames.filter(g => !g.expires || g.expires >= today);
     if (isGamePage()) initGamePage();
     else if (isProfilePage()) initProfilePage();
     else if (isShopPage()) initShopPage();
