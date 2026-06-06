@@ -751,6 +751,15 @@ function openSettingsModal() {
   }
 }
 
+// Blandar en lista slumpmässigt (Fisher–Yates) — körs vid varje sidladdning
+function shuffleGames(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 // ===== Load Games =====
 async function loadGames() {
   try {
@@ -759,6 +768,8 @@ async function loadGames() {
     // Tidsbegränsade sidor (t.ex. födelsedagshälsningar) försvinner efter sitt "expires"-datum
     const today = new Date().toISOString().slice(0, 10);
     allGames = allGames.filter(g => !g.expires || g.expires >= today);
+    // Blanda ordningen så portalen ser ny ut varje gång
+    shuffleGames(allGames);
     if (isGamePage()) initGamePage();
     else if (isProfilePage()) initProfilePage();
     else if (isShopPage()) initShopPage();
