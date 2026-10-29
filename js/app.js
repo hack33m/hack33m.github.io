@@ -162,15 +162,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEasterEgg();
   setupAuth();
   setupFeedback();
+  checkServerStatus();
 
-  await initAuth();
+  // Spelen ska aldrig behöva vänta på Supabase: vänta max 4 s på inloggningen,
+  // blir den klar senare uppdateras headern då
+  const authDone = initAuth();
+  await Promise.race([authDone, sleep(4000)]);
 
   renderHeaderAuth();
   loadGames();
+  authDone.then(renderHeaderAuth);
 });
+
+const SERVER_DOWN_MSG = 'Servern är inte tillgänglig just nu. Spelen funkar ändå!';
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function withTimeout(promise, ms) {
+  return Promise.race([promise, sleep(ms).then(() => { throw new Error('timeout'); })]);
+}
+
+// Visar en banner om Supabase är nere/pausad (inloggning, mynt och event funkar då inte)
+async function checkServerStatus() {
+  let ok = false;
+  if (supabaseClient) {
+    try {
+      const r = await withTimeout(fetch(SUPABASE_URL + '/auth/v1/health', { headers: { apikey: SUPABASE_ANON_KEY } }), 6000);
+      ok = r.ok;
+    } catch (e) { ok = false; }
+  }
+  if (ok || document.getElementById('server-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'server-banner';
+  banner.className = 'server-banner';
+  banner.textContent = '⚠️ Inloggning, mynt och event är tillfälligt nere. Alla spel funkar som vanligt!';
+  document.body.prepend(banner);
+}
 
 async function initAuth() {
   try {
+    if (!supabaseClient) return;
     const { data: { session } } = await supabaseClient.auth.getSession();
 
     if (session) {
@@ -601,10 +632,10 @@ function setupAuth() {
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
     btn.textContent = 'Loggar in...';
-    const r = await authenticateUser(
+    const r = await withTimeout(authenticateUser(
       document.getElementById('login-username').value.trim(),
       document.getElementById('login-password').value
-    );
+    ), 10000).catch(() => ({ ok: false, error: SERVER_DOWN_MSG }));
     if (r.ok) { modal.classList.remove('visible'); }
     else { document.getElementById('login-error').textContent = r.error; btn.disabled = false; btn.textContent = 'Logga in'; }
   });
@@ -619,7 +650,8 @@ function setupAuth() {
     btn.disabled = true;
     btn.textContent = 'Skapar konto...';
     const avatar = picker.querySelector('.avatar-option.selected')?.dataset.avatar || '😀';
-    const r = await registerUser(document.getElementById('reg-username').value.trim(), pw1, avatar);
+    const r = await withTimeout(registerUser(document.getElementById('reg-username').value.trim(), pw1, avatar), 10000)
+      .catch(() => ({ ok: false, error: SERVER_DOWN_MSG }));
     if (r.ok) { modal.classList.remove('visible'); renderHeaderAuth(); }
     else { document.getElementById('register-error').textContent = r.error; btn.disabled = false; btn.textContent = 'Skapa konto'; }
   });
@@ -920,11 +952,14 @@ function setupFeedback() {
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('visible'); });
   if (form) form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    await supabaseClient.from('feedback').insert({
-      name: document.getElementById('feedback-name').value,
-      type: document.getElementById('feedback-type').value,
-      message: document.getElementById('feedback-message').value,
-    });
+    try {
+      const { error } = await withTimeout(supabaseClient.from('feedback').insert({
+        name: document.getElementById('feedback-name').value,
+        type: document.getElementById('feedback-type').value,
+        message: document.getElementById('feedback-message').value,
+      }), 10000);
+      if (error) throw error;
+    } catch (err) { alert(SERVER_DOWN_MSG); return; }
     form.style.display = 'none'; if (suc) suc.style.display = ''; form.reset();
   });
 }

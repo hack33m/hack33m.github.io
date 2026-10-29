@@ -264,7 +264,7 @@
 
   async function fetchDailyWordFromSupabase() {
     try {
-      if (typeof supabaseClient === 'undefined') return null;
+      if (typeof supabaseClient === 'undefined' || !supabaseClient) return null;
       const today = new Date();
       const todayStr = today.getFullYear() + '-' +
         String(today.getMonth() + 1).padStart(2, '0') + '-' +

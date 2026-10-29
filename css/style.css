@@ -1713,3 +1713,13 @@ select.modal-input {
 .game-wrapper:-webkit-full-screen {
   border-radius: 0;
 }
+
+/* ===== Server-status-banner (visas när Supabase är nere) ===== */
+.server-banner {
+  background: var(--accent-orange);
+  color: #1a1a2e;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+}
