@@ -149,7 +149,7 @@
 
   const COLORS = {
     skyTop: 0x5b9bf0, horizon: 0xd9e9fb, ground: 0x8fcf8a, tree: 0x3d9a55, trunk: 0x8b5e3c,
-    track: 0xffffff, trackAlt: 0xeceae7, side: 0x9b948d, pillar: 0xb9b3ac, laneLine: 0xd6d3d1,
+    track: 0x3b4150, trackAlt: 0x454c5d, side: 0x2a2f3a, pillar: 0x8f96a3, laneLine: 0xf5f5f4,
     ball: 0x2563eb, block: 0xdc2626, bar: 0xea580c, coin: 0xeab308, cloud: 0xffffff,
   };
 
@@ -212,7 +212,7 @@
     crown: new THREE.ConeGeometry(1.4, 3.2, 7),
     puff: new THREE.IcosahedronGeometry(1, 1),
     shard: new THREE.BoxGeometry(0.22, 0.22, 0.22),
-    laneLine: new THREE.BoxGeometry(0.06, 0.02, SEG_LEN),
+    laneLine: new THREE.BoxGeometry(0.08, 0.02, SEG_LEN * 0.5),   // one dash per segment
     block: new THREE.BoxGeometry(1.2, 1.6, 1.2),
     bar: new THREE.BoxGeometry(TRACK_W - 0.2, 0.45, 0.45),
     coin: new THREE.CylinderGeometry(0.28, 0.28, 0.08, 20),
@@ -230,10 +230,26 @@
     cloud: new THREE.MeshStandardMaterial({ color: COLORS.cloud, roughness: 1, flatShading: true, emissive: 0xffffff, emissiveIntensity: 0.6, fog: false }),
   };
 
-  // Player ball: faceted and a little glossy so the rolling and the light are visible
+  // Ball texture: blue with a white band round the middle, so the rolling is visible on a smooth ball
+  function ballTexture() {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#2563eb';
+    g.fillRect(0, 0, 256, 128);
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 56, 256, 16);
+    g.fillStyle = '#93c5fd';
+    for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(32 + i * 64, 24, 9, 0, Math.PI * 2); g.fill(); }
+    const t = new THREE.CanvasTexture(c);
+    t.anisotropy = 4;
+    return t;
+  }
+
+  // Player ball: smooth and a little glossy
   const ball = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(BALL_R, 1),
-    new THREE.MeshStandardMaterial({ color: COLORS.ball, roughness: 0.35, metalness: 0.1, flatShading: true })
+    new THREE.SphereGeometry(BALL_R, 40, 28),
+    new THREE.MeshStandardMaterial({ map: ballTexture(), roughness: 0.3, metalness: 0.05 })
   );
   ball.castShadow = true;
   scene.add(ball);
