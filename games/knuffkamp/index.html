@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knuffkamp</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --surface: #ffffff;
+      --line: #d6d3d1;
+      --ink: #1c1917;
+      --muted: #78716c;
+      --blue: #2563eb;
+      --red: #dc2626;
+    }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #d9e9fb; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    #stage { position: fixed; inset: 0; }
+    #stage canvas { display: block; width: 100%; height: 100%; outline: none; }
+
+    .hud {
+      position: fixed;
+      top: 12px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .hud.hidden { display: none; }
+    .scoreboard {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 18px;
+      font-size: 22px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .scoreboard .blue { color: var(--blue); }
+    .scoreboard .red { color: var(--red); }
+    .scoreboard .dash { color: var(--muted); font-weight: 400; }
+    .dashbars { position: fixed; bottom: 14px; left: 16px; right: 16px; display: flex; justify-content: space-between; pointer-events: none; }
+    .dashbars.hidden { display: none; }
+    .dashbar { width: 120px; font-size: 12px; font-weight: 600; color: var(--muted); }
+    .dashbar .track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.8); border: 1px solid var(--line); margin-top: 4px; overflow: hidden; }
+    .dashbar .fill { height: 100%; width: 100%; }
+    .dashbar.right { text-align: right; }
+
+    .banner {
+      position: fixed;
+      top: 38%;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 56px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      pointer-events: none;
+      color: var(--ink);
+      text-shadow: 0 2px 0 rgba(255, 255, 255, 0.8);
+    }
+    .banner.small { font-size: 36px; }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(245, 245, 244, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 10;
+    }
+    .overlay.hidden { display: none; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      padding: 26px 24px;
+      width: min(400px, 100%);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .panel h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+    .panel h2 { font-size: 26px; font-weight: 700; }
+    .panel p { color: var(--muted); font-size: 15px; line-height: 1.5; }
+    .players { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
+    .player { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .player b { display: block; font-size: 15px; margin-bottom: 2px; }
+    .player.blue b { color: var(--blue); }
+    .player.red b { color: var(--red); }
+    .touch-note { font-size: 13px; }
+    .btn {
+      padding: 12px 18px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 10px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: #fff;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.9; }
+    .error { color: var(--red); }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+
+  <div class="hud hidden" id="hud">
+    <div class="scoreboard">
+      <span class="blue">Blå <span id="score-blue">0</span></span>
+      <span class="dash">–</span>
+      <span class="red"><span id="score-red">0</span> Röd</span>
+    </div>
+  </div>
+  <div class="dashbars hidden" id="dashbars">
+    <div class="dashbar"><span>Blå rusning</span><div class="track"><div class="fill" id="dash-blue" style="background: var(--blue)"></div></div></div>
+    <div class="dashbar right"><span>Röd rusning</span><div class="track"><div class="fill" id="dash-red" style="background: var(--red)"></div></div></div>
+  </div>
+  <div class="banner" id="banner"></div>
+
+  <div class="overlay" id="menu">
+    <div class="panel">
+      <h1>Knuffkamp</h1>
+      <p>Två spelare på samma dator. Knuffa ner den andra från plattformen! Plattformen krymper efter en stund. Först till 3 vunna rundor vinner.</p>
+      <div class="players">
+        <div class="player blue"><b>Blå</b>W A S D: röra sig<br>Mellanslag: rusa</div>
+        <div class="player red"><b>Röd</b>Piltangenter: röra sig<br>Enter: rusa</div>
+      </div>
+      <p class="touch-note">På surfplatta: dra på vänster halva för Blå och höger halva för Röd. Tryck snabbt för att rusa.</p>
+      <button class="btn" id="start-btn">Spela</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="gameover">
+    <div class="panel">
+      <h2 id="go-title">Blå vinner!</h2>
+      <p id="go-detail"></p>
+      <button class="btn" id="again-btn">Spela igen</button>
+    </div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../js/sounds.js"></script>
+<script>
+(() => {
+  const menu = document.getElementById('menu');
+  if (typeof THREE === 'undefined') {
+    menu.querySelector('.panel').innerHTML =
+      '<h1>Knuffkamp</h1><p class="error">Kunde inte ladda 3D-grafiken. Kolla internetanslutningen och ladda om sidan.</p>';
+    return;
+  }
+
+  // ----- Settings -----
+  const ARENA_R = 8;            // starting platform radius
+  const ARENA_MIN_R = 3.6;
+  const SHRINK_AFTER = 14;      // seconds before the platform starts to shrink
+  const SHRINK_SPEED = 0.22;    // radius lost per second
+  const BALL_R = 0.8;
+  const ACCEL = 24;
+  const MAX_SPEED = 7.5;
+  const FRICTION = 2.4;         // higher = stops faster
+  const DASH_SPEED = 13;
+  const DASH_TIME = 0.25;       // how long a dash makes you heavy
+  const DASH_COOLDOWN = 1.6;
+  const BOUNCE = 0.9;
+  const PUSH_BONUS = 3.2;       // extra kick in every collision so bumps feel strong
+  const GRAVITY = 26;
+  const WIN_ROUNDS = 3;
+
+  const COLORS = {
+    skyTop: 0x5b9bf0, horizon: 0xd9e9fb, ground: 0x8fcf8a, tree: 0x3d9a55, trunk: 0x8b5e3c,
+    top: 0xf5f5f4, side: 0x9b948d, ring: 0xd6d3d1, edge: 0xeab308, cloud: 0xffffff,
+    blue: 0x2563eb, red: 0xdc2626,
+  };
+
+  // ----- Three.js setup -----
+  const stage = document.getElementById('stage');
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(COLORS.horizon);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(COLORS.horizon, 40, 130);
+  (() => {
+    const c = document.createElement('canvas');
+    c.width = 2; c.height = 256;
+    const g = c.getContext('2d');
+    const grad = g.createLinearGradient(0, 0, 0, 256);
+    const hex = n => '#' + n.toString(16).padStart(6, '0');
+    grad.addColorStop(0, hex(COLORS.skyTop));
+    grad.addColorStop(0.75, hex(COLORS.horizon));
+    grad.addColorStop(1, hex(COLORS.horizon));
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 2, 256);
+    scene.background = new THREE.CanvasTexture(c);
+  })();
+
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+
+  scene.add(new THREE.HemisphereLight(0xdcebff, 0x6b8f5e, 0.65));
+  const sun = new THREE.DirectionalLight(0xfff4e0, 0.95);
+  sun.position.set(6, 20, 8);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 50 });
+  sun.shadow.bias = -0.0008;
+  scene.add(sun);
+
+  let portrait = false;
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    portrait = w / h < 0.9;
+    camera.fov = portrait ? 70 : 50;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const mat = (c, extra) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.8, metalness: 0, flatShading: true }, extra));
+
+  // ----- Arena: a round platform on a pillar, far above the ground -----
+  const arena = new THREE.Group();
+  const platform = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.6, 64), [mat(COLORS.side), mat(COLORS.top), mat(COLORS.side)]);
+  platform.position.y = -0.3;
+  platform.receiveShadow = true;
+  const edge = new THREE.Mesh(new THREE.TorusGeometry(1, 0.012, 6, 64), mat(COLORS.edge, { emissive: 0x7a5300, emissiveIntensity: 0.3 }));
+  edge.rotation.x = Math.PI / 2;
+  edge.position.y = 0.01;
+  const centre = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.2, 48), new THREE.MeshBasicMaterial({ color: COLORS.ring }));
+  centre.rotation.x = -Math.PI / 2;
+  centre.position.y = 0.012;
+  arena.add(platform, edge, centre);
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2, 30, 12), mat(COLORS.side));
+  pillar.position.y = -15.6;
+  scene.add(arena, pillar);
+
+  function setArenaRadius(r) { arena.scale.set(r, 1, r); }
+
+  // Scenery
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), mat(COLORS.ground));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -30;
+  scene.add(ground);
+  const TREE = { trunk: new THREE.CylinderGeometry(0.4, 0.55, 2, 6), crown: new THREE.ConeGeometry(2, 4.5, 7) };
+  for (let i = 0; i < 60; i++) {
+    const t = new THREE.Group();
+    const trunk = new THREE.Mesh(TREE.trunk, mat(COLORS.trunk)); trunk.position.y = 1;
+    const crown = new THREE.Mesh(TREE.crown, mat(COLORS.tree)); crown.position.y = 4;
+    t.add(trunk, crown);
+    const a = Math.random() * Math.PI * 2, d = 18 + Math.random() * 70;
+    t.position.set(Math.cos(a) * d, -30, Math.sin(a) * d);
+    t.scale.setScalar(0.8 + Math.random() * 1.2);
+    scene.add(t);
+  }
+  const clouds = [];
+  const puffGeo = new THREE.IcosahedronGeometry(1, 1);
+  const cloudMat = mat(COLORS.cloud, { roughness: 1, emissive: 0xffffff, emissiveIntensity: 0.6, fog: false });
+  for (let i = 0; i < 12; i++) {
+    const c = new THREE.Group();
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < n; k++) {
+      const puff = new THREE.Mesh(puffGeo, cloudMat);
+      puff.position.set(k * 1.3 - n * 0.6, Math.random() * 0.6, (Math.random() - 0.5) * 1.2);
+      puff.scale.setScalar(0.9 + Math.random() * 0.8);
+      c.add(puff);
+    }
+    const a = Math.random() * Math.PI * 2, d = 25 + Math.random() * 40;
+    c.position.set(Math.cos(a) * d, 4 + Math.random() * 12, Math.sin(a) * d - 20);
+    c.scale.setScalar(1.5 + Math.random() * 2);
+    scene.add(c);
+    clouds.push(c);
+  }
+
+  // ----- Players -----
+  function makePlayer(color, name, cssColor) {
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 40, 28), new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.05 }));
+    mesh.castShadow = true;
+    scene.add(mesh);
+    return { mesh, name, cssColor, x: 0, z: 0, y: BALL_R, vx: 0, vz: 0, vy: 0, falling: false, dashT: 0, cooldown: 0, ix: 0, iz: 0 };
+  }
+  const blue = makePlayer(COLORS.blue, 'Blå', 'var(--blue)');
+  const red = makePlayer(COLORS.red, 'Röd', 'var(--red)');
+  const players = [blue, red];
+
+  // ----- Input -----
+  const keys = {};
+  document.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (['Space', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+    if (state === 'menu' || state === 'over') { if (e.code === 'Space' || e.code === 'Enter') startMatch(); return; }
+    if (e.code === 'Space' && !e.repeat) dash(blue);
+    if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat) dash(red);
+  });
+  document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  // Touch: each half of the screen is a joystick for one player, a quick tap is a dash
+  const touches = new Map();
+  stage.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse') return;
+    const who = e.clientX < window.innerWidth / 2 ? blue : red;
+    touches.set(e.pointerId, { who, sx: e.clientX, sy: e.clientY, t: performance.now(), dx: 0, dy: 0 });
+  });
+  stage.addEventListener('pointermove', e => {
+    const t = touches.get(e.pointerId);
+    if (t) { t.dx = e.clientX - t.sx; t.dy = e.clientY - t.sy; }
+  });
+  const endTouch = e => {
+    const t = touches.get(e.pointerId);
+    if (!t) return;
+    touches.delete(e.pointerId);
+    if (performance.now() - t.t < 220 && Math.hypot(t.dx, t.dy) < 12) dash(t.who);
+  };
+  stage.addEventListener('pointerup', endTouch);
+  stage.addEventListener('pointercancel', endTouch);
+
+  function readInput() {
+    blue.ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+    blue.iz = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0);
+    red.ix = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+    red.iz = (keys.ArrowDown ? 1 : 0) - (keys.ArrowUp ? 1 : 0);
+    for (const t of touches.values()) {
+      const len = Math.hypot(t.dx, t.dy);
+      if (len > 10) { t.who.ix = t.dx / Math.max(len, 50); t.who.iz = t.dy / Math.max(len, 50); }
+    }
+    for (const p of players) {
+      const len = Math.hypot(p.ix, p.iz);
+      if (len > 1) { p.ix /= len; p.iz /= len; }
+    }
+  }
+
+  function dash(p) {
+    if (state !== 'play' || p.falling || p.cooldown > 0) return;
+    // Dash where the player is steering, or straight ahead if not steering
+    let dx = p.ix, dz = p.iz;
+    if (!dx && !dz) { const sp = Math.hypot(p.vx, p.vz); if (sp < 0.1) return; dx = p.vx / sp; dz = p.vz / sp; }
+    const len = Math.hypot(dx, dz);
+    p.vx = dx / len * DASH_SPEED;
+    p.vz = dz / len * DASH_SPEED;
+    p.dashT = DASH_TIME;
+    p.cooldown = DASH_COOLDOWN;
+    sound('boost');
+  }
+
+  // ----- Game state -----
+  let state = 'menu';        // menu | countdown | play | roundover | over
+  let stateT = 0, roundTime = 0, arenaR = ARENA_R, wins = { blue: 0, red: 0 }, lastTime;
+  const banner = document.getElementById('banner');
+  const hud = document.getElementById('hud');
+  const dashbars = document.getElementById('dashbars');
+  const gameoverEl = document.getElementById('gameover');
+  const sound = name => { try { if (window.NeonSounds) NeonSounds[name](); } catch (e) {} };
+  let soundReady = false;
+
+  function setBanner(text, small) { banner.textContent = text; banner.classList.toggle('small', !!small); }
+
+  function resetRound() {
+    arenaR = ARENA_R;
+    setArenaRadius(arenaR);
+    roundTime = 0;
+    Object.assign(blue, { x: -ARENA_R * 0.5, z: 0, y: BALL_R, vx: 0, vz: 0, vy: 0, falling: false, dashT: 0, cooldown: 0 });
+    Object.assign(red,  { x:  ARENA_R * 0.5, z: 0, y: BALL_R, vx: 0, vz: 0, vy: 0, falling: false, dashT: 0, cooldown: 0 });
+    for (const p of players) p.mesh.visible = true;
+    state = 'countdown';
+    stateT = 0;
+  }
+
+  function startMatch() {
+    if (!soundReady && window.NeonSounds) { try { NeonSounds.init(); } catch (e) {} soundReady = true; }
+    wins = { blue: 0, red: 0 };
+    updateScore();
+    menu.classList.add('hidden');
+    gameoverEl.classList.add('hidden');
+    hud.classList.remove('hidden');
+    dashbars.classList.remove('hidden');
+    resetRound();
+  }
+
+  function updateScore() {
+    document.getElementById('score-blue').textContent = wins.blue;
+    document.getElementById('score-red').textContent = wins.red;
+  }
+
+  function endRound(loser) {
+    state = 'roundover';
+    stateT = 0;
+    const winner = loser === blue ? red : blue;
+    wins[winner === blue ? 'blue' : 'red']++;
+    updateScore();
+    sound('fanfare');
+    setBanner(winner.name + ' tar rundan!', true);
+    banner.style.color = winner === blue ? '#2563eb' : '#dc2626';
+  }
+
+  document.getElementById('start-btn').addEventListener('click', startMatch);
+  document.getElementById('again-btn').addEventListener('click', startMatch);
+
+  // ----- Physics -----
+  function stepPlayer(p, dt) {
+    p.cooldown = Math.max(0, p.cooldown - dt);
+    p.dashT = Math.max(0, p.dashT - dt);
+    if (p.falling) {
+      p.vy -= GRAVITY * dt;
+      p.y += p.vy * dt;
+      p.x += p.vx * dt * 0.6;
+      p.z += p.vz * dt * 0.6;
+      return;
+    }
+    if (state === 'play') {
+      p.vx += p.ix * ACCEL * dt;
+      p.vz += p.iz * ACCEL * dt;
+    }
+    const f = Math.exp(-FRICTION * dt);
+    p.vx *= f; p.vz *= f;
+    const sp = Math.hypot(p.vx, p.vz);
+    const cap = p.dashT > 0 ? DASH_SPEED : MAX_SPEED;
+    if (sp > cap) { p.vx *= cap / sp; p.vz *= cap / sp; }
+    p.x += p.vx * dt;
+    p.z += p.vz * dt;
+    // Off the edge once the centre of the ball is past the rim
+    if (Math.hypot(p.x, p.z) > arenaR) { p.falling = true; p.vy = 0; sound('death'); }
+  }
+
+  function collide(a, b) {
+    if (a.falling || b.falling) return;
+    const dx = b.x - a.x, dz = b.z - a.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist >= BALL_R * 2 || dist === 0) return;
+    const nx = dx / dist, nz = dz / dist;
+    // Push apart so they never overlap
+    const overlap = BALL_R * 2 - dist;
+    a.x -= nx * overlap / 2; a.z -= nz * overlap / 2;
+    b.x += nx * overlap / 2; b.z += nz * overlap / 2;
+    const rv = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;   // closing speed
+    if (rv <= 0) return;
+    const ma = a.dashT > 0 ? 2.5 : 1, mb = b.dashT > 0 ? 2.5 : 1;   // dashing makes you heavy
+    const j = (1 + BOUNCE) * (rv + PUSH_BONUS) / (1 / ma + 1 / mb);
+    a.vx -= (j / ma) * nx; a.vz -= (j / ma) * nz;
+    b.vx += (j / mb) * nx; b.vz += (j / mb) * nz;
+    sound('hit');
+  }
+
+  function update(dt) {
+    readInput();
+    stateT += dt;
+
+    if (state === 'countdown') {
+      const left = 3 - Math.floor(stateT / 0.7);
+      banner.style.color = '';
+      setBanner(left > 0 ? String(left) : 'Kör!');
+      if (stateT >= 2.1) { state = 'play'; stateT = 0; sound('click'); }
+    } else if (state === 'play') {
+      if (stateT > 0.6) setBanner('');
+      roundTime += dt;
+      if (roundTime > SHRINK_AFTER && arenaR > ARENA_MIN_R) {
+        arenaR = Math.max(ARENA_MIN_R, arenaR - SHRINK_SPEED * dt);
+        setArenaRadius(arenaR);
+      }
+    } else if (state === 'roundover') {
+      if (stateT > 1.8) {
+        if (wins.blue >= WIN_ROUNDS || wins.red >= WIN_ROUNDS) {
+          state = 'over';
+          setBanner('');
+          const blueWon = wins.blue >= WIN_ROUNDS;
+          const title = document.getElementById('go-title');
+          title.textContent = (blueWon ? 'Blå' : 'Röd') + ' vinner!';
+          title.style.color = blueWon ? '#2563eb' : '#dc2626';
+          document.getElementById('go-detail').textContent = 'Slutställning ' + wins.blue + ' – ' + wins.red;
+          gameoverEl.classList.remove('hidden');
+          dashbars.classList.add('hidden');
+          sound('win');
+        } else {
+          resetRound();
+        }
+      }
+    }
+
+    for (const p of players) stepPlayer(p, dt);
+    collide(blue, red);
+
+    if (state === 'play') {
+      const out = players.filter(p => p.falling && p.y < -1.5);
+      if (out.length === 2) {
+        // Both fell: the one who fell first loses
+        endRound(blue.y < red.y ? blue : red);
+      } else if (out.length === 1) {
+        endRound(out[0]);
+      }
+    }
+
+    // Dash bars
+    document.getElementById('dash-blue').style.width = (100 - blue.cooldown / DASH_COOLDOWN * 100) + '%';
+    document.getElementById('dash-red').style.width = (100 - red.cooldown / DASH_COOLDOWN * 100) + '%';
+  }
+
+  // ----- Render -----
+  function draw(dt) {
+    for (const p of players) {
+      p.mesh.position.set(p.x, p.y, p.z);
+      // Roll in the direction of travel
+      const sp = Math.hypot(p.vx, p.vz);
+      if (sp > 0.01) {
+        const axis = new THREE.Vector3(p.vz, 0, -p.vx).normalize();
+        p.mesh.rotateOnWorldAxis(axis, sp * dt / BALL_R);
+      }
+      if (p.y < -25) p.mesh.visible = false;
+    }
+    for (const c of clouds) { c.position.x += dt * 0.4; if (c.position.x > 70) c.position.x = -70; }
+
+    // Camera: above and behind the arena, a little closer when the platform shrinks
+    const zoom = portrait ? 1.45 : 1;
+    const r = Math.max(arenaR, 5);
+    camera.position.set(0, r * 1.05 * zoom + 2.5, r * 1.95 * zoom + 3);
+    camera.lookAt(0, -1, 0);
+    renderer.render(scene, camera);
+  }
+
+  function loop(now) {
+    const dt = Math.min(0.05, (now - (lastTime || now)) / 1000);
+    lastTime = now;
+    if (state !== 'menu' && state !== 'over') update(dt);
+    draw(dt);
+    requestAnimationFrame(loop);
+  }
+  document.addEventListener('visibilitychange', () => { lastTime = performance.now(); });
+
+  // Arena behind the menu
+  setArenaRadius(ARENA_R);
+  Object.assign(blue, { x: -ARENA_R * 0.5 });
+  Object.assign(red, { x: ARENA_R * 0.5 });
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

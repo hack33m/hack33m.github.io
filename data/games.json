@@ -216,5 +216,14 @@
     "thumbnail": "assets/images/ringflyg.svg",
     "path": "games/ringflyg/index.html",
     "featured": false
+  },
+  {
+    "id": "knuffkamp",
+    "title": "Knuffkamp",
+    "description": "3D för två spelare på samma dator! Knuffa ner kompisen från plattformen. Först till 3 vunna rundor.",
+    "category": "Multiplayer",
+    "thumbnail": "assets/images/knuffkamp.svg",
+    "path": "games/knuffkamp/index.html",
+    "featured": false
   }
 ]

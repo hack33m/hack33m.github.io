@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#e8eefc"/>
+  <!-- Pillar and platform -->
+  <polygon points="182,200 218,200 230,300 170,300" fill="#9b948d"/>
+  <ellipse cx="200" cy="196" rx="150" ry="40" fill="#9b948d"/>
+  <ellipse cx="200" cy="184" rx="150" ry="40" fill="#f5f5f4" stroke="#eab308" stroke-width="3"/>
+  <ellipse cx="200" cy="184" rx="16" ry="4" fill="none" stroke="#d6d3d1" stroke-width="2"/>
+  <!-- Shadows -->
+  <ellipse cx="150" cy="190" rx="28" ry="7" fill="#1c1917" opacity="0.15"/>
+  <ellipse cx="262" cy="196" rx="28" ry="7" fill="#1c1917" opacity="0.15"/>
+  <!-- Blue and red balls about to collide -->
+  <circle cx="150" cy="155" r="32" fill="#2563eb" stroke="#1c1917" stroke-width="2"/>
+  <circle cx="258" cy="160" r="32" fill="#dc2626" stroke="#1c1917" stroke-width="2"/>
+  <!-- Bump lines -->
+  <line x1="200" y1="132" x2="206" y2="118" stroke="#1c1917" stroke-width="3" stroke-linecap="round"/>
+  <line x1="204" y1="150" x2="216" y2="146" stroke="#1c1917" stroke-width="3" stroke-linecap="round"/>
+  <line x1="196" y1="120" x2="194" y2="106" stroke="#1c1917" stroke-width="3" stroke-linecap="round"/>
+</svg>
