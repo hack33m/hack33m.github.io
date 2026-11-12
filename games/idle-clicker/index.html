@@ -91,7 +91,7 @@
     { id: 'diamond', name: 'Diamantklick',  desc: 'Var 10:e klick ger 20x',     icon: '\uD83D\uDC8E', color: TEAL, level: 0, baseCost: 5000, costMul: 1.55, baseVal: 1 },
     { id: 'edis',    name: 'EDIS',          desc: 'Event var 1000:e \u26A1 (20s x3)', icon: '\uD83C\uDF1F', color: YELLOW, level: 0, baseCost: 750,  costMul: 1.35, baseVal: 1, maxLevel: 1 },
     { id: 'corny',   name: 'CORNY',         desc: 'Spawnar klickbara Corny',     icon: '\uD83C\uDF6B', color: ORANGE, level: 0, baseCost: 300,  costMul: 1.2,  baseVal: 1 },
-    { id: 'danilo',  name: 'DANILO',        desc: 'Kommer snart...',             icon: '\uD83D\uDE0E', color: RED, level: 0, baseCost: 400,  costMul: 1.3,  baseVal: 1 },
+    { id: 'danilo',  name: 'DANILO',        desc: 'Hemlig överraskning!',             icon: '\uD83D\uDE0E', color: RED, level: 0, baseCost: 400,  costMul: 1.3,  baseVal: 1 },
   ];
 
   let clickCounter = 0;
@@ -237,6 +237,7 @@
           const r = rects[selectedUpgrade];
           spawnFloatingText(r.x + r.w/2, r.y, u.name + ' Lvl ' + u.level, u.color);
           reportScore();
+          onUpgradeBought(u);
         } else {
           NeonSounds.click();
         }
@@ -259,6 +260,13 @@
   function getOrbRadius() {
     const base = isMobile() ? Math.min(W(), H()) * 0.18 : Math.min(W(), H()) * 0.15;
     return Math.max(50, Math.min(base, 130));
+  }
+
+  // DANILO is a prank: buying it opens a Rick Roll in a new tab.
+  // It runs inside the click/keypress that made the purchase, so the browser allows the new tab.
+  const RICK_ROLL_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+  function onUpgradeBought(u) {
+    if (u.id === 'danilo') window.open(RICK_ROLL_URL, '_blank', 'noopener');
   }
 
   // ---- Shop layout ----
@@ -475,6 +483,7 @@
           u.level++;
           spawnFloatingText(r.x + r.w/2, r.y, u.name + ' Lvl ' + u.level, u.color);
           reportScore();
+          onUpgradeBought(u);
         } else {
           NeonSounds.click();
         }
