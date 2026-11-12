@@ -225,5 +225,14 @@
     "thumbnail": "assets/images/knuffkamp.svg",
     "path": "games/knuffkamp/index.html",
     "featured": false
+  },
+  {
+    "id": "snobollskrig",
+    "title": "Snöbollskrig",
+    "description": "3D-skjutspel med snöbollar! Göm dig bakom snömurarna och träffa motståndaren tre gånger. Två spelare på samma dator eller mot datorn.",
+    "category": "Multiplayer",
+    "thumbnail": "assets/images/snobollskrig.svg",
+    "path": "games/snobollskrig/index.html",
+    "featured": false
   }
 ]

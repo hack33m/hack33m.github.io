@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#e8eefc"/>
+  <rect y="190" width="400" height="110" fill="#f8fafc"/>
+  <!-- Pines -->
+  <polygon points="30,190 50,130 70,190" fill="#2f7d4a"/><polygon points="40,150 50,130 60,150" fill="#ffffff"/>
+  <polygon points="335,190 357,120 379,190" fill="#2f7d4a"/><polygon points="346,145 357,120 368,145" fill="#ffffff"/>
+  <!-- Snow wall -->
+  <rect x="172" y="196" width="56" height="34" rx="4" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="2"/>
+  <rect x="168" y="190" width="64" height="10" rx="5" fill="#ffffff"/>
+  <!-- Blue figure -->
+  <ellipse cx="105" cy="252" rx="26" ry="6" fill="#1c1917" opacity="0.12"/>
+  <rect x="86" y="205" width="38" height="46" rx="12" fill="#2563eb"/>
+  <circle cx="105" cy="192" r="17" fill="#f3c9a4"/>
+  <path d="M88 188 a17 17 0 0 1 34 0 z" fill="#2563eb"/><circle cx="105" cy="170" r="5" fill="#ffffff"/>
+  <!-- Red figure -->
+  <ellipse cx="295" cy="252" rx="26" ry="6" fill="#1c1917" opacity="0.12"/>
+  <rect x="276" y="205" width="38" height="46" rx="12" fill="#dc2626"/>
+  <circle cx="295" cy="192" r="17" fill="#f3c9a4"/>
+  <path d="M278 188 a17 17 0 0 1 34 0 z" fill="#dc2626"/><circle cx="295" cy="170" r="5" fill="#ffffff"/>
+  <!-- Snowball flying in an arc -->
+  <path d="M130 196 Q200 120 262 190" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 6"/>
+  <circle cx="232" cy="160" r="9" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+</svg>

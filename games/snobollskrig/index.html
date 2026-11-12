@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snöbollskrig</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --surface: #ffffff;
+      --line: #d6d3d1;
+      --ink: #1c1917;
+      --muted: #78716c;
+      --blue: #2563eb;
+      --red: #dc2626;
+    }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #dbe7f3; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    #stage { position: fixed; inset: 0; }
+    #stage canvas { display: block; width: 100%; height: 100%; outline: none; }
+
+    .hud {
+      position: fixed;
+      top: 12px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      gap: 10px;
+    }
+    .hud.hidden { display: none; }
+    .card {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 14px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .side { min-width: 110px; }
+    .side .name { font-size: 15px; }
+    .side .hearts { font-size: 18px; letter-spacing: 2px; margin-top: 2px; }
+    .side.blue .name, .side.blue .hearts { color: var(--blue); }
+    .side.red { text-align: right; }
+    .side.red .name, .side.red .hearts { color: var(--red); }
+    .rounds { font-size: 22px; }
+    .rounds .blue { color: var(--blue); }
+    .rounds .red { color: var(--red); }
+    .rounds .dash { color: var(--muted); font-weight: 400; margin: 0 6px; }
+
+    .banner {
+      position: fixed;
+      top: 38%;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 56px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      pointer-events: none;
+      color: var(--ink);
+      text-shadow: 0 2px 0 rgba(255, 255, 255, 0.8);
+    }
+    .banner.small { font-size: 36px; }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(245, 245, 244, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 10;
+    }
+    .overlay.hidden { display: none; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      padding: 26px 24px;
+      width: min(420px, 100%);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .panel h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+    .panel h2 { font-size: 26px; font-weight: 700; }
+    .panel p { color: var(--muted); font-size: 15px; line-height: 1.5; }
+    .label { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+    .choice { display: flex; gap: 6px; justify-content: center; }
+    .choice button {
+      padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff;
+      font: 600 14px inherit; font-family: inherit; color: var(--ink); cursor: pointer;
+    }
+    .choice button.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+    .players { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
+    .player { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .player b { display: block; font-size: 15px; margin-bottom: 2px; }
+    .player.blue b { color: var(--blue); }
+    .player.red b { color: var(--red); }
+    .touch-note { font-size: 13px; }
+    .btn {
+      padding: 12px 18px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 10px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: #fff;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.9; }
+    .error { color: var(--red); }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+
+  <div class="hud hidden" id="hud">
+    <div class="card side blue"><div class="name">Blå</div><div class="hearts" id="hp-blue">♥♥♥</div></div>
+    <div class="card rounds"><span class="blue" id="score-blue">0</span><span class="dash">–</span><span class="red" id="score-red">0</span></div>
+    <div class="card side red"><div class="name" id="red-name">Röd</div><div class="hearts" id="hp-red">♥♥♥</div></div>
+  </div>
+  <div class="banner" id="banner"></div>
+
+  <div class="overlay" id="menu">
+    <div class="panel">
+      <h1>Snöbollskrig</h1>
+      <p>Kasta snöbollar och göm dig bakom snömurarna. Tre träffar och rundan är förlorad. Först till 3 vunna rundor vinner!</p>
+      <div>
+        <div class="label">Läge</div>
+        <div class="choice" id="mode-choice">
+          <button class="active" data-mode="2p">2 spelare</button>
+          <button data-mode="ai">Mot datorn</button>
+        </div>
+      </div>
+      <div class="players">
+        <div class="player blue"><b>Blå</b>W A S D: gå<br>Mellanslag: kasta</div>
+        <div class="player red" id="red-help"><b>Röd</b>Piltangenter: gå<br>Enter: kasta</div>
+      </div>
+      <p class="touch-note">Snöbollen flyger åt det håll du går eller tittar. På surfplatta: dra på din halva av skärmen för att gå och tryck snabbt för att kasta.</p>
+      <button class="btn" id="start-btn">Spela</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="gameover">
+    <div class="panel">
+      <h2 id="go-title">Blå vinner!</h2>
+      <p id="go-detail"></p>
+      <button class="btn" id="again-btn">Spela igen</button>
+      <button class="btn" id="menu-btn" style="background:#fff;color:var(--ink);border-color:var(--line)">Meny</button>
+    </div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../js/sounds.js"></script>
+<script>
+(() => {
+  const menu = document.getElementById('menu');
+  if (typeof THREE === 'undefined') {
+    menu.querySelector('.panel').innerHTML =
+      '<h1>Snöbollskrig</h1><p class="error">Kunde inte ladda 3D-grafiken. Kolla internetanslutningen och ladda om sidan.</p>';
+    return;
+  }
+
+  // ----- Settings -----
+  const HALF_W = 11, HALF_D = 7;   // arena is 22 x 14
+  const SPEED = 6.2;
+  const BODY_R = 0.5;
+  const THROW_SPEED = 17;
+  const THROW_RANGE = 20;
+  const THROW_COOLDOWN = 0.45;
+  const HP = 3;
+  const WIN_ROUNDS = 3;
+  const HIT_STUN = 0.35;
+
+  const COLORS = {
+    skyTop: 0x7aa7d9, horizon: 0xdbe7f3, snow: 0xf8fafc, snowDark: 0xe2e8f0, wall: 0xbfdbfe, wallSide: 0x93c5fd,
+    fence: 0x8b5e3c, tree: 0x2f7d4a, trunk: 0x6b4a2f, skin: 0xf3c9a4, white: 0xffffff,
+    blue: 0x2563eb, red: 0xdc2626, ink: 0x1c1917,
+  };
+
+  // ----- Three.js setup -----
+  const stage = document.getElementById('stage');
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(COLORS.horizon);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(COLORS.horizon, 35, 90);
+  (() => {
+    const c = document.createElement('canvas');
+    c.width = 2; c.height = 256;
+    const g = c.getContext('2d');
+    const grad = g.createLinearGradient(0, 0, 0, 256);
+    const hex = n => '#' + n.toString(16).padStart(6, '0');
+    grad.addColorStop(0, hex(COLORS.skyTop));
+    grad.addColorStop(0.7, hex(COLORS.horizon));
+    grad.addColorStop(1, hex(COLORS.horizon));
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 2, 256);
+    scene.background = new THREE.CanvasTexture(c);
+  })();
+
+  const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 200);
+  scene.add(new THREE.HemisphereLight(0xeaf2ff, 0xb8c4d4, 0.75));
+  const sun = new THREE.DirectionalLight(0xfff4e0, 0.85);
+  sun.position.set(8, 22, 10);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 14, bottom: -14, near: 1, far: 60 });
+  sun.shadow.bias = -0.0006;
+  scene.add(sun);
+
+  let portrait = false;
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    portrait = w / h < 0.9;
+    camera.fov = portrait ? 72 : 48;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const mat = (c, extra) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.85, metalness: 0, flatShading: true }, extra));
+
+  // ----- Arena -----
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), mat(COLORS.snow, { flatShading: false }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Low wooden fence around the play area
+  const fenceMat = mat(COLORS.fence);
+  for (const [w, d, x, z] of [[HALF_W * 2 + 1, 0.2, 0, -HALF_D - 0.5], [HALF_W * 2 + 1, 0.2, 0, HALF_D + 0.5], [0.2, HALF_D * 2 + 1, -HALF_W - 0.5, 0], [0.2, HALF_D * 2 + 1, HALF_W + 0.5, 0]]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(w, 0.15, d), fenceMat);
+    rail.position.set(x, 0.5, z);
+    rail.castShadow = true;
+    scene.add(rail);
+  }
+  for (let x = -HALF_W - 0.5; x <= HALF_W + 0.5; x += 2) for (const z of [-HALF_D - 0.5, HALF_D + 0.5]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), fenceMat); post.position.set(x, 0.4, z); post.castShadow = true; scene.add(post);
+  }
+  for (let z = -HALF_D - 0.5; z <= HALF_D + 0.5; z += 2) for (const x of [-HALF_W - 0.5, HALF_W + 0.5]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), fenceMat); post.position.set(x, 0.4, z); post.castShadow = true; scene.add(post);
+  }
+
+  // Snow walls (cover). Mirrored so both sides are fair.
+  const WALLS = [
+    { x: -6.5, z: -2.5, w: 1, d: 3.2 }, { x: 6.5, z: 2.5, w: 1, d: 3.2 },
+    { x: -6.5, z: 4, w: 1, d: 2 },      { x: 6.5, z: -4, w: 1, d: 2 },
+    { x: -2.2, z: 0, w: 1, d: 2.6 },    { x: 2.2, z: 0, w: 1, d: 2.6 },
+    { x: 0, z: -5, w: 3, d: 0.9 },      { x: 0, z: 5, w: 3, d: 0.9 },
+  ];
+  const WALL_H = 1.1;
+  const wallMat = [mat(COLORS.wallSide), mat(COLORS.wallSide), mat(COLORS.wall), mat(COLORS.wall), mat(COLORS.wallSide), mat(COLORS.wallSide)];
+  for (const w of WALLS) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w.w, WALL_H, w.d), wallMat);
+    m.position.set(w.x, WALL_H / 2, w.z);
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
+    // A soft snow cap on top
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(w.w + 0.1, 0.18, w.d + 0.1), mat(COLORS.white));
+    cap.position.set(w.x, WALL_H + 0.05, w.z);
+    cap.castShadow = true;
+    scene.add(cap);
+  }
+
+  // Snowy pine trees around the arena
+  const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, 1, 6);
+  const tierGeo = new THREE.ConeGeometry(1, 1.4, 7);
+  const snowTierGeo = new THREE.ConeGeometry(0.55, 0.6, 7);
+  for (let i = 0; i < 55; i++) {
+    const t = new THREE.Group();
+    const trunk = new THREE.Mesh(trunkGeo, mat(COLORS.trunk)); trunk.position.y = 0.5; t.add(trunk);
+    for (let k = 0; k < 3; k++) {
+      const tier = new THREE.Mesh(tierGeo, mat(COLORS.tree)); tier.position.y = 1.3 + k * 0.8; tier.scale.setScalar(1 - k * 0.25); tier.castShadow = true; t.add(tier);
+    }
+    const top = new THREE.Mesh(snowTierGeo, mat(COLORS.white)); top.position.y = 3.15; t.add(top);
+    let x, z;
+    do { x = (Math.random() * 2 - 1) * 40; z = -Math.random() * 30 - 2; } while (Math.abs(x) < HALF_W + 3 && z > -HALF_D - 3);
+    t.position.set(x, 0, z);
+    t.scale.setScalar(1 + Math.random() * 1.2);
+    scene.add(t);
+  }
+
+  // Falling snow, just for atmosphere
+  const flakeCount = 260;
+  const flakeGeo = new THREE.BufferGeometry();
+  const flakePos = new Float32Array(flakeCount * 3);
+  for (let i = 0; i < flakeCount; i++) { flakePos[i * 3] = (Math.random() * 2 - 1) * 26; flakePos[i * 3 + 1] = Math.random() * 14; flakePos[i * 3 + 2] = (Math.random() * 2 - 1) * 16; }
+  flakeGeo.setAttribute('position', new THREE.BufferAttribute(flakePos, 3));
+  const flakes = new THREE.Points(flakeGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.09 }));
+  scene.add(flakes);
+
+  // ----- Players: a little figure in a coloured jacket and hat -----
+  function makeFigure(color) {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.9, 16), mat(color, { flatShading: false }));
+    body.position.y = 0.55;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 20, 14), mat(COLORS.skin, { flatShading: false }));
+    head.position.y = 1.28;
+    const hat = new THREE.Mesh(new THREE.SphereGeometry(0.34, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(color, { flatShading: false }));
+    hat.position.y = 1.36;
+    const pom = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), mat(COLORS.white));
+    pom.position.y = 1.72;
+    // Eyes face +z in the model; the whole figure turns towards where it aims
+    const eyeMat = mat(COLORS.ink);
+    const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), eyeMat); eyeL.position.set(-0.11, 1.32, 0.29);
+    const eyeR = eyeL.clone(); eyeR.position.x = 0.11;
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.6, 8), mat(color, { flatShading: false }));
+    arm.position.set(0.48, 0.75, 0.15); arm.rotation.x = Math.PI / 2.6;
+    g.add(body, head, hat, pom, eyeL, eyeR, arm);
+    g.traverse(m => { if (m.isMesh) { m.castShadow = true; } });
+    g.userData.materials = [body.material, hat.material, arm.material];
+    g.userData.baseColor = color;
+    scene.add(g);
+    return g;
+  }
+
+  function makePlayer(color, name) {
+    return { mesh: makeFigure(color), name, x: 0, z: 0, fx: 1, fz: 0, hp: HP, cooldown: 0, stun: 0, flash: 0, ix: 0, iz: 0, ai: false };
+  }
+  const blue = makePlayer(COLORS.blue, 'Blå');
+  const red = makePlayer(COLORS.red, 'Röd');
+  const players = [blue, red];
+
+  // ----- Snowballs and splashes -----
+  const ballGeo = new THREE.SphereGeometry(0.18, 12, 10);
+  const ballMat = mat(COLORS.white, { flatShading: false, roughness: 0.6 });
+  const puffGeo = new THREE.IcosahedronGeometry(0.1, 0);
+  let balls = [], puffs = [];
+
+  function throwBall(p) {
+    if (state !== 'play' || p.cooldown > 0 || p.stun > 0) return;
+    p.cooldown = THROW_COOLDOWN;
+    const m = new THREE.Mesh(ballGeo, ballMat);
+    m.castShadow = true;
+    const sx = p.x + p.fx * 0.6, sz = p.z + p.fz * 0.6;
+    m.position.set(sx, 1.1, sz);
+    scene.add(m);
+    balls.push({ mesh: m, owner: p, x: sx, z: sz, vx: p.fx * THROW_SPEED, vz: p.fz * THROW_SPEED, travelled: 0 });
+    sound('shoot');
+  }
+
+  function splash(x, y, z, n) {
+    for (let i = 0; i < n; i++) {
+      const m = new THREE.Mesh(puffGeo, ballMat);
+      m.position.set(x, y, z);
+      scene.add(m);
+      puffs.push({ mesh: m, vx: (Math.random() - 0.5) * 4, vy: Math.random() * 3 + 1, vz: (Math.random() - 0.5) * 4, life: 0.5 });
+    }
+  }
+
+  // ----- Collision helpers -----
+  function hitsWall(x, z, r) {
+    for (const w of WALLS) {
+      if (Math.abs(x - w.x) < w.w / 2 + r && Math.abs(z - w.z) < w.d / 2 + r) return w;
+    }
+    return null;
+  }
+  function moveWithWalls(p, dx, dz) {
+    // Move one axis at a time so players slide along walls instead of sticking
+    const nx = Math.max(-HALF_W, Math.min(HALF_W, p.x + dx));
+    if (!hitsWall(nx, p.z, BODY_R)) p.x = nx;
+    const nz = Math.max(-HALF_D, Math.min(HALF_D, p.z + dz));
+    if (!hitsWall(p.x, nz, BODY_R)) p.z = nz;
+  }
+  // Is the straight line between two points free of walls?
+  function lineOfSight(ax, az, bx, bz) {
+    const steps = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.3);
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      if (hitsWall(ax + (bx - ax) * t, az + (bz - az) * t, 0.05)) return false;
+    }
+    return true;
+  }
+
+  // ----- Input -----
+  const keys = {};
+  let mode = '2p';
+  document.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (['Space', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+    if (state === 'menu' || state === 'over') { if (e.code === 'Enter' && state === 'over') startMatch(); return; }
+    if (e.code === 'Space' && !e.repeat) throwBall(blue);
+    if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat && !red.ai) throwBall(red);
+  });
+  document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  const touches = new Map();
+  stage.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse') return;
+    let who = e.clientX < window.innerWidth / 2 ? blue : red;
+    if (red.ai) who = blue;
+    touches.set(e.pointerId, { who, sx: e.clientX, sy: e.clientY, t: performance.now(), dx: 0, dy: 0 });
+  });
+  stage.addEventListener('pointermove', e => { const t = touches.get(e.pointerId); if (t) { t.dx = e.clientX - t.sx; t.dy = e.clientY - t.sy; } });
+  const endTouch = e => {
+    const t = touches.get(e.pointerId);
+    if (!t) return;
+    touches.delete(e.pointerId);
+    if (performance.now() - t.t < 220 && Math.hypot(t.dx, t.dy) < 12) throwBall(t.who);
+  };
+  stage.addEventListener('pointerup', endTouch);
+  stage.addEventListener('pointercancel', endTouch);
+
+  function readInput() {
+    blue.ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+    blue.iz = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0);
+    if (!red.ai) {
+      red.ix = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+      red.iz = (keys.ArrowDown ? 1 : 0) - (keys.ArrowUp ? 1 : 0);
+    }
+    for (const t of touches.values()) {
+      const len = Math.hypot(t.dx, t.dy);
+      if (len > 10) { t.who.ix = t.dx / Math.max(len, 50); t.who.iz = t.dy / Math.max(len, 50); }
+    }
+  }
+
+  // ----- Computer player (red in single player) -----
+  const brain = { goalX: 6, goalZ: 0, rethink: 0, aimTime: 0 };
+  function updateAI(dt) {
+    const me = red, foe = blue;
+    brain.rethink -= dt;
+    // Dodge: if a snowball is heading at me, step sideways
+    for (const b of balls) {
+      if (b.owner === me) continue;
+      const toMeX = me.x - b.x, toMeZ = me.z - b.z;
+      const along = (toMeX * b.vx + toMeZ * b.vz) / THROW_SPEED;
+      const side = Math.abs(toMeX * b.vz - toMeZ * b.vx) / THROW_SPEED;
+      if (along > 0 && along < 6 && side < 1 && Math.random() < 0.08) {
+        brain.goalX = me.x - b.vz / THROW_SPEED * 3;
+        brain.goalZ = me.z + b.vx / THROW_SPEED * 3;
+        brain.rethink = 0.6;
+      }
+    }
+    if (brain.rethink <= 0) {
+      // Pick a new spot, preferring one with a clear view of the other player at a good distance.
+      // Mostly on my own half, but it may step towards the middle to find a free line.
+      let best = null, bestScore = -Infinity;
+      for (let i = 0; i < 16; i++) {
+        const x = -1 + Math.random() * (HALF_W - 1.5);
+        const z = (Math.random() * 2 - 1) * (HALF_D - 0.8);
+        if (hitsWall(x, z, BODY_R + 0.1)) continue;
+        const dist = Math.hypot(foe.x - x, foe.z - z);
+        let score = -Math.abs(dist - 10) - Math.hypot(x - me.x, z - me.z) * 0.3 + Math.random() * 2;
+        if (lineOfSight(x, z, foe.x, foe.z)) score += 12;
+        if (score > bestScore) { bestScore = score; best = { x, z }; }
+      }
+      if (best) { brain.goalX = best.x; brain.goalZ = best.z; }
+      brain.rethink = 1.2 + Math.random() * 1.3;
+    }
+    const dx = brain.goalX - me.x, dz = brain.goalZ - me.z;
+    const d = Math.hypot(dx, dz);
+    me.ix = d > 0.3 ? dx / d : 0;
+    me.iz = d > 0.3 ? dz / d : 0;
+
+    // Aim at the other player and throw when there is a clear line
+    const ax = foe.x - me.x, az = foe.z - me.z, dist = Math.hypot(ax, az);
+    if (dist < THROW_RANGE && lineOfSight(me.x, me.z, foe.x, foe.z)) {
+      brain.aimTime += dt;
+      if (brain.aimTime > 0.35 && me.cooldown <= 0 && Math.random() < 0.6) {
+        // Aim a little ahead of a moving target, with some error so it can miss
+        const lead = dist / THROW_SPEED;
+        const tx = foe.x + foe.ix * SPEED * lead * 0.6 + (Math.random() - 0.5) * 1.6;
+        const tz = foe.z + foe.iz * SPEED * lead * 0.6 + (Math.random() - 0.5) * 1.6;
+        const l = Math.hypot(tx - me.x, tz - me.z) || 1;
+        me.fx = (tx - me.x) / l; me.fz = (tz - me.z) / l;
+        throwBall(me);
+        brain.aimTime = 0;
+      }
+    } else {
+      brain.aimTime = 0;
+    }
+  }
+
+  // ----- Game state -----
+  let state = 'menu';      // menu | countdown | play | roundover | over
+  let stateT = 0, wins = { blue: 0, red: 0 }, lastTime;
+  const banner = document.getElementById('banner');
+  const hud = document.getElementById('hud');
+  const gameoverEl = document.getElementById('gameover');
+  const sound = name => { try { if (window.NeonSounds) NeonSounds[name](); } catch (e) {} };
+  let soundReady = false;
+
+  function setBanner(text, small, color) {
+    banner.textContent = text;
+    banner.classList.toggle('small', !!small);
+    banner.style.color = color || '';
+  }
+
+  function updateHud() {
+    const hearts = p => '♥'.repeat(Math.max(0, p.hp)) + '♡'.repeat(HP - Math.max(0, p.hp));
+    document.getElementById('hp-blue').textContent = hearts(blue);
+    document.getElementById('hp-red').textContent = hearts(red);
+    document.getElementById('score-blue').textContent = wins.blue;
+    document.getElementById('score-red').textContent = wins.red;
+  }
+
+  function resetRound() {
+    for (const b of balls) scene.remove(b.mesh);
+    for (const p of puffs) scene.remove(p.mesh);
+    balls = []; puffs = [];
+    Object.assign(blue, { x: -HALF_W + 1.5, z: 0, fx: 1, fz: 0, hp: HP, cooldown: 0, stun: 0, flash: 0 });
+    Object.assign(red,  { x:  HALF_W - 1.5, z: 0, fx: -1, fz: 0, hp: HP, cooldown: 0, stun: 0, flash: 0 });
+    brain.rethink = 0;
+    updateHud();
+    state = 'countdown';
+    stateT = 0;
+  }
+
+  function startMatch() {
+    if (!soundReady && window.NeonSounds) { try { NeonSounds.init(); } catch (e) {} soundReady = true; }
+    red.ai = mode === 'ai';
+    document.getElementById('red-name').textContent = red.ai ? 'Datorn' : 'Röd';
+    wins = { blue: 0, red: 0 };
+    menu.classList.add('hidden');
+    gameoverEl.classList.add('hidden');
+    hud.classList.remove('hidden');
+    resetRound();
+  }
+
+  // Menu
+  document.getElementById('mode-choice').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    mode = b.dataset.mode;
+    document.querySelectorAll('#mode-choice button').forEach(x => x.classList.toggle('active', x === b));
+    document.getElementById('red-help').style.opacity = mode === 'ai' ? 0.4 : 1;
+  });
+  document.getElementById('start-btn').addEventListener('click', startMatch);
+  document.getElementById('again-btn').addEventListener('click', startMatch);
+  document.getElementById('menu-btn').addEventListener('click', () => {
+    gameoverEl.classList.add('hidden'); hud.classList.add('hidden'); menu.classList.remove('hidden'); state = 'menu';
+  });
+
+  function hit(p, b) {
+    p.hp--;
+    p.stun = HIT_STUN;
+    p.flash = 0.3;
+    // A small knock back in the snowball's direction
+    moveWithWalls(p, b.vx / THROW_SPEED * 0.5, b.vz / THROW_SPEED * 0.5);
+    splash(b.x, 1.1, b.z, 10);
+    sound('hit');
+    updateHud();
+    if (p.hp <= 0) {
+      const winner = p === blue ? red : blue;
+      wins[winner === blue ? 'blue' : 'red']++;
+      updateHud();
+      state = 'roundover';
+      stateT = 0;
+      sound('fanfare');
+      const name = winner === red && red.ai ? 'Datorn' : winner.name;
+      setBanner(name + ' tar rundan!', true, winner === blue ? '#2563eb' : '#dc2626');
+    }
+  }
+
+  // ----- Update -----
+  function update(dt) {
+    readInput();
+    if (red.ai && state === 'play') updateAI(dt);
+    stateT += dt;
+
+    if (state === 'countdown') {
+      const left = 3 - Math.floor(stateT / 0.7);
+      setBanner(left > 0 ? String(left) : 'Kör!');
+      if (stateT >= 2.1) { state = 'play'; stateT = 0; sound('click'); }
+    } else if (state === 'play') {
+      if (stateT > 0.6 && banner.textContent === 'Kör!') setBanner('');
+    } else if (state === 'roundover' && stateT > 1.8) {
+      if (wins.blue >= WIN_ROUNDS || wins.red >= WIN_ROUNDS) {
+        state = 'over';
+        setBanner('');
+        const blueWon = wins.blue >= WIN_ROUNDS;
+        const title = document.getElementById('go-title');
+        title.textContent = blueWon ? 'Blå vinner!' : (red.ai ? 'Datorn vinner!' : 'Röd vinner!');
+        title.style.color = blueWon ? '#2563eb' : '#dc2626';
+        document.getElementById('go-detail').textContent = 'Slutställning ' + wins.blue + ' – ' + wins.red;
+        gameoverEl.classList.remove('hidden');
+        sound(blueWon || !red.ai ? 'win' : 'death');
+      } else {
+        resetRound();
+      }
+    }
+
+    // Players
+    for (const p of players) {
+      p.cooldown = Math.max(0, p.cooldown - dt);
+      p.stun = Math.max(0, p.stun - dt);
+      p.flash = Math.max(0, p.flash - dt);
+      if (state === 'play' && p.stun <= 0 && (p.ix || p.iz)) {
+        const len = Math.hypot(p.ix, p.iz);
+        const vx = p.ix / Math.max(1, len), vz = p.iz / Math.max(1, len);
+        moveWithWalls(p, vx * SPEED * dt, vz * SPEED * dt);
+        if (!p.ai) { p.fx = vx / Math.hypot(vx, vz); p.fz = vz / Math.hypot(vx, vz); }
+      }
+      // The computer faces its target when it is not walking towards it
+      if (p.ai && state === 'play' && brain.aimTime > 0) {
+        const ax = blue.x - p.x, az = blue.z - p.z, l = Math.hypot(ax, az) || 1;
+        p.fx = ax / l; p.fz = az / l;
+      } else if (p.ai && (p.ix || p.iz)) {
+        const l = Math.hypot(p.ix, p.iz); p.fx = p.ix / l; p.fz = p.iz / l;
+      }
+    }
+
+    // Snowballs
+    balls = balls.filter(b => {
+      const step = THROW_SPEED * dt;
+      b.x += b.vx * dt; b.z += b.vz * dt; b.travelled += step;
+      // A gentle arc: rises a little, then drops towards the end of its range
+      const t = b.travelled / THROW_RANGE;
+      const y = 1.1 + Math.sin(Math.min(1, t) * Math.PI) * 0.6 - Math.max(0, t - 0.8) * 5;
+      b.mesh.position.set(b.x, y, b.z);
+      if (y < 0.1 || Math.abs(b.x) > HALF_W + 1 || Math.abs(b.z) > HALF_D + 1) { splash(b.x, 0.15, b.z, 5); scene.remove(b.mesh); return false; }
+      if (y < WALL_H + 0.15 && hitsWall(b.x, b.z, 0.15)) { splash(b.x, y, b.z, 7); scene.remove(b.mesh); sound('breakSound'); return false; }
+      for (const p of players) {
+        if (p === b.owner || state !== 'play') continue;
+        if (Math.hypot(p.x - b.x, p.z - b.z) < BODY_R + 0.18 && y < 1.8) { hit(p, b); scene.remove(b.mesh); return false; }
+      }
+      return true;
+    });
+  }
+
+  // ----- Render -----
+  function draw(dt) {
+    for (const p of puffs) {
+      p.life -= dt; p.vy -= 12 * dt;
+      p.mesh.position.x += p.vx * dt; p.mesh.position.y = Math.max(0.05, p.mesh.position.y + p.vy * dt); p.mesh.position.z += p.vz * dt;
+      if (p.life <= 0) scene.remove(p.mesh);
+    }
+    puffs = puffs.filter(p => p.life > 0);
+
+    for (const p of players) {
+      p.mesh.position.set(p.x, 0, p.z);
+      const target = Math.atan2(p.fx, p.fz);
+      let diff = target - p.mesh.rotation.y;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      p.mesh.rotation.y += diff * Math.min(1, dt * 14);
+      // Little bounce while walking, white flash when hit
+      const walking = state === 'play' && (p.ix || p.iz) && p.stun <= 0;
+      p.mesh.position.y = walking ? Math.abs(Math.sin(performance.now() / 90)) * 0.08 : 0;
+      for (const m of p.mesh.userData.materials) m.emissive.setHex(p.flash > 0 ? 0x888888 : 0x000000);
+    }
+
+    const pos = flakeGeo.attributes.position;
+    for (let i = 0; i < flakeCount; i++) {
+      let y = pos.getY(i) - dt * 1.2;
+      if (y < 0) y = 14;
+      pos.setY(i, y);
+    }
+    pos.needsUpdate = true;
+
+    if (portrait) { camera.position.set(0, 26, 15); camera.lookAt(0, 0, 0.5); }
+    else { camera.position.set(0, 17, 17); camera.lookAt(0, -0.5, 0.8); }
+    renderer.render(scene, camera);
+  }
+
+  function loop(now) {
+    const dt = Math.min(0.05, (now - (lastTime || now)) / 1000);
+    lastTime = now;
+    if (state !== 'menu' && state !== 'over') update(dt);
+    draw(dt);
+    requestAnimationFrame(loop);
+  }
+  document.addEventListener('visibilitychange', () => { lastTime = performance.now(); });
+
+  // Scene behind the menu
+  Object.assign(blue, { x: -HALF_W + 1.5, z: 0 });
+  Object.assign(red, { x: HALF_W - 1.5, z: 0, fx: -1 });
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
