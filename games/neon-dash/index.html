@@ -302,7 +302,7 @@
         }
         break;
       case MODE.ROBOT:
-        // Jump from floor: floor spikes, pillars, and ceiling spikes to force short hops
+        // jump from floor: floor spikes, pillars, and ceiling spikes to force short hops
         if (difficulty < 0.3) {
           type = roll < 0.5 ? 'spikes_bottom' : (roll < 0.85 ? 'pillars' : 'spikes_top');
         } else {
@@ -310,7 +310,7 @@
         }
         break;
       case MODE.CUBE:
-        // Classic Jump: only floor spikes and floor pillars
+        // Classic jump: only floor spikes and floor pillars
         if (difficulty < 0.3) {
           type = roll < 0.55 ? 'spikes_bottom' : 'pillars';
         } else {
@@ -355,7 +355,7 @@
         // So safe zone starts at tTop + spikeHeight + colPS
         // Max spike height: player must be able to reach below the spikes
         const maxReachable = reachMax - colPS - tTop;
-        // Ground modes (cube/robot) get shorter spikes they can Jump over
+        // Ground modes (cube/robot) get shorter spikes they can jump over
         const groundMode = (gameMode === MODE.CUBE || gameMode === MODE.ROBOT);
         const spikeScale = groundMode ? 0.12 : 0.2;
         const desiredH = (0.15 + Math.random() * spikeScale * (1 + difficulty * 0.5)) * tH;
@@ -369,7 +369,7 @@
         // Player survives when: py + colPS <= tBot - spikeHeight
         // So safe zone ends at tBot - spikeHeight - colPS
         const maxReachable = tBot - reachMin - colPS;
-        // Ground modes get shorter spikes (Jumpable height)
+        // Ground modes get shorter spikes (jumpable height)
         const groundMode2 = (gameMode === MODE.CUBE || gameMode === MODE.ROBOT);
         const spikeScale2 = groundMode2 ? 0.1 : 0.2;
         const desiredH = (0.1 + Math.random() * spikeScale2 * (1 + difficulty * 0.5)) * tH;
@@ -421,7 +421,7 @@
         // Place pillar so the safe passage is within reach
         let py;
         if (isGroundPillar) {
-          // Pillar rises from floor, so the player must Jump over
+          // Pillar rises from floor, so the player must jump over
           py = tBot - pillarH;
           lastSafeY = Math.max(reachMin, Math.min(reachMax, py - colPS - MIN_GAP / 3));
         } else if (isSurfacePillar) {
@@ -1710,7 +1710,7 @@
           break;
         }
         case MODE.ROBOT: {
-          // Small tap = small hop, hold = keep boosting for big Jump
+          // Small tap = small hop, hold = keep boosting for big jump
           const onFloor = player.y + player.size >= tBot - 1;
           if (onFloor) {
             player.vy = 0;
@@ -1735,7 +1735,7 @@
           break;
         }
         case MODE.CUBE: {
-          // Classic: tap to Jump when on floor
+          // Classic: tap to jump when on floor
           const onFloor = player.y + player.size >= tBot - 1;
           if (tapped && onFloor) {
             player.vy = -gameSpeed * 3.5;

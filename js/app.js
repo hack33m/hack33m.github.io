@@ -46,10 +46,10 @@ function mapProfile(row) {
     unlockedEffects: row.unlocked_effects || [],
     unlockedEmojis: row.unlocked_emojis || [],
     unlockedSkins: row.unlocked_skins || [],
-    unlockedFlappy BirdSkins: row.unlocked_Flappy Bird_skins || [],
+    unlockedBirdSkins: row.unlocked_bird_skins || [],
     unlockedCarSkins: row.unlocked_car_skins || [],
     arrowSkin: row.arrow_skin,
-    Flappy BirdSkin: row.Flappy Bird_skin,
+    birdSkin: row.bird_skin,
     carSkin: row.car_skin,
     joined: row.joined_at,
   };
@@ -64,10 +64,10 @@ function mapToDb(updates) {
     unlockedEffects: 'unlocked_effects',
     unlockedEmojis: 'unlocked_emojis',
     unlockedSkins: 'unlocked_skins',
-    unlockedFlappy BirdSkins: 'unlocked_Flappy Bird_skins',
+    unlockedBirdSkins: 'unlocked_bird_skins',
     unlockedCarSkins: 'unlocked_car_skins',
     arrowSkin: 'arrow_skin',
-    Flappy BirdSkin: 'Flappy Bird_skin',
+    birdSkin: 'bird_skin',
     carSkin: 'car_skin',
     bannedUntil: 'banned_until',
   };
@@ -323,8 +323,8 @@ function isFavorite(gameId) {
 
 // Weekly event challenges - must match event.html
 const WEEKLY_CHALLENGES = [
-  'neon-dash', 'neon-Flappy Bird', 'neon-T-Rex', 'neon-snake',
-  'corny-Jump', 'block-blast', 'idle-clicker', 'neon-wordle'
+  'neon-dash', 'neon-bird', 'neon-rex', 'neon-snake',
+  'corny-jump', 'block-blast', 'idle-clicker', 'neon-wordle'
 ];
 
 function getEventWeekGameId() {
@@ -856,7 +856,7 @@ function initGamePage() {
     // Send skin data to game iframe
     const user = getCurrentUser();
     if (user) {
-      const skinId = gameId === 'neon-Flappy Bird' ? user.Flappy BirdSkin : gameId === 'neon-league' ? user.carSkin : user.arrowSkin;
+      const skinId = gameId === 'neon-bird' ? user.birdSkin : gameId === 'neon-league' ? user.carSkin : user.arrowSkin;
       if (skinId) iframe.contentWindow.postMessage({ type: 'skin-data', skinId }, '*');
     }
   });

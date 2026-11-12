@@ -581,19 +581,19 @@
 
     // Fire button
     const fireW = 90, fireH = 50;
-    const fiT-Rex = 20;
+    const fireX = 20;
     const fireY = H() - fireH - 100;
-    fireBtnRect = { x: fiT-Rex, y: fireY, w: fireW, h: fireH };
+    fireBtnRect = { x: fireX, y: fireY, w: fireW, h: fireH };
 
     ctx.fillStyle = INK;
     ctx.beginPath();
-    ctx.roundRect(fiT-Rex, fireY, fireW, fireH, 10);
+    ctx.roundRect(fireX, fireY, fireW, fireH, 10);
     ctx.fill();
     ctx.font = '700 18px ' + FONT;
     ctx.fillStyle = SURFACE;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Skjut!', fiT-Rex + fireW / 2, fireY + fireH / 2);
+    ctx.fillText('Skjut!', fireX + fireW / 2, fireY + fireH / 2);
     ctx.textBaseline = 'alphabetic';
   }
 

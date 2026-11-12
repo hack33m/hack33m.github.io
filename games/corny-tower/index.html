@@ -91,7 +91,7 @@ let perfectStreak = 0;
 let bonusScore = 0;
 let cameraY = 0;
 let targetCameraY = 0;
-let highscore = parseInt(localStorage.getItem('corny-Tower-hi')) || 0;
+let highscore = parseInt(localStorage.getItem('corny-tower-hi')) || 0;
 let perfectText = null; // {text, x, y, alpha, timer}
 let shakeTimer = 0;
 let shakeAmount = 0;
@@ -228,11 +228,11 @@ function gameOver() {
   const total = score + bonusScore;
   if (total > highscore) {
     highscore = total;
-    localStorage.setItem('corny-Tower-hi', highscore);
+    localStorage.setItem('corny-tower-hi', highscore);
   }
   // Send score to parent
   try {
-    window.parent.postMessage({ type: 'gameScore', game: 'corny-Tower', score: total }, '*');
+    window.parent.postMessage({ type: 'gameScore', game: 'corny-tower', score: total }, '*');
   } catch(e) {}
 }
 
@@ -452,7 +452,7 @@ function drawPlaying() {
 }
 
 function drawGameOver() {
-  drawPlaying(); // Draw the Tower behind
+  drawPlaying(); // Draw the tower behind
 
   // Overlay backdrop
   ctx.fillStyle = 'rgba(245, 245, 244, 0.92)';

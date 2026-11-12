@@ -20,12 +20,12 @@
     "featured": true
   },
   {
-    "id": "neon-Flappy Bird",
+    "id": "neon-bird",
     "title": "Flappy Bird",
     "description": "Flyg genom landskapet! Undvik hinder och samla poäng i rymden, havet och skogen.",
     "category": "Action",
-    "thumbnail": "assets/images/neon-Flappy Bird.svg",
-    "path": "games/neon-Flappy Bird/index.html",
+    "thumbnail": "assets/images/neon-bird.svg",
+    "path": "games/neon-bird/index.html",
     "featured": false
   },
   {
@@ -65,21 +65,21 @@
     "featured": true
   },
   {
-    "id": "corny-Jump",
+    "id": "corny-jump",
     "title": "Jump",
     "description": "Hoppa på Corny-bars och nå så högt du kan! Akta dig för trasiga bars och samla boost!",
     "category": "Action",
-    "thumbnail": "assets/images/corny-Jump.svg",
-    "path": "games/corny-Jump/index.html",
+    "thumbnail": "assets/images/corny-jump.svg",
+    "path": "games/corny-jump/index.html",
     "featured": false
   },
   {
-    "id": "neon-T-Rex",
+    "id": "neon-rex",
     "title": "T-Rex",
     "description": "Spring, hoppa och ducka förbi hindren! Hur långt kan din dino springa?",
     "category": "Action",
-    "thumbnail": "assets/images/neon-T-Rex.svg",
-    "path": "games/neon-T-Rex/index.html",
+    "thumbnail": "assets/images/neon-rex.svg",
+    "path": "games/neon-rex/index.html",
     "featured": true
   },
   {
@@ -155,12 +155,12 @@
     "featured": false
   },
   {
-    "id": "corny-Tower",
+    "id": "corny-tower",
     "title": "Tower",
     "description": "Stapla Corny-bars så högt du kan! Tajma rätt för perfekt placering.",
     "category": "Action",
-    "thumbnail": "assets/images/corny-Tower.svg",
-    "path": "games/corny-Tower/index.html",
+    "thumbnail": "assets/images/corny-tower.svg",
+    "path": "games/corny-tower/index.html",
     "featured": false
   },
   {

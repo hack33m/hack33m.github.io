@@ -75,7 +75,7 @@
   // Game state
   let state = 'menu';
   let score = 0;
-  let highScore = parseInt(localStorage.getItem('neon-T-Rex-hi') || '0');
+  let highScore = parseInt(localStorage.getItem('neon-rex-hi') || '0');
   let gameSpeed = 6;
   let frameCount = 0;
   let groundY = 0;
@@ -83,11 +83,11 @@
   // Dino
   const dino = {
     x: 60, y: 0, w: 44, h: 48,
-    vy: 0, Jumping: false, ducking: false,
+    vy: 0, jumping: false, ducking: false,
     legFrame: 0, legTimer: 0,
   };
   const GRAVITY = 0.6;
-  const Jump_FORCE = -12;
+  const JUMP_FORCE = -12;
   const DUCK_H = 30;
 
   // Obstacles
@@ -125,7 +125,7 @@
       if (ty > H() * 0.6) {
         dino.ducking = true;
       } else {
-        Jump();
+        jump();
       }
     }
   });
@@ -138,10 +138,10 @@
     else if (state === 'gameover') startGame();
   });
 
-  function Jump() {
-    if (!dino.Jumping) {
-      dino.vy = Jump_FORCE;
-      dino.Jumping = true;
+  function jump() {
+    if (!dino.jumping) {
+      dino.vy = JUMP_FORCE;
+      dino.jumping = true;
       dino.ducking = false;
       spawnParticles(dino.x + dino.w / 2, groundY, C_MUTED, 6);
     }
@@ -157,7 +157,7 @@
     particles = [];
     dino.y = 0;
     dino.vy = 0;
-    dino.Jumping = false;
+    dino.jumping = false;
     dino.ducking = false;
   }
 
@@ -209,8 +209,8 @@
     }
 
     // Input
-    if (keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) Jump();
-    dino.ducking = !dino.Jumping && (keys['ArrowDown'] || keys['s'] || keys['S']);
+    if (keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) jump();
+    dino.ducking = !dino.jumping && (keys['ArrowDown'] || keys['s'] || keys['S']);
 
     // Dino physics
     dino.vy += GRAVITY;
@@ -218,7 +218,7 @@
     if (dino.y >= 0) {
       dino.y = 0;
       dino.vy = 0;
-      dino.Jumping = false;
+      dino.jumping = false;
     }
 
     // Dino animation
@@ -273,11 +273,11 @@
         state = 'gameover';
         if (score > highScore) {
           highScore = score;
-          localStorage.setItem('neon-T-Rex-hi', highScore);
+          localStorage.setItem('neon-rex-hi', highScore);
         }
         spawnParticles(dino.x + dino.w / 2, groundY - dh / 2 + dino.y, C_RED, 15);
         try {
-          window.parent.postMessage({ type: 'game-score', score, game: 'neon-T-Rex' }, '*');
+          window.parent.postMessage({ type: 'game-score', score, game: 'neon-rex' }, '*');
         } catch(e) {}
       }
     }
@@ -346,7 +346,7 @@
       ctx.fillRect(x, y + 16, 8, 6);
       ctx.fillRect(x - 4, y + 14, 6, 5);
       // Legs
-      if (dino.Jumping) {
+      if (dino.jumping) {
         ctx.fillRect(x + 8, y + 36, 6, 12);
         ctx.fillRect(x + 22, y + 36, 6, 12);
       } else if (dino.legFrame === 0) {

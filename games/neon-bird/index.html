@@ -189,7 +189,7 @@
   const GRAVITY = 0.45;
   const FLAP_FORCE = -7.5;
   const MAX_FALL_SPEED = 10;
-  const Flappy Bird_RADIUS = 16;
+  const BIRD_RADIUS = 16;
 
   const PIPE_WIDTH = 60;
   const PIPE_GAP = 150;
@@ -204,13 +204,13 @@
 
   // === Game Variables ===
   let score = 0;
-  let highScore = parseInt(localStorage.getItem('flappyFlappy Bird-highscore') || '0');
+  let highScore = parseInt(localStorage.getItem('neonbird-highscore') || '0');
   let newRecord = false;
   let pipes = [];
   let coins = [];
   let distance = 0;
 
-  const Flappy Bird = {
+  const bird = {
     x: 0, y: 0, vy: 0, rotation: 0, flapAnim: 0, alive: true, trail: []
   };
 
@@ -274,14 +274,14 @@
   function screenReady() { return Date.now() - lastScreenChange > SCREEN_DELAY; }
 
   // === Init ===
-  function initFlappy Bird() {
-    Flappy Bird.x = W() * 0.22;
-    Flappy Bird.y = H() / 2;
-    Flappy Bird.vy = 0;
-    Flappy Bird.rotation = 0;
-    Flappy Bird.flapAnim = 0;
-    Flappy Bird.alive = true;
-    Flappy Bird.trail = [];
+  function initBird() {
+    bird.x = W() * 0.22;
+    bird.y = H() / 2;
+    bird.vy = 0;
+    bird.rotation = 0;
+    bird.flapAnim = 0;
+    bird.alive = true;
+    bird.trail = [];
   }
 
   // === Pipe generation ===
@@ -313,7 +313,7 @@
 
   // === Collision ===
   function checkCollision() {
-    const bx = Flappy Bird.x, by = Flappy Bird.y, br = Flappy Bird_RADIUS * 0.7;
+    const bx = bird.x, by = bird.y, br = BIRD_RADIUS * 0.7;
 
     if (by + br > H() - GROUND_HEIGHT) return true;
     if (by - br < 0) return true;
@@ -333,16 +333,16 @@
   // === Scoring ===
   function updateScoring() {
     for (const pipe of pipes) {
-      if (!pipe.scored && pipe.x + PIPE_WIDTH < Flappy Bird.x) {
+      if (!pipe.scored && pipe.x + PIPE_WIDTH < bird.x) {
         pipe.scored = true;
         score++;
       }
     }
     for (const coin of coins) {
       if (coin.collected) continue;
-      const dx = Flappy Bird.x - coin.x;
-      const dy = Flappy Bird.y - coin.y;
-      if (Math.sqrt(dx * dx + dy * dy) < Flappy Bird_RADIUS + COIN_RADIUS) {
+      const dx = bird.x - coin.x;
+      const dy = bird.y - coin.y;
+      if (Math.sqrt(dx * dx + dy * dy) < BIRD_RADIUS + COIN_RADIUS) {
         coin.collected = true;
         score += 3;
         flashTimer = 3;
@@ -352,9 +352,9 @@
 
   // === Flap ===
   function flap() {
-    if (state === STATE.PLAYING && Flappy Bird.alive) {
-      Flappy Bird.vy = FLAP_FORCE;
-      Flappy Bird.flapAnim = 1;
+    if (state === STATE.PLAYING && bird.alive) {
+      bird.vy = FLAP_FORCE;
+      bird.flapAnim = 1;
     }
   }
 
@@ -372,14 +372,14 @@
     prevZone = 0;
     nextZone = 0;
     zoneBlend = 1;
-    initFlappy Bird();
+    initBird();
     loadSkin();
     state = STATE.PLAYING;
     lastScreenChange = Date.now();
   }
 
   function die() {
-    Flappy Bird.alive = false;
+    bird.alive = false;
     state = STATE.DEAD;
     shakeTimer = 20;
     flashTimer = 8;
@@ -388,7 +388,7 @@
     if (score > highScore) {
       highScore = score;
       newRecord = true;
-      localStorage.setItem('flappyFlappy Bird-highscore', highScore.toString());
+      localStorage.setItem('neonbird-highscore', highScore.toString());
     }
 
     if (score > 0 && window.parent !== window) {
@@ -399,7 +399,7 @@
       const angle = Math.random() * Math.PI * 2;
       const speed = Math.random() * 7 + 2;
       deathParticles.push({
-        x: Flappy Bird.x, y: Flappy Bird.y,
+        x: bird.x, y: bird.y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         size: Math.random() * 4 + 2,
@@ -522,8 +522,8 @@
     }
   }
 
-  // Flat Flappy Bird body, wing, eye and beak. Shared by the game and the menu.
-  function drawFlappy BirdShape(r, wingDeg) {
+  // Flat bird body, wing, eye and beak. Shared by the game and the menu.
+  function drawBirdShape(r, wingDeg) {
     // Body
     ctx.fillStyle = skinPrimary;
     ctx.beginPath();
@@ -566,56 +566,56 @@
     ctx.fill();
   }
 
-  function drawFlappy Bird() {
-    if (!Flappy Bird.alive) return;
+  function drawBird() {
+    if (!bird.alive) return;
     if (_equippedSkinId === 'rainbow') loadSkin();
 
     // Trail (subtle, flat)
-    if (Flappy Bird.trail.length > 1) {
-      for (let i = 1; i < Flappy Bird.trail.length; i++) {
-        const pct = i / Flappy Bird.trail.length;
+    if (bird.trail.length > 1) {
+      for (let i = 1; i < bird.trail.length; i++) {
+        const pct = i / bird.trail.length;
         ctx.strokeStyle = hexToRgba(skinTrail, pct * 0.2);
-        ctx.lineWidth = pct * Flappy Bird_RADIUS * 0.5;
+        ctx.lineWidth = pct * BIRD_RADIUS * 0.5;
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(Flappy Bird.trail[i - 1].x, Flappy Bird.trail[i - 1].y);
-        ctx.lineTo(Flappy Bird.trail[i].x, Flappy Bird.trail[i].y);
+        ctx.moveTo(bird.trail[i - 1].x, bird.trail[i - 1].y);
+        ctx.lineTo(bird.trail[i].x, bird.trail[i].y);
         ctx.stroke();
       }
     }
 
     ctx.save();
-    ctx.translate(Flappy Bird.x, Flappy Bird.y);
+    ctx.translate(bird.x, bird.y);
 
-    const r = Flappy Bird_RADIUS;
+    const r = BIRD_RADIUS;
     const cornyImage = cornyImages[_equippedSkinId];
     const isCorny = cornyImage && cornyImage._loaded;
 
     if (isCorny) {
-      Flappy Bird.rotation = Math.max(-10, Math.min(15, Flappy Bird.vy * 1.5));
+      bird.rotation = Math.max(-10, Math.min(15, bird.vy * 1.5));
     } else {
-      Flappy Bird.rotation = Math.max(-30, Math.min(70, Flappy Bird.vy * 4));
+      bird.rotation = Math.max(-30, Math.min(70, bird.vy * 4));
     }
-    ctx.rotate(Flappy Bird.rotation * Math.PI / 180);
+    ctx.rotate(bird.rotation * Math.PI / 180);
 
     if (isCorny) {
       const imgH = r * 2;
       const imgW = imgH * 3.4;
       ctx.drawImage(cornyImage, -imgW / 2, -imgH / 2, imgW, imgH);
     } else {
-      Flappy Bird.flapAnim *= 0.85;
-      const wingAngle = Math.sin(Flappy Bird.flapAnim * Math.PI * 3) * 25;
-      drawFlappy BirdShape(r, wingAngle);
+      bird.flapAnim *= 0.85;
+      const wingAngle = Math.sin(bird.flapAnim * Math.PI * 3) * 25;
+      drawBirdShape(r, wingAngle);
     }
 
     ctx.restore();
   }
 
-  function drawMenuFlappy Bird(x, y) {
+  function drawMenuBird(x, y) {
     ctx.save();
     ctx.translate(x, y);
 
-    const r = Flappy Bird_RADIUS * 1.5;
+    const r = BIRD_RADIUS * 1.5;
     const t = Date.now() * 0.003;
     const wingFlap = Math.sin(t * 3) * 20;
 
@@ -627,7 +627,7 @@
       const imgW = imgH * 3.4;
       ctx.drawImage(menuCornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
     } else {
-      drawFlappy BirdShape(r, wingFlap);
+      drawBirdShape(r, wingFlap);
     }
 
     ctx.restore();
@@ -667,7 +667,7 @@
     drawPanel(W() / 2, baseY - 70, baseY + (highScore > 0 ? 190 : 160), 360);
 
     const bobY = baseY + Math.sin(menuPulse * 1.5) * 8;
-    drawMenuFlappy Bird(W() / 2, bobY);
+    drawMenuBird(W() / 2, bobY);
 
     ctx.textAlign = 'center';
 
@@ -730,12 +730,12 @@
   // === Update ===
   function update() {
     if (state === STATE.PLAYING) {
-      Flappy Bird.vy += GRAVITY;
-      Flappy Bird.vy = Math.min(Flappy Bird.vy, MAX_FALL_SPEED);
-      Flappy Bird.y += Flappy Bird.vy;
+      bird.vy += GRAVITY;
+      bird.vy = Math.min(bird.vy, MAX_FALL_SPEED);
+      bird.y += bird.vy;
 
-      Flappy Bird.trail.push({ x: Flappy Bird.x, y: Flappy Bird.y });
-      if (Flappy Bird.trail.length > 15) Flappy Bird.trail.shift();
+      bird.trail.push({ x: bird.x, y: bird.y });
+      if (bird.trail.length > 15) bird.trail.shift();
 
       for (const pipe of pipes) pipe.x -= PIPE_SPEED;
       for (const coin of coins) coin.x -= PIPE_SPEED;
@@ -785,7 +785,7 @@
     if (state === STATE.PLAYING) {
       for (const pipe of pipes) drawPipe(pipe);
       drawCoins();
-      drawFlappy Bird();
+      drawBird();
       drawUI();
     } else if (state === STATE.DEAD) {
       for (const pipe of pipes) drawPipe(pipe);
