@@ -584,15 +584,17 @@
     return alpha;
   }
 
+  // random: share of moves that are picked completely at random (makes the computer blunder)
   const DIFFICULTY = {
-    easy:   { depth: 1, noise: 120 },
-    medium: { depth: 2, noise: 20 },
-    hard:   { depth: 3, noise: 0 },
+    easy:   { depth: 1, noise: 250, random: 0.45 },
+    medium: { depth: 1, noise: 120, random: 0.12 },
+    hard:   { depth: 2, noise: 25,  random: 0 },
   };
 
   function bestMove(s, diff, seenKeys) {
-    const { depth, noise } = DIFFICULTY[diff];
+    const { depth, noise, random } = DIFFICULTY[diff];
     const moves = orderMoves(legalMoves(s));
+    if (random && Math.random() < random) return moves[Math.floor(Math.random() * moves.length)];
     let best = null, bestScore = -Infinity;
     for (const m of moves) {
       const ns = makeMove(s, m);
