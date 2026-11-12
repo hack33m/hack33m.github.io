@@ -76,6 +76,7 @@
   let state = 'menu';
   let score = 0;
   let highScore = parseInt(localStorage.getItem('neon-rex-hi') || '0');
+  let lastRunRecord = false; // did the last run beat the old record?
   let gameSpeed = 6;
   let frameCount = 0;
   let groundY = 0;
@@ -271,6 +272,7 @@
       if (dx + dw > ox && dx < ox + ow && dy + dh > oy && dy < oy + oh) {
         // Hit!
         state = 'gameover';
+        lastRunRecord = score > highScore;
         if (score > highScore) {
           highScore = score;
           localStorage.setItem('neon-rex-hi', highScore);
@@ -585,7 +587,7 @@
     ctx.fillStyle = C_MUTED;
     ctx.fillText('Poäng', W() / 2, H() * 0.49);
 
-    if (score >= highScore && score > 0) {
+    if (lastRunRecord) {
       ctx.font = `600 20px ${FONT}`;
       ctx.fillStyle = C_GREEN;
       ctx.fillText('Nytt rekord!', W() / 2, H() * 0.57);

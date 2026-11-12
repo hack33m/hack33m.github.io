@@ -96,6 +96,7 @@
   let state = 'menu';
   let score = 0;
   let highScore = parseInt(localStorage.getItem('neon-snake-hi') || '0');
+  let lastRunRecord = false; // did the last run beat the old record?
   let snake = [];
   let dir = { x: 1, y: 0 };
   let nextDir = { x: 1, y: 0 };
@@ -356,6 +357,7 @@
     state = 'gameover';
     for (const s of snake) spawnParticles(s.x, s.y, INK, 3);
     screenShake = 15;
+    lastRunRecord = score > highScore;
     if (score > highScore) {
       highScore = score;
       localStorage.setItem('neon-snake-hi', highScore);
@@ -645,7 +647,7 @@
     ctx.fillStyle = MUTED;
     ctx.fillText(`Längd: ${snake.length}  |  Mat: ${foodEaten}`, W() / 2, H() * 0.53);
 
-    if (score >= highScore && score > 0) {
+    if (lastRunRecord) {
       ctx.font = `700 20px ${FONT}`;
       ctx.fillStyle = GREEN;
       ctx.fillText('Nytt rekord!', W() / 2, H() * 0.60);

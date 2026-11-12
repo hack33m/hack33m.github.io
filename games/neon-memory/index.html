@@ -104,6 +104,7 @@
   let timerStart = 0;
   let score = 0;
   let highscore = parseInt(localStorage.getItem('neon-memory-hi')) || 0;
+  let lastRunRecord = false; // did the last run beat the old record?
   let lockInput = false;
   let particles = [];
   let menuHoverBtn = -1;
@@ -531,7 +532,7 @@
     ctx.fillStyle = ACCENT;
     ctx.fillText(`Poäng: ${score}`, W / 2, H * 0.52);
 
-    if (score >= highscore && highscore > 0) {
+    if (lastRunRecord) {
       ctx.font = `600 ${infoSize}px ${FONT}`;
       ctx.fillStyle = GREEN;
       ctx.fillText('Nytt rekord!', W / 2, H * 0.60);
@@ -646,6 +647,7 @@
               if (matched.length === cards.length) {
                 setTimeout(() => {
                   score = calcScore();
+                  lastRunRecord = score > highscore;
                   if (score > highscore) {
                     highscore = score;
                     localStorage.setItem('neon-memory-hi', String(highscore));

@@ -161,6 +161,7 @@
   // --- Game Variables ---
   let score = 0;
   let highScore = parseInt(localStorage.getItem('neon-drift-hi')) || 0;
+  let lastRunRecord = false; // did the last run beat the old record?
   let gameTime = 0;
   let lastTime = 0;
 
@@ -460,6 +461,7 @@
     state = STATE.GAMEOVER;
     spawnParticles(car.x, car.y, RED, 14, 6);
     spawnParticles(car.x, car.y, ORANGE, 8, 5);
+    lastRunRecord = score > highScore;
     if (score > highScore) {
       highScore = score;
       localStorage.setItem('neon-drift-hi', highScore);
@@ -781,7 +783,7 @@
 
     // High score
     ctx.font = `600 ${Math.min(w * 0.04, 20)}px ${FONT}`;
-    const isNew = score >= highScore && score > 0;
+    const isNew = lastRunRecord;
     ctx.fillStyle = isNew ? GREEN : MUTED;
     ctx.fillText(isNew ? `Nytt rekord! ${highScore}m` : `Bästa: ${highScore}m`, w / 2, cy + 45);
 

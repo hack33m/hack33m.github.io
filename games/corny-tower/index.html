@@ -92,6 +92,7 @@ let bonusScore = 0;
 let cameraY = 0;
 let targetCameraY = 0;
 let highscore = parseInt(localStorage.getItem('corny-tower-hi')) || 0;
+let lastRunRecord = false; // did the last run beat the old record?
 let perfectText = null; // {text, x, y, alpha, timer}
 let shakeTimer = 0;
 let shakeAmount = 0;
@@ -226,6 +227,7 @@ function dropBlock() {
 function gameOver() {
   state = 'gameover';
   const total = score + bonusScore;
+  lastRunRecord = total > highscore;
   if (total > highscore) {
     highscore = total;
     localStorage.setItem('corny-tower-hi', highscore);
@@ -491,7 +493,7 @@ function drawGameOver() {
   ctx.fillText(score + ' block + ' + bonusScore + ' bonus', W / 2, H * 0.44);
 
   // New highscore
-  if (total >= highscore && total > 0) {
+  if (lastRunRecord) {
     ctx.font = font(600, Math.min(W * 0.05, 18));
     ctx.fillStyle = COL.ink;
     ctx.fillText('Nytt rekord!', W / 2, H * 0.51);

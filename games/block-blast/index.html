@@ -139,6 +139,7 @@
   let grid = []; // ROWS x COLS, 0 = empty, string = color
   let score = 0;
   let highScore = parseInt(localStorage.getItem('blockblast-hs') || '0');
+  let lastRunRecord = false; // did the last run beat the old record?
   let combo = 0;
   let pieces = []; // 3 pieces to choose from
   let dragging = null; // { pieceIndex, offsetX, offsetY, x, y }
@@ -277,6 +278,7 @@
     scorePopups.push({ x: popX, y: popY, text, timer: 60, color: combo > 1 ? YELLOW : GREEN });
 
     score += points;
+    lastRunRecord = score > highScore;
     if (score > highScore) {
       highScore = score;
       localStorage.setItem('blockblast-hs', highScore.toString());
@@ -574,7 +576,7 @@
     ctx.font = `600 22px ${FONT}`;
     ctx.fillText('Poäng: ' + score, W() / 2, H() / 2 + 10);
 
-    if (score >= highScore && score > 0) {
+    if (lastRunRecord) {
       ctx.fillStyle = GREEN;
       ctx.font = `600 17px ${FONT}`;
       ctx.fillText('Nytt rekord!', W() / 2, H() / 2 + 40);

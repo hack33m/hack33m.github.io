@@ -82,6 +82,7 @@
   let state = 'menu'; // menu, playing, gameover
   let score = 0;
   let highScore = parseInt(localStorage.getItem('corny-jump-hi') || '0');
+  let lastRunRecord = false; // did the last run beat the old record?
   let cameraY = 0;
   let maxHeight = 0;
 
@@ -317,6 +318,7 @@
     // Game over - fell below screen
     if (player.y > cameraY + H() + 50) {
       state = 'gameover';
+      lastRunRecord = score > highScore;
       if (score > highScore) {
         highScore = score;
         localStorage.setItem('corny-jump-hi', highScore);
@@ -583,7 +585,7 @@
     ctx.fillText('Höjd', W() / 2, H() * 0.54);
 
     // High score
-    if (score >= highScore) {
+    if (lastRunRecord) {
       ctx.font = `700 20px ${FONT}`;
       ctx.fillStyle = GREEN;
       ctx.fillText('Nytt rekord!', W() / 2, H() * 0.62);

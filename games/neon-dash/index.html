@@ -172,6 +172,12 @@
   function getHighScoreKey() { return 'neondash-hs-' + (isMixedMode ? 'mixed' : gameMode); }
   function getHighScore() { return parseInt(localStorage.getItem(getHighScoreKey()) || '0'); }
   function setHighScore(v) { localStorage.setItem(getHighScoreKey(), v.toString()); }
+  function getOverallBest() {
+    let best = 0;
+    for (const m of MODE_LIST) best = Math.max(best, parseInt(localStorage.getItem('neondash-hs-' + m.id) || '0'));
+    return best;
+  }
+  let lastRunRecord = '';   // '' = no record, 'overall' = best in any mode, 'mode' = best in this mode only
   let holding = false;
   let tapped = false; // single-tap detection for ball/ufo/swing
   let gameSpeed = 3.5;
@@ -754,6 +760,7 @@
     state = STATE.DEAD;
     shakeTimer = 20;
     flashTimer = 8;
+    lastRunRecord = score > getOverallBest() ? 'overall' : score > getHighScore() ? 'mode' : '';
     if (score > getHighScore()) {
       setHighScore(score);
     }
@@ -1587,10 +1594,10 @@
     ctx.font = `600 16px ${FONT}`;
     ctx.fillText(`Bästa: ${hs}`, W() / 2, H() / 2 + 40);
 
-    if (score >= hs && score > 0) {
+    if (lastRunRecord) {
       ctx.fillStyle = GREEN;
       ctx.font = `700 18px ${FONT}`;
-      ctx.fillText('Nytt rekord!', W() / 2, H() / 2 + 65);
+      ctx.fillText(lastRunRecord === 'overall' ? 'Nytt rekord!' : 'Nytt rekord i det här läget!', W() / 2, H() / 2 + 65);
     }
 
     if (shakeTimer <= 0) {

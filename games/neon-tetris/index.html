@@ -79,6 +79,7 @@ let state='menu'; // menu, playing, gameover
 let board=[];
 let current=null,next=null;
 let score=0,lines=0,level=1,hiScore=0;
+let lastRunRecord=false; // did the last run beat the old record?
 let dropTimer=0,dropInterval=1000;
 let lockDelay=0,lockLimit=500;
 let particles=[];
@@ -125,6 +126,7 @@ function spawnPiece(){
   lockDelay=0;
   if(!isValid(current,current.x,current.y)){
     state='gameover';
+    lastRunRecord=score>hiScore;
     if(score>hiScore){
       hiScore=score;
       try{localStorage.setItem('neon-tetris-hi',''+hiScore);}catch(e){}
@@ -512,7 +514,7 @@ function drawGameOver(){
   ctx.font=`700 ${Math.min(W*0.05,28)}px ${FONT}`;
   ctx.fillText('Poäng: '+score.toLocaleString(),cx,cy);
 
-  if(score>=hiScore&&score>0){
+  if(lastRunRecord){
     ctx.fillStyle=C_GREEN;
     ctx.font=`600 ${Math.min(W*0.04,20)}px ${FONT}`;
     ctx.fillText('Nytt rekord!',cx,cy+35);
