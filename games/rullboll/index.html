@@ -231,26 +231,10 @@
     cloud: new THREE.MeshStandardMaterial({ color: COLORS.cloud, roughness: 1, flatShading: true, emissive: 0xffffff, emissiveIntensity: 0.6, fog: false }),
   };
 
-  // Ball texture: blue with a white band round the middle, so the rolling is visible on a smooth ball
-  function ballTexture() {
-    const c = document.createElement('canvas');
-    c.width = 256; c.height = 128;
-    const g = c.getContext('2d');
-    g.fillStyle = '#2563eb';
-    g.fillRect(0, 0, 256, 128);
-    g.fillStyle = '#ffffff';
-    g.fillRect(0, 56, 256, 16);
-    g.fillStyle = '#93c5fd';
-    for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(32 + i * 64, 24, 9, 0, Math.PI * 2); g.fill(); }
-    const t = new THREE.CanvasTexture(c);
-    t.anisotropy = 4;
-    return t;
-  }
-
   // Player ball: smooth and a little glossy
   const ball = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_R, 40, 28),
-    new THREE.MeshStandardMaterial({ map: ballTexture(), roughness: 0.3, metalness: 0.05 })
+    new THREE.MeshStandardMaterial({ color: COLORS.ball, roughness: 0.3, metalness: 0.05 })
   );
   ball.castShadow = true;
   scene.add(ball);
