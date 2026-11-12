@@ -148,26 +148,49 @@
   const HI_KEY = 'rullboll-hi';
 
   const COLORS = {
-    bg: 0xf5f5f4, track: 0xffffff, edge: 0xe7e5e4, laneLine: 0xe7e5e4,
-    ball: 0x2563eb, block: 0xdc2626, bar: 0xea580c, coin: 0xca8a04, shadow: 0x1c1917,
+    skyTop: 0x5b9bf0, horizon: 0xd9e9fb, ground: 0x8fcf8a, tree: 0x3d9a55, trunk: 0x8b5e3c,
+    track: 0xffffff, trackAlt: 0xeceae7, side: 0x9b948d, pillar: 0xb9b3ac, laneLine: 0xd6d3d1,
+    ball: 0x2563eb, block: 0xdc2626, bar: 0xea580c, coin: 0xeab308, cloud: 0xffffff,
   };
 
   // ----- Three.js setup -----
   const stage = document.getElementById('stage');
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setClearColor(COLORS.bg);
+  renderer.setClearColor(COLORS.horizon);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   stage.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(COLORS.bg, 22, 62);
+  scene.fog = new THREE.Fog(COLORS.horizon, 30, 120);
 
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 120);
+  // Sky: a vertical gradient from deep blue at the top to a pale horizon
+  (() => {
+    const c = document.createElement('canvas');
+    c.width = 2; c.height = 256;
+    const g = c.getContext('2d');
+    const grad = g.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, '#' + COLORS.skyTop.toString(16).padStart(6, '0'));
+    grad.addColorStop(0.75, '#' + COLORS.horizon.toString(16).padStart(6, '0'));
+    grad.addColorStop(1, '#' + COLORS.horizon.toString(16).padStart(6, '0'));
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 2, 256);
+    scene.background = new THREE.CanvasTexture(c);
+  })();
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xd6d3d1, 0.9));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.55);
-  sun.position.set(3, 8, 4);
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 160);
+
+  scene.add(new THREE.HemisphereLight(0xdcebff, 0x6b8f5e, 0.65));
+  const sun = new THREE.DirectionalLight(0xfff4e0, 0.95);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.left = -9; sun.shadow.camera.right = 9;
+  sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -6;
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = 40;
+  sun.shadow.bias = -0.0008;
   scene.add(sun);
+  scene.add(sun.target);
 
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -184,29 +207,115 @@
   const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0, flatShading: true });
   const GEO = {
     slab: new THREE.BoxGeometry(TRACK_W, 0.4, SEG_LEN),
+    pillar: new THREE.CylinderGeometry(0.35, 0.6, 24, 8),
+    trunk: new THREE.CylinderGeometry(0.25, 0.35, 1.6, 6),
+    crown: new THREE.ConeGeometry(1.4, 3.2, 7),
+    puff: new THREE.IcosahedronGeometry(1, 1),
+    shard: new THREE.BoxGeometry(0.22, 0.22, 0.22),
     laneLine: new THREE.BoxGeometry(0.06, 0.02, SEG_LEN),
     block: new THREE.BoxGeometry(1.2, 1.6, 1.2),
     bar: new THREE.BoxGeometry(TRACK_W - 0.2, 0.45, 0.45),
     coin: new THREE.CylinderGeometry(0.28, 0.28, 0.08, 20),
   };
   // Box faces: +x, -x, +y (top), -y, +z, -z. Darker sides make the track edges and holes easy to see.
-  const slabSide = mat(0xa8a29e);
+  // Two alternating top colours make the speed visible.
+  const slabSide = mat(COLORS.side);
   const MAT = {
-    slab: [slabSide, slabSide, mat(COLORS.track), slabSide, slabSide, slabSide], laneLine: mat(COLORS.laneLine),
-    block: mat(COLORS.block), bar: mat(COLORS.bar), coin: mat(COLORS.coin),
+    slab: [slabSide, slabSide, mat(COLORS.track), slabSide, slabSide, slabSide],
+    slabAlt: [slabSide, slabSide, mat(COLORS.trackAlt), slabSide, slabSide, slabSide],
+    pillar: mat(COLORS.pillar), laneLine: mat(COLORS.laneLine),
+    block: mat(COLORS.block), bar: mat(COLORS.bar),
+    coin: new THREE.MeshStandardMaterial({ color: COLORS.coin, roughness: 0.4, metalness: 0.1, emissive: 0xb07d00, emissiveIntensity: 0.45 }),
+    trunk: mat(COLORS.trunk), crown: mat(COLORS.tree),
+    cloud: new THREE.MeshStandardMaterial({ color: COLORS.cloud, roughness: 1, flatShading: true, emissive: 0xffffff, emissiveIntensity: 0.6, fog: false }),
   };
 
-  // Player ball: faceted so the rolling is visible
-  const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(BALL_R, 1), mat(COLORS.ball));
+  // Player ball: faceted and a little glossy so the rolling and the light are visible
+  const ball = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(BALL_R, 1),
+    new THREE.MeshStandardMaterial({ color: COLORS.ball, roughness: 0.35, metalness: 0.1, flatShading: true })
+  );
+  ball.castShadow = true;
   scene.add(ball);
 
-  // Soft blob shadow under the ball, helps judge jumps
-  const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(BALL_R * 0.95, 24),
-    new THREE.MeshBasicMaterial({ color: COLORS.shadow, transparent: true, opacity: 0.14, depthWrite: false })
-  );
-  shadow.rotation.x = -Math.PI / 2;
-  scene.add(shadow);
+  // ----- Scenery: ground far below, trees and clouds that follow the player -----
+  const groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), mat(COLORS.ground));
+  groundPlane.rotation.x = -Math.PI / 2;
+  groundPlane.position.y = -24;
+  scene.add(groundPlane);
+
+  const trees = [];
+  for (let i = 0; i < 46; i++) {
+    const t = new THREE.Group();
+    const trunk = new THREE.Mesh(GEO.trunk, MAT.trunk);
+    trunk.position.y = 0.8;
+    const crown = new THREE.Mesh(GEO.crown, MAT.crown);
+    crown.position.y = 3;
+    t.add(trunk, crown);
+    t.scale.setScalar(1.4 + Math.random() * 1.6);
+    scene.add(t);
+    trees.push(t);
+  }
+  function placeTree(t, zBase) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    t.position.set(side * (5 + Math.random() * 40), -24, zBase - Math.random() * 120);
+  }
+
+  const clouds = [];
+  for (let i = 0; i < 12; i++) {
+    const c = new THREE.Group();
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < n; k++) {
+      const puff = new THREE.Mesh(GEO.puff, MAT.cloud);
+      puff.position.set(k * 1.3 - n * 0.6, Math.random() * 0.6, (Math.random() - 0.5) * 1.2);
+      puff.scale.setScalar(0.9 + Math.random() * 0.8);
+      c.add(puff);
+    }
+    scene.add(c);
+    clouds.push(c);
+  }
+  function placeCloud(c, zBase) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    c.position.set(side * (14 + Math.random() * 30), 9 + Math.random() * 10, zBase - Math.random() * 140);
+    c.scale.setScalar(1 + Math.random() * 1.5);
+  }
+
+  function resetScenery(z) {
+    for (const t of trees) placeTree(t, z + 20);
+    for (const c of clouds) placeCloud(c, z + 20);
+  }
+
+  function updateScenery(z) {
+    groundPlane.position.z = z - 60;
+    for (const t of trees) if (t.position.z > z + 15) { placeTree(t, z - 100); t.position.z = z - 100 - Math.random() * 40; }
+    for (const c of clouds) {
+      c.position.x += 0.004 * Math.sign(c.position.x || 1);
+      if (c.position.z > z + 20) { placeCloud(c, z - 100); c.position.z = z - 110 - Math.random() * 40; }
+    }
+  }
+
+  // ----- Crash shards -----
+  let shards = [];
+  function burst(x, y, z, color) {
+    const m = mat(color);
+    for (let i = 0; i < 16; i++) {
+      const s = new THREE.Mesh(GEO.shard, m);
+      s.position.set(x, y, z);
+      s.castShadow = true;
+      scene.add(s);
+      shards.push({ mesh: s, vx: (Math.random() - 0.5) * 6, vy: 2 + Math.random() * 5, vz: (Math.random() - 0.2) * 5, life: 1.2 });
+    }
+  }
+  function updateShards(dt) {
+    shards = shards.filter(p => {
+      p.life -= dt;
+      p.vy -= GRAVITY * 0.6 * dt;
+      p.mesh.position.x += p.vx * dt; p.mesh.position.y += p.vy * dt; p.mesh.position.z += p.vz * dt;
+      p.mesh.rotation.x += dt * 6; p.mesh.rotation.y += dt * 5;
+      if (p.life <= 0) { scene.remove(p.mesh); return false; }
+      return true;
+    });
+  }
 
   // ----- Game state -----
   let slabs, obstacles, coinsList, nextZ, segIndex, lastKind;
@@ -222,18 +331,22 @@
   const sound = name => { try { if (window.NeonSounds) NeonSounds[name](); } catch (e) {} };
 
   function clearWorld() {
-    for (const list of [slabs, obstacles, coinsList]) {
+    for (const list of [slabs, obstacles, coinsList, shards]) {
       if (!list) continue;
       for (const o of list) scene.remove(o.mesh);
     }
-    slabs = []; obstacles = []; coinsList = [];
+    slabs = []; obstacles = []; coinsList = []; shards = [];
   }
 
   function addSlab(zc) {
     const g = new THREE.Group();
-    const slab = new THREE.Mesh(GEO.slab, MAT.slab);
+    const slab = new THREE.Mesh(GEO.slab, segIndex % 2 ? MAT.slab : MAT.slabAlt);
     slab.position.y = -0.2;
+    slab.receiveShadow = true;
     g.add(slab);
+    const pillar = new THREE.Mesh(GEO.pillar, MAT.pillar);
+    pillar.position.y = -12.4;
+    g.add(pillar);
     for (const x of [-0.8, 0.8]) {
       const l = new THREE.Mesh(GEO.laneLine, MAT.laneLine);
       l.position.set(x, 0.01, 0);
@@ -247,6 +360,8 @@
   function addBlock(lane, zc) {
     const m = new THREE.Mesh(GEO.block, MAT.block);
     m.position.set(LANES[lane], 0.8, zc);
+    m.castShadow = true;
+    m.receiveShadow = true;
     scene.add(m);
     obstacles.push({ mesh: m, kind: 'block', x: LANES[lane], z: zc, h: 1.6, hw: 0.6, hd: 0.6 });
   }
@@ -254,6 +369,7 @@
   function addBar(zc) {
     const m = new THREE.Mesh(GEO.bar, MAT.bar);
     m.position.set(0, 0.225, zc);
+    m.castShadow = true;
     scene.add(m);
     obstacles.push({ mesh: m, kind: 'bar', x: 0, z: zc, h: 0.45, hw: TRACK_W / 2, hd: 0.225 });
   }
@@ -263,6 +379,7 @@
       const m = new THREE.Mesh(GEO.coin, MAT.coin);
       m.rotation.x = Math.PI / 2;
       m.position.set(LANES[lane], 0.6, zc + i * 1.2);
+      m.castShadow = true;
       scene.add(m);
       coinsList.push({ mesh: m, x: LANES[lane], z: zc + i * 1.2, taken: false });
     }
@@ -319,6 +436,7 @@
     coins = 0;
     deadTimer = 0;
     while (nextZ > player.z - 70) spawnSegment();
+    resetScenery(player.z);
     updateHud();
   }
 
@@ -382,14 +500,16 @@
     gameoverEl.classList.add('hidden');
     hud.classList.remove('hidden');
     resetGame();
+    ball.visible = true;
     running = true;
     lastTime = performance.now();
   }
 
   function die(reason) {
     if (deadTimer) return;
-    deadTimer = 0.6;               // short pause before the panel shows
+    deadTimer = reason === 'fall' ? 0.9 : 0.8;   // short pause before the panel shows
     sound(reason === 'fall' ? 'death' : 'crash');
+    if (reason !== 'fall') { burst(player.x, player.y, player.z, COLORS.ball); ball.visible = false; }
   }
 
   function showGameOver() {
@@ -412,6 +532,7 @@
 
   // ----- Update -----
   function update(dt) {
+    updateShards(dt);
     if (deadTimer) {
       deadTimer -= dt;
       if (player.falling) { player.vy -= GRAVITY * dt; player.y += player.vy * dt; }
@@ -479,12 +600,10 @@
       ball.position.set(player.x, player.y, player.z);
       if (running && !deadTimer) ball.rotation.x -= (speed / BALL_R) * (1 / 60) * 0.9;
 
-      const onGround = overGround(player.z) && !player.falling;
-      shadow.visible = onGround;
-      const lift = Math.max(0, player.y - BALL_R);
-      shadow.position.set(player.x, 0.012, player.z);
-      shadow.scale.setScalar(Math.max(0.35, 1 - lift * 0.35));
-      shadow.material.opacity = Math.max(0.04, 0.14 - lift * 0.05);
+      // Keep the sun and its shadow area just around the player
+      sun.position.set(player.x + 5, 11, player.z + 3);
+      sun.target.position.set(player.x, 0, player.z - 4);
+      updateScenery(player.z);
 
       camera.position.set(player.x * 0.45, 3.1, player.z + 6.2);
       camera.lookAt(player.x * 0.3, 0.6, player.z - 6);
