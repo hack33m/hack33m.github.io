@@ -21,6 +21,18 @@
 <body>
 <canvas id="game" tabindex="0"></canvas>
 <script>
+// Run the game loop at 60 updates per second on every screen. The physics here is written
+// per frame, so on 120 Hz and 144 Hz screens gravity, jumps and speed used to run 2x too fast.
+(() => {
+  const raf = window.requestAnimationFrame.bind(window);
+  const STEP = 1000 / 60;
+  let next = 0;
+  window.requestAnimationFrame = cb => raf(function tick(t) {
+    if (t < next - 1) return raf(tick);          // too early: wait for the next screen refresh
+    next = (t - next > 250) ? t + STEP : next + STEP;  // stay on a 60 Hz beat, resync after pauses
+    cb(t);
+  });
+})();
 (() => {
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
