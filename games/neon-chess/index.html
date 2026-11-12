@@ -226,7 +226,6 @@
   <div class="captured" id="captured-bottom"></div>
   <div class="bottom-bar">
     <div class="btn-group">
-      <button class="btn" id="undo-btn">Ångra</button>
       <button class="btn" id="flip-btn">Vänd</button>
     </div>
     <button class="btn" id="menu-btn">Ny match</button>
@@ -612,12 +611,11 @@
   const NAME = { w: 'Vit', b: 'Svart' };
   const SCORE_FOR_WIN = { easy: 100, medium: 250, hard: 500 };
 
-  let state, history, keyCounts, lastMove, selected, targets, flipped, gameOver;
+  let state, keyCounts, lastMove, selected, targets, flipped, gameOver;
   let mode = 'ai', diff = 'medium', colorPick = 'w', humanColor = 'w', thinking = false;
 
   const boardEl = document.getElementById('board');
   const statusEl = document.getElementById('status');
-  const undoBtn = document.getElementById('undo-btn');
   const flipBtn = document.getElementById('flip-btn');
 
   const sound = name => { try { if (window.NeonSounds) NeonSounds[name](); } catch (e) {} };
@@ -630,7 +628,6 @@
 
   function newGame() {
     state = parseFEN(START_FEN);
-    history = [];
     keyCounts = new Map([[positionKey(state), 1]]);
     lastMove = null;
     selected = null;
@@ -679,7 +676,6 @@
     }
     renderCaptured();
     renderStatus(checkSq >= 0);
-    undoBtn.disabled = !history.length || thinking;
   }
 
   function addCoord(el, cls, text) {
@@ -766,7 +762,6 @@
   }
 
   function playMove(m) {
-    history.push({ state, lastMove, keyCounts: new Map(keyCounts) });
     state = makeMove(state, m);
     const key = positionKey(state);
     keyCounts.set(key, (keyCounts.get(key) || 0) + 1);
@@ -840,22 +835,6 @@
     }, 30);
   }
 
-  undoBtn.addEventListener('click', () => {
-    if (thinking || !history.length) return;
-    // Against the computer, step back to the player's own last move
-    let steps = 1;
-    if (mode === 'ai') steps = state.turn === humanColor ? 2 : 1;
-    for (let i = 0; i < steps && history.length; i++) {
-      const h = history.pop();
-      state = h.state; lastMove = h.lastMove; keyCounts = h.keyCounts;
-    }
-    gameOver = false;
-    selected = null;
-    targets = [];
-    render();
-    maybeAiTurn();
-  });
-
   flipBtn.addEventListener('click', () => { flipped = !flipped; render(); });
 
   // ----- Menu -----
@@ -890,7 +869,7 @@
 
   // Show a board behind the menu from the start
   state = parseFEN(START_FEN);
-  history = []; keyCounts = new Map(); lastMove = null; selected = null; targets = []; flipped = false; gameOver = false;
+  keyCounts = new Map(); lastMove = null; selected = null; targets = []; flipped = false; gameOver = false;
   render();
 
   // Exposed for testing in the console
