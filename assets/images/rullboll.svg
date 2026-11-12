@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#e8eefc"/>
+  <!-- Track in perspective -->
+  <polygon points="168,70 232,70 330,300 70,300" fill="#ffffff" stroke="#d6d3d1" stroke-width="2"/>
+  <line x1="189" y1="70" x2="157" y2="300" stroke="#e7e5e4" stroke-width="3"/>
+  <line x1="211" y1="70" x2="243" y2="300" stroke="#e7e5e4" stroke-width="3"/>
+  <!-- Hole in the track -->
+  <polygon points="183,104 217,104 222,118 178,118" fill="#e8eefc"/>
+  <!-- Red block and coins -->
+  <rect x="216" y="134" width="26" height="30" rx="3" fill="#dc2626" stroke="#1c1917" stroke-width="2"/>
+  <circle cx="200" cy="150" r="6" fill="#ca8a04"/>
+  <circle cx="200" cy="172" r="7" fill="#ca8a04"/>
+  <!-- Ball with shadow -->
+  <ellipse cx="200" cy="262" rx="30" ry="7" fill="#1c1917" opacity="0.12"/>
+  <circle cx="200" cy="228" r="32" fill="#2563eb" stroke="#1c1917" stroke-width="2"/>
+  <path d="M178 214 L200 200 L222 214 L214 240 L186 240 Z" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.5"/>
+</svg>

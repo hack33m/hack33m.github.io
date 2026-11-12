@@ -198,5 +198,14 @@
     "thumbnail": "assets/images/neon-chess.svg",
     "path": "games/neon-chess/index.html",
     "featured": false
+  },
+  {
+    "id": "rullboll",
+    "title": "Rullboll",
+    "description": "Ett 3D-spel! Rulla bollen, byt fil, hoppa över hål och samla mynt. Det går fortare och fortare.",
+    "category": "Action",
+    "thumbnail": "assets/images/rullboll.svg",
+    "path": "games/rullboll/index.html",
+    "featured": false
   }
 ]

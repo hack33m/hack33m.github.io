@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rullboll</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #f5f5f4;
+      --surface: #ffffff;
+      --line: #d6d3d1;
+      --ink: #1c1917;
+      --muted: #78716c;
+      --accent: #2563eb;
+      --red: #dc2626;
+      --green: #16a34a;
+      --yellow: #ca8a04;
+    }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    #stage { position: fixed; inset: 0; }
+    #stage canvas { display: block; width: 100%; height: 100%; outline: none; }
+
+    .hud {
+      position: fixed;
+      top: 12px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      font-variant-numeric: tabular-nums;
+    }
+    .hud .score { font-size: 28px; font-weight: 700; color: var(--ink); }
+    .hud .coins { font-size: 15px; font-weight: 600; color: var(--yellow); margin-top: 2px; }
+    .hud .best { font-size: 14px; color: var(--muted); font-weight: 600; text-align: right; }
+    .hud.hidden { display: none; }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(245, 245, 244, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 10;
+    }
+    .overlay.hidden { display: none; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      padding: 26px 24px;
+      width: min(360px, 100%);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .panel h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+    .panel h2 { font-size: 24px; font-weight: 700; }
+    .panel p { color: var(--muted); font-size: 15px; line-height: 1.5; }
+    .panel .big { font-size: 40px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .panel .record { color: var(--green); font-weight: 600; }
+    .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; text-align: left; font-size: 14px; color: var(--muted); }
+    .keys b { color: var(--ink); font-weight: 600; white-space: nowrap; }
+    .btn {
+      padding: 12px 18px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 10px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.9; }
+    .error { color: var(--red); }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+
+  <div class="hud hidden" id="hud">
+    <div>
+      <div class="score" id="score">0</div>
+      <div class="coins" id="coins">● 0</div>
+    </div>
+    <div class="best" id="best">Rekord 0</div>
+  </div>
+
+  <div class="overlay" id="menu">
+    <div class="panel">
+      <h1>Rullboll</h1>
+      <p>Rulla så långt du kan. Undvik de röda blocken, hoppa över hål och bommar och samla mynt.</p>
+      <div class="keys">
+        <b>← →  eller  A D</b><span>byt fil</span>
+        <b>↑  eller  mellanslag</b><span>hoppa</span>
+        <b>Mobil</b><span>svep åt sidan för att byta fil, tryck eller svep upp för att hoppa</span>
+      </div>
+      <button class="btn" id="start-btn">Spela</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="gameover">
+    <div class="panel">
+      <h2 id="go-title">Krasch!</h2>
+      <div class="big" id="go-score">0</div>
+      <p id="go-detail"></p>
+      <p class="record hidden" id="go-record">Nytt rekord!</p>
+      <button class="btn" id="again-btn">Spela igen</button>
+    </div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../js/sounds.js"></script>
+<script>
+(() => {
+  const menu = document.getElementById('menu');
+  if (typeof THREE === 'undefined') {
+    menu.querySelector('.panel').innerHTML =
+      '<h1>Rullboll</h1><p class="error">Kunde inte ladda 3D-grafiken. Kolla internetanslutningen och ladda om sidan.</p>';
+    return;
+  }
+
+  // ----- Settings -----
+  const LANES = [-1.6, 0, 1.6];
+  const SEG_LEN = 4;          // length of one track segment
+  const TRACK_W = 5.2;
+  const BALL_R = 0.45;
+  const GRAVITY = 22;
+  const JUMP_V = 7.6;
+  const START_SPEED = 9;
+  const MAX_SPEED = 22;
+  const SPEED_GAIN = 0.16;    // per second
+  const COIN_POINTS = 10;
+  const HI_KEY = 'rullboll-hi';
+
+  const COLORS = {
+    bg: 0xf5f5f4, track: 0xffffff, edge: 0xe7e5e4, laneLine: 0xe7e5e4,
+    ball: 0x2563eb, block: 0xdc2626, bar: 0xea580c, coin: 0xca8a04, shadow: 0x1c1917,
+  };
+
+  // ----- Three.js setup -----
+  const stage = document.getElementById('stage');
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(COLORS.bg);
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(COLORS.bg, 22, 62);
+
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 120);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xd6d3d1, 0.9));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.55);
+  sun.position.set(3, 8, 4);
+  scene.add(sun);
+
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    // Narrow (portrait) screens need a wider view so all three lanes fit
+    camera.fov = w / h < 0.8 ? 75 : 60;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Shared geometries and materials
+  const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0, flatShading: true });
+  const GEO = {
+    slab: new THREE.BoxGeometry(TRACK_W, 0.4, SEG_LEN),
+    laneLine: new THREE.BoxGeometry(0.06, 0.02, SEG_LEN),
+    block: new THREE.BoxGeometry(1.2, 1.6, 1.2),
+    bar: new THREE.BoxGeometry(TRACK_W - 0.2, 0.45, 0.45),
+    coin: new THREE.CylinderGeometry(0.28, 0.28, 0.08, 20),
+  };
+  // Box faces: +x, -x, +y (top), -y, +z, -z. Darker sides make the track edges and holes easy to see.
+  const slabSide = mat(0xa8a29e);
+  const MAT = {
+    slab: [slabSide, slabSide, mat(COLORS.track), slabSide, slabSide, slabSide], laneLine: mat(COLORS.laneLine),
+    block: mat(COLORS.block), bar: mat(COLORS.bar), coin: mat(COLORS.coin),
+  };
+
+  // Player ball: faceted so the rolling is visible
+  const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(BALL_R, 1), mat(COLORS.ball));
+  scene.add(ball);
+
+  // Soft blob shadow under the ball, helps judge jumps
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(BALL_R * 0.95, 24),
+    new THREE.MeshBasicMaterial({ color: COLORS.shadow, transparent: true, opacity: 0.14, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  scene.add(shadow);
+
+  // ----- Game state -----
+  let slabs, obstacles, coinsList, nextZ, segIndex, lastKind;
+  let player, speed, distance, coins, running, deadTimer, lastTime;
+  let best = parseInt(localStorage.getItem(HI_KEY) || '0', 10) || 0;
+
+  const hud = document.getElementById('hud');
+  const scoreEl = document.getElementById('score');
+  const coinsEl = document.getElementById('coins');
+  const bestEl = document.getElementById('best');
+  bestEl.textContent = 'Rekord ' + best;
+
+  const sound = name => { try { if (window.NeonSounds) NeonSounds[name](); } catch (e) {} };
+
+  function clearWorld() {
+    for (const list of [slabs, obstacles, coinsList]) {
+      if (!list) continue;
+      for (const o of list) scene.remove(o.mesh);
+    }
+    slabs = []; obstacles = []; coinsList = [];
+  }
+
+  function addSlab(zc) {
+    const g = new THREE.Group();
+    const slab = new THREE.Mesh(GEO.slab, MAT.slab);
+    slab.position.y = -0.2;
+    g.add(slab);
+    for (const x of [-0.8, 0.8]) {
+      const l = new THREE.Mesh(GEO.laneLine, MAT.laneLine);
+      l.position.set(x, 0.01, 0);
+      g.add(l);
+    }
+    g.position.z = zc;
+    scene.add(g);
+    slabs.push({ mesh: g, z: zc });
+  }
+
+  function addBlock(lane, zc) {
+    const m = new THREE.Mesh(GEO.block, MAT.block);
+    m.position.set(LANES[lane], 0.8, zc);
+    scene.add(m);
+    obstacles.push({ mesh: m, kind: 'block', x: LANES[lane], z: zc, h: 1.6, hw: 0.6, hd: 0.6 });
+  }
+
+  function addBar(zc) {
+    const m = new THREE.Mesh(GEO.bar, MAT.bar);
+    m.position.set(0, 0.225, zc);
+    scene.add(m);
+    obstacles.push({ mesh: m, kind: 'bar', x: 0, z: zc, h: 0.45, hw: TRACK_W / 2, hd: 0.225 });
+  }
+
+  function addCoinRow(lane, zc) {
+    for (let i = -1; i <= 1; i++) {
+      const m = new THREE.Mesh(GEO.coin, MAT.coin);
+      m.rotation.x = Math.PI / 2;
+      m.position.set(LANES[lane], 0.6, zc + i * 1.2);
+      scene.add(m);
+      coinsList.push({ mesh: m, x: LANES[lane], z: zc + i * 1.2, taken: false });
+    }
+  }
+
+  function randInt(n) { return Math.floor(Math.random() * n); }
+
+  // One segment ahead of the player. Rules keep every row solvable:
+  // never three blocked lanes, and always a plain segment after a gap or an obstacle row.
+  function spawnSegment() {
+    const zc = nextZ - SEG_LEN / 2;
+    nextZ -= SEG_LEN;
+    segIndex++;
+
+    const d = Math.min(1, distance / 700);       // difficulty 0..1
+    const mustBePlain = segIndex < 8 || lastKind !== 'plain';
+
+    if (!mustBePlain && segIndex > 14 && Math.random() < 0.1 + 0.08 * d) {
+      lastKind = 'gap';                            // a hole: no slab here
+      return;
+    }
+
+    addSlab(zc);
+    if (mustBePlain) {
+      if (segIndex > 4 && Math.random() < 0.25) addCoinRow(randInt(3), zc);
+      lastKind = 'plain';
+      return;
+    }
+
+    const r = Math.random();
+    if (r < 0.38 + 0.22 * d) {
+      const lanes = [0, 1, 2].sort(() => Math.random() - 0.5);
+      const count = Math.random() < 0.3 + 0.35 * d ? 2 : 1;
+      for (let i = 0; i < count; i++) addBlock(lanes[i], zc);
+      if (Math.random() < 0.5) addCoinRow(lanes[2], zc);
+      lastKind = 'obstacle';
+    } else if (r < 0.5 + 0.25 * d && segIndex > 20) {
+      addBar(zc);
+      lastKind = 'obstacle';
+    } else {
+      if (Math.random() < 0.45) addCoinRow(randInt(3), zc);
+      lastKind = 'plain';
+    }
+  }
+
+  function resetGame() {
+    clearWorld();
+    nextZ = SEG_LEN * 2;
+    segIndex = 0;
+    lastKind = 'plain';
+    player = { lane: 1, x: 0, y: BALL_R, z: 0, vy: 0, grounded: true, falling: false };
+    speed = START_SPEED;
+    distance = 0;
+    coins = 0;
+    deadTimer = 0;
+    while (nextZ > player.z - 70) spawnSegment();
+    updateHud();
+  }
+
+  function updateHud() {
+    scoreEl.textContent = score();
+    coinsEl.textContent = '● ' + coins;
+  }
+
+  function score() { return Math.floor(distance) + coins * COIN_POINTS; }
+
+  function overGround(z) {
+    for (const s of slabs) if (Math.abs(z - s.z) <= SEG_LEN / 2 + 0.15) return true;
+    return false;
+  }
+
+  // ----- Input -----
+  function moveLane(dir) {
+    if (!running || deadTimer) return;
+    const next = Math.max(0, Math.min(2, player.lane + dir));
+    if (next !== player.lane) { player.lane = next; sound('click'); }
+  }
+
+  function jump() {
+    if (!running || deadTimer) return;
+    if (player.grounded && !player.falling) {
+      player.vy = JUMP_V;
+      player.grounded = false;
+      sound('jump');
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    if (!running) {
+      if ((k === ' ' || k === 'Enter') && !menu.classList.contains('hidden')) { e.preventDefault(); startGame(); }
+      else if ((k === ' ' || k === 'Enter') && !gameoverEl.classList.contains('hidden')) { e.preventDefault(); startGame(); }
+      return;
+    }
+    if (k === 'ArrowLeft' || k === 'a' || k === 'A') { e.preventDefault(); moveLane(-1); }
+    else if (k === 'ArrowRight' || k === 'd' || k === 'D') { e.preventDefault(); moveLane(1); }
+    else if (k === 'ArrowUp' || k === 'w' || k === 'W' || k === ' ') { e.preventDefault(); jump(); }
+  });
+
+  let touchStart = null;
+  stage.addEventListener('pointerdown', e => { touchStart = { x: e.clientX, y: e.clientY }; });
+  stage.addEventListener('pointerup', e => {
+    if (!touchStart) return;
+    const dx = e.clientX - touchStart.x, dy = e.clientY - touchStart.y;
+    touchStart = null;
+    if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) moveLane(dx > 0 ? 1 : -1);
+    else jump();   // a tap or an upward swipe
+  });
+
+  // ----- Game flow -----
+  const gameoverEl = document.getElementById('gameover');
+  let soundReady = false;
+
+  function startGame() {
+    if (!soundReady && window.NeonSounds) { try { NeonSounds.init(); } catch (e) {} soundReady = true; }
+    menu.classList.add('hidden');
+    gameoverEl.classList.add('hidden');
+    hud.classList.remove('hidden');
+    resetGame();
+    running = true;
+    lastTime = performance.now();
+  }
+
+  function die(reason) {
+    if (deadTimer) return;
+    deadTimer = 0.6;               // short pause before the panel shows
+    sound(reason === 'fall' ? 'death' : 'crash');
+  }
+
+  function showGameOver() {
+    running = false;
+    updateHud();
+    const s = score();
+    const isRecord = s > best;
+    if (isRecord) { best = s; try { localStorage.setItem(HI_KEY, String(best)); } catch (e) {} }
+    bestEl.textContent = 'Rekord ' + best;
+    document.getElementById('go-title').textContent = player.falling ? 'Du ramlade!' : 'Krasch!';
+    document.getElementById('go-score').textContent = s;
+    document.getElementById('go-detail').textContent = Math.floor(distance) + ' meter och ' + coins + ' mynt';
+    document.getElementById('go-record').classList.toggle('hidden', !isRecord);
+    gameoverEl.classList.remove('hidden');
+    try { window.parent.postMessage({ type: 'game-score', game: 'rullboll', score: s }, '*'); } catch (e) {}
+  }
+
+  document.getElementById('start-btn').addEventListener('click', startGame);
+  document.getElementById('again-btn').addEventListener('click', startGame);
+
+  // ----- Update -----
+  function update(dt) {
+    if (deadTimer) {
+      deadTimer -= dt;
+      if (player.falling) { player.vy -= GRAVITY * dt; player.y += player.vy * dt; }
+      if (deadTimer <= 0) { deadTimer = 0; showGameOver(); }
+      return;
+    }
+
+    speed = Math.min(MAX_SPEED, speed + SPEED_GAIN * dt);
+    const step = speed * dt;
+    player.z -= step;
+    distance += step;
+
+    // Smooth lane change
+    const targetX = LANES[player.lane];
+    player.x += (targetX - player.x) * Math.min(1, dt * 14);
+
+    // Vertical movement and holes
+    const ground = overGround(player.z);
+    if (!player.grounded || !ground || player.falling) {
+      player.vy -= GRAVITY * dt;
+      player.y += player.vy * dt;
+      if (!player.falling && ground && player.y <= BALL_R) {
+        player.y = BALL_R; player.vy = 0; player.grounded = true;
+      } else {
+        player.grounded = false;
+        if (player.y < BALL_R - 0.15) player.falling = true;  // too low to land again
+      }
+    }
+    if (player.y < -4) { die('fall'); return; }
+
+    // Obstacles
+    for (const o of obstacles) {
+      if (Math.abs(player.z - o.z) > o.hd + BALL_R - 0.08) continue;
+      if (Math.abs(player.x - o.x) > o.hw + BALL_R - 0.12) continue;
+      if (player.y - BALL_R < o.h - 0.05) { die('crash'); return; }
+    }
+
+    // Coins
+    for (const c of coinsList) {
+      if (c.taken) continue;
+      c.mesh.rotation.z += dt * 4;
+      if (Math.abs(player.z - c.z) < 0.6 && Math.abs(player.x - c.x) < 0.7 && player.y < 1.3) {
+        c.taken = true;
+        c.mesh.visible = false;
+        coins++;
+        sound('collect');
+      }
+    }
+
+    // Keep the track ahead, drop what is behind
+    while (nextZ > player.z - 70) spawnSegment();
+    const behind = player.z + 12;
+    const prune = list => list.filter(o => {
+      if (o.z > behind) { scene.remove(o.mesh); return false; }
+      return true;
+    });
+    slabs = prune(slabs); obstacles = prune(obstacles); coinsList = prune(coinsList);
+
+    updateHud();
+  }
+
+  // ----- Render -----
+  function draw() {
+    if (player) {
+      ball.position.set(player.x, player.y, player.z);
+      if (running && !deadTimer) ball.rotation.x -= (speed / BALL_R) * (1 / 60) * 0.9;
+
+      const onGround = overGround(player.z) && !player.falling;
+      shadow.visible = onGround;
+      const lift = Math.max(0, player.y - BALL_R);
+      shadow.position.set(player.x, 0.012, player.z);
+      shadow.scale.setScalar(Math.max(0.35, 1 - lift * 0.35));
+      shadow.material.opacity = Math.max(0.04, 0.14 - lift * 0.05);
+
+      camera.position.set(player.x * 0.45, 3.1, player.z + 6.2);
+      camera.lookAt(player.x * 0.3, 0.6, player.z - 6);
+    }
+    renderer.render(scene, camera);
+  }
+
+  function loop(now) {
+    const dt = Math.min(0.05, ((now - (lastTime || now)) / 1000));
+    lastTime = now;
+    if (running) update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // Pause the clock when the tab is hidden so the ball does not jump forward
+  document.addEventListener('visibilitychange', () => { lastTime = performance.now(); });
+
+  // A track behind the start menu
+  resetGame();
+  running = false;
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
