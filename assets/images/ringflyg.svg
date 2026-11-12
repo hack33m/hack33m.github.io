@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#e8eefc"/>
+  <!-- Ground -->
+  <rect y="230" width="400" height="70" fill="#8fcf8a"/>
+  <polygon points="40,230 52,200 64,230" fill="#3d9a55"/>
+  <polygon points="330,230 344,195 358,230" fill="#3d9a55"/>
+  <!-- Rings getting smaller into the distance -->
+  <ellipse cx="300" cy="95" rx="16" ry="20" fill="none" stroke="#eab308" stroke-width="5"/>
+  <ellipse cx="245" cy="120" rx="30" ry="38" fill="none" stroke="#eab308" stroke-width="8"/>
+  <!-- Red obstacle -->
+  <polygon points="320,160 334,152 344,166 336,182 320,178" fill="#dc2626" stroke="#1c1917" stroke-width="2"/>
+  <!-- Plane seen from behind -->
+  <rect x="96" y="168" width="148" height="10" rx="3" fill="#ffffff" stroke="#1c1917" stroke-width="2"/>
+  <rect x="140" y="150" width="60" height="16" rx="3" fill="#ffffff" stroke="#1c1917" stroke-width="2"/>
+  <rect x="152" y="152" width="36" height="48" rx="8" fill="#dc2626" stroke="#1c1917" stroke-width="2"/>
+  <rect x="166" y="128" width="8" height="26" rx="2" fill="#dc2626" stroke="#1c1917" stroke-width="2"/>
+  <rect x="158" y="160" width="24" height="12" rx="3" fill="#93c5fd"/>
+</svg>

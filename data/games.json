@@ -207,5 +207,14 @@
     "thumbnail": "assets/images/rullboll.svg",
     "path": "games/rullboll/index.html",
     "featured": false
+  },
+  {
+    "id": "ringflyg",
+    "title": "Ringflyg",
+    "description": "Ett 3D-spel! Flyg ett litet plan genom ringarna, akta dig för de röda bollarna och samla bonus för flera i rad.",
+    "category": "Action",
+    "thumbnail": "assets/images/ringflyg.svg",
+    "path": "games/ringflyg/index.html",
+    "featured": false
   }
 ]
