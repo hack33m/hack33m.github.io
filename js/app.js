@@ -5,94 +5,18 @@ const THEME_KEY = 'elias-spelportal-theme';
 const MAX_RECENT = 6;
 
 const AVATARS_FREE = ['😀','😎','🤩','😈','👻','🤖','🦊','🐱','🐶','🦁','🐸','🐼','🦄','🐲','🎮','⚡','🔥','💎','🌟','🚀'];
-const AVATARS_LOCKED = ['🏆','👾','🎪','🧙','🦸','🎭','💀','🍕','🎃','👽','🤠','🦇','🐉','🗿','💩','🧛','🥶','🤯','🫥','🤑'];
 
 const CORNY_IMAGE_URL = 'images/corny.jpg';
 
-// Shop items
-const NAME_COLORS = [
-  { id: 'red', name: 'Röd', color: '#f87171', price: 50 },
-  { id: 'blue', name: 'Blå', color: '#60a5fa', price: 50 },
-  { id: 'green', name: 'Grön', color: '#4ade80', price: 50 },
-  { id: 'purple', name: 'Lila', color: '#c084fc', price: 75 },
-  { id: 'orange', name: 'Orange', color: '#fb923c', price: 75 },
-  { id: 'pink', name: 'Rosa', color: '#f472b6', price: 75 },
-  { id: 'gold', name: 'Guld', color: '#fbbf24', price: 150 },
-  { id: 'rainbow', name: 'Regnbåge', color: 'rainbow', price: 300 },
-];
-
+// Titlar som visas på profilen
 const TITLES = [
-  { id: 'pro', name: 'Pro Gamer', price: 100 },
-  { id: 'legend', name: 'Legend', price: 200 },
-  { id: 'speedrunner', name: 'Speedrunner', price: 150 },
-  { id: 'boss', name: 'Boss', price: 250 },
-  { id: 'champion', name: 'Champion', price: 300 },
-  { id: 'king', name: 'King', price: 500 },
+  { id: 'pro', name: 'Pro Gamer' },
+  { id: 'legend', name: 'Legend' },
+  { id: 'speedrunner', name: 'Speedrunner' },
+  { id: 'boss', name: 'Boss' },
+  { id: 'champion', name: 'Champion' },
+  { id: 'king', name: 'King' },
 ];
-
-const NAME_EFFECTS = [
-  { id: 'glow', name: 'Glow-effekt', price: 200 },
-  { id: 'bold', name: 'Fet text', price: 50 },
-];
-
-const ARROW_SKINS = [
-  { id: 'default', name: 'Standard', price: 0, primary: '#00d4ff', secondary: '#ffffff', trail: '#00d4ff', glow: '#00d4ff', glowStyle: 'normal' },
-  { id: 'crimson', name: 'Crimson', price: 75, primary: '#ff2d55', secondary: '#ffaacc', trail: '#ff2d55', glow: '#ff2d55', glowStyle: 'normal' },
-  { id: 'emerald', name: 'Emerald', price: 75, primary: '#39ff14', secondary: '#ccffcc', trail: '#39ff14', glow: '#39ff14', glowStyle: 'normal' },
-  { id: 'sunset', name: 'Sunset', price: 100, primary: '#ff6a00', secondary: '#ffdd44', trail: '#ff8c00', glow: '#ff6a00', glowStyle: 'normal' },
-  { id: 'phantom', name: 'Phantom', price: 150, primary: '#a855f7', secondary: '#e0ccff', trail: '#a855f7', glow: '#a855f7', glowStyle: 'pulse' },
-  { id: 'arctic', name: 'Arctic', price: 150, primary: '#88eeff', secondary: '#ffffff', trail: '#aaeeff', glow: '#88eeff', glowStyle: 'frost' },
-  { id: 'golden', name: 'Golden', price: 200, primary: '#fbbf24', secondary: '#fff8e0', trail: '#fbbf24', glow: '#fbbf24', glowStyle: 'normal' },
-  { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', trail: '#ff2200', glow: '#ff4400', glowStyle: 'flicker' },
-  { id: 'void', name: 'Void', price: 300, primary: '#1a0033', secondary: '#6600cc', trail: '#3300aa', glow: '#6600cc', glowStyle: 'reverse' },
-  { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', trail: 'rainbow', glow: 'rainbow', glowStyle: 'rainbow' },
-  { id: 'corny-choklad', name: 'Corny Choklad', price: 0, primary: '#6B3410', secondary: '#D4A574', trail: '#8B4513', glow: '#A0522D', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-choklad.png' },
-  { id: 'corny-mork', name: 'Corny Mörk Choklad', price: 0, primary: '#3D1C00', secondary: '#8B6914', trail: '#5C2E00', glow: '#5C2E00', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-mork.png' },
-  { id: 'corny-vit', name: 'Corny Vit Choklad', price: 0, primary: '#FFF8DC', secondary: '#FFD700', trail: '#FAEBD7', glow: '#FFD700', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-vit.png' },
-  { id: 'corny-kokos', name: 'Corny Kokos', price: 0, primary: '#F5F5DC', secondary: '#8B7355', trail: '#FFDEAD', glow: '#DEB887', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-kokos.png' },
-  { id: 'corny-banan', name: 'Corny Banan', price: 0, primary: '#FFD700', secondary: '#8B6914', trail: '#FFA500', glow: '#FFD700', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-banan.png' },
-  { id: 'corny-jordnot', name: 'Corny Jordnöt', price: 0, primary: '#C4A265', secondary: '#8B6914', trail: '#B8860B', glow: '#DAA520', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-jordnot.png' },
-  { id: 'corny-jordgubb', name: 'Corny Jordgubb', price: 0, primary: '#FF69B4', secondary: '#FFF0F5', trail: '#FF1493', glow: '#FF69B4', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-jordgubb.png' },
-  { id: 'corny-brownie', name: 'Corny Brownie', price: 0, primary: '#4A2000', secondary: '#A0522D', trail: '#7B3F00', glow: '#8B4513', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-brownie.png' },
-  { id: 'corny-karamell', name: 'Corny Salted Caramel', price: 0, primary: '#DAA520', secondary: '#FFE4B5', trail: '#D4A574', glow: '#DAA520', glowStyle: 'normal', corny: true, exclusive: true, img: 'images/corny-karamell.png' },
-];
-
-const BIRD_SKINS = [
-  { id: 'default', name: 'Standard', price: 0, primary: '#00d4ff', secondary: '#ffffff', glow: '#00d4ff' },
-  { id: 'crimson', name: 'Crimson', price: 75, primary: '#ff2d55', secondary: '#ffaacc', glow: '#ff2d55' },
-  { id: 'emerald', name: 'Emerald', price: 75, primary: '#39ff14', secondary: '#ccffcc', glow: '#39ff14' },
-  { id: 'sunset', name: 'Sunset', price: 100, primary: '#ff6a00', secondary: '#ffdd44', glow: '#ff6a00' },
-  { id: 'phantom', name: 'Phantom', price: 150, primary: '#a855f7', secondary: '#e0ccff', glow: '#a855f7' },
-  { id: 'arctic', name: 'Arctic', price: 150, primary: '#88eeff', secondary: '#ffffff', glow: '#88eeff' },
-  { id: 'golden', name: 'Golden', price: 200, primary: '#fbbf24', secondary: '#fff8e0', glow: '#fbbf24' },
-  { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', glow: '#ff4400' },
-  { id: 'void', name: 'Void', price: 300, primary: '#6600cc', secondary: '#bb88ff', glow: '#6600cc' },
-  { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', glow: 'rainbow' },
-  { id: 'corny-choklad', name: 'Corny Choklad', price: 0, primary: '#6B3410', secondary: '#D4A574', glow: '#A0522D', corny: true, exclusive: true },
-  { id: 'corny-mork', name: 'Corny Mörk Choklad', price: 0, primary: '#3D1C00', secondary: '#8B6914', glow: '#5C2E00', corny: true, exclusive: true },
-  { id: 'corny-vit', name: 'Corny Vit Choklad', price: 0, primary: '#FFF8DC', secondary: '#FFD700', glow: '#FFD700', corny: true, exclusive: true },
-  { id: 'corny-kokos', name: 'Corny Kokos', price: 0, primary: '#F5F5DC', secondary: '#8B7355', glow: '#DEB887', corny: true, exclusive: true },
-  { id: 'corny-banan', name: 'Corny Banan', price: 0, primary: '#FFD700', secondary: '#8B6914', glow: '#FFD700', corny: true, exclusive: true },
-  { id: 'corny-jordnot', name: 'Corny Jordnöt', price: 0, primary: '#C4A265', secondary: '#8B6914', glow: '#DAA520', corny: true, exclusive: true },
-  { id: 'corny-jordgubb', name: 'Corny Jordgubb', price: 0, primary: '#FF69B4', secondary: '#FFF0F5', glow: '#FF69B4', corny: true, exclusive: true },
-  { id: 'corny-brownie', name: 'Corny Brownie', price: 0, primary: '#4A2000', secondary: '#A0522D', glow: '#8B4513', corny: true, exclusive: true },
-  { id: 'corny-karamell', name: 'Corny Salted Caramel', price: 0, primary: '#DAA520', secondary: '#FFE4B5', glow: '#DAA520', corny: true, exclusive: true },
-];
-
-const CAR_SKINS = [
-  { id: 'default', name: 'Standard', price: 0, primary: '#00d4ff', secondary: '#ffffff', glow: '#00d4ff', boost: '#ff6a00' },
-  { id: 'crimson', name: 'Crimson', price: 75, primary: '#ff2d55', secondary: '#ffaacc', glow: '#ff2d55', boost: '#ff2d55' },
-  { id: 'emerald', name: 'Emerald', price: 75, primary: '#39ff14', secondary: '#ccffcc', glow: '#39ff14', boost: '#39ff14' },
-  { id: 'sunset', name: 'Sunset', price: 100, primary: '#ff6a00', secondary: '#ffdd44', glow: '#ff6a00', boost: '#ffdd44' },
-  { id: 'phantom', name: 'Phantom', price: 150, primary: '#a855f7', secondary: '#e0ccff', glow: '#a855f7', boost: '#a855f7' },
-  { id: 'arctic', name: 'Arctic', price: 150, primary: '#88eeff', secondary: '#ffffff', glow: '#88eeff', boost: '#88eeff' },
-  { id: 'golden', name: 'Golden', price: 200, primary: '#fbbf24', secondary: '#fff8e0', glow: '#fbbf24', boost: '#fbbf24' },
-  { id: 'inferno', name: 'Inferno', price: 250, primary: '#ff4400', secondary: '#ff8800', glow: '#ff4400', boost: '#ff2200' },
-  { id: 'void', name: 'Void', price: 300, primary: '#1a0033', secondary: '#6600cc', glow: '#6600cc', boost: '#6600cc' },
-  { id: 'rainbow', name: 'Regnbåge', price: 500, primary: 'rainbow', secondary: '#ffffff', glow: 'rainbow', boost: 'rainbow' },
-];
-
-const EMOJI_PACK_PRICE = 100;
 
 let allGames = [];
 let activeCategory = 'all';
@@ -111,7 +35,6 @@ function mapProfile(row) {
     username: row.username,
     avatar: row.avatar || '😀',
     role: row.role || 'user',
-    coins: row.coins || 0,
     banned: row.banned || false,
     bannedUntil: row.banned_until,
     favorites: row.favorites || [],
@@ -123,10 +46,10 @@ function mapProfile(row) {
     unlockedEffects: row.unlocked_effects || [],
     unlockedEmojis: row.unlocked_emojis || [],
     unlockedSkins: row.unlocked_skins || [],
-    unlockedBirdSkins: row.unlocked_bird_skins || [],
+    unlockedFlappy BirdSkins: row.unlocked_Flappy Bird_skins || [],
     unlockedCarSkins: row.unlocked_car_skins || [],
     arrowSkin: row.arrow_skin,
-    birdSkin: row.bird_skin,
+    Flappy BirdSkin: row.Flappy Bird_skin,
     carSkin: row.car_skin,
     joined: row.joined_at,
   };
@@ -141,10 +64,10 @@ function mapToDb(updates) {
     unlockedEffects: 'unlocked_effects',
     unlockedEmojis: 'unlocked_emojis',
     unlockedSkins: 'unlocked_skins',
-    unlockedBirdSkins: 'unlocked_bird_skins',
+    unlockedFlappy BirdSkins: 'unlocked_Flappy Bird_skins',
     unlockedCarSkins: 'unlocked_car_skins',
     arrowSkin: 'arrow_skin',
-    birdSkin: 'bird_skin',
+    Flappy BirdSkin: 'Flappy Bird_skin',
     carSkin: 'car_skin',
     bannedUntil: 'banned_until',
   };
@@ -182,7 +105,7 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, sleep(ms).then(() => { throw new Error('timeout'); })]);
 }
 
-// Visar en banner om Supabase är nere/pausad (inloggning, mynt och event funkar då inte)
+// Visar en banner om Supabase är nere/pausad (inloggning och event funkar då inte)
 async function checkServerStatus() {
   let ok = false;
   if (supabaseClient) {
@@ -195,7 +118,7 @@ async function checkServerStatus() {
   const banner = document.createElement('div');
   banner.id = 'server-banner';
   banner.className = 'server-banner';
-  banner.textContent = '⚠️ Inloggning, mynt och event är tillfälligt nere. Alla spel funkar som vanligt!';
+  banner.textContent = '⚠️ Inloggning och event är tillfälligt nere. Alla spel funkar som vanligt!';
   document.body.prepend(banner);
 }
 
@@ -235,7 +158,7 @@ async function initAuth() {
 
 // ===== Theme =====
 function applyTheme() {
-  const theme = localStorage.getItem(THEME_KEY) || 'dark';
+  const theme = localStorage.getItem(THEME_KEY) || 'light';
   document.documentElement.setAttribute('data-theme', theme);
 }
 function setTheme(theme) {
@@ -301,7 +224,6 @@ async function registerUser(username, password, avatar) {
     username_lower: username.toLowerCase(),
     avatar: avatar || '😀',
     role: 'user',
-    coins: 0,
     banned: false,
     banned_until: null,
     favorites: [],
@@ -399,27 +321,10 @@ function isFavorite(gameId) {
   return (user.favorites || []).includes(gameId);
 }
 
-// ===== Coins =====
-async function addCoins(amount) {
-  if (!currentUserData) return;
-  const newCoins = (currentUserData.coins || 0) + amount;
-  await supabaseClient.from('profiles').update({ coins: newCoins }).eq('id', currentUserData.uid);
-  currentUserData.coins = newCoins;
-}
-
-async function spendCoins(amount) {
-  if (!currentUserData) return false;
-  if ((currentUserData.coins || 0) < amount) return false;
-  const newCoins = currentUserData.coins - amount;
-  await supabaseClient.from('profiles').update({ coins: newCoins }).eq('id', currentUserData.uid);
-  currentUserData.coins = newCoins;
-  return true;
-}
-
 // Weekly event challenges - must match event.html
 const WEEKLY_CHALLENGES = [
-  'neon-dash', 'neon-bird', 'neon-rex', 'neon-snake',
-  'corny-jump', 'block-blast', 'idle-clicker', 'neon-wordle'
+  'neon-dash', 'neon-Flappy Bird', 'neon-T-Rex', 'neon-snake',
+  'corny-Jump', 'block-blast', 'idle-clicker', 'neon-wordle'
 ];
 
 function getEventWeekGameId() {
@@ -458,31 +363,6 @@ async function addEventScore(points, gameId) {
   } catch (e) {}
 }
 
-async function claimGameCoins(gameId) {
-  if (!currentUserData) return false;
-  const today = new Date().toISOString().split('T')[0];
-
-  const { data: existing } = await supabaseClient
-    .from('claimed_coins')
-    .select('id')
-    .eq('user_id', currentUserData.uid)
-    .eq('game_id', gameId)
-    .eq('claim_date', today)
-    .maybeSingle();
-
-  if (existing) return false;
-
-  const { error } = await supabaseClient.from('claimed_coins').insert({
-    user_id: currentUserData.uid,
-    game_id: gameId,
-    claim_date: today,
-  });
-
-  if (error) return false;
-  await addCoins(25);
-  return true;
-}
-
 // ===== Styled Username =====
 function getStyledName(user) {
   if (!user) return '';
@@ -497,7 +377,6 @@ function getStyledName(user) {
     style += `color:${color};`;
   }
   if (effect === 'bold') style += 'font-weight:900;';
-  if (effect === 'glow') style += `text-shadow:0 0 8px ${color || '#4a9eff'},0 0 16px ${color || '#4a9eff'};`;
 
   return `<span class="styled-name" style="${style}">${escapeHtml(name)}</span>`;
 }
@@ -561,7 +440,7 @@ function renderHeaderAuth() {
 
   let adminBtn = '';
   if (isAdmin()) {
-    adminBtn = `<a href="admin.html" class="admin-btn">🛡️ Admin<span class="admin-notif" id="admin-notif" style="display:none"></span></a>`;
+    adminBtn = `<a href="admin.html" class="admin-btn">Admin<span class="admin-notif" id="admin-notif" style="display:none"></span></a>`;
     // Fetch feedback count async
     supabaseClient.from('feedback').select('id', { count: 'exact', head: true }).then(({ count }) => {
       const notifEl = document.getElementById('admin-notif');
@@ -571,13 +450,11 @@ function renderHeaderAuth() {
       }
     });
   }
-  const eventBtn = `<a href="event.html" class="event-btn">🏆 Event</a>`;
-  const coinsDisplay = `<a href="shop.html" class="coins-display" title="Öppna shop">🪙 ${user.coins || 0}</a>`;
+  const eventBtn = `<a href="event.html" class="event-btn">Event</a>`;
 
   container.innerHTML = `
     ${eventBtn}
     ${adminBtn}
-    ${coinsDisplay}
     <div class="user-menu-wrapper">
       <button class="user-menu-btn" id="user-menu-btn">
         <span class="user-menu-avatar">${renderAvatar(user.avatar, 28)}</span>
@@ -585,11 +462,10 @@ function renderHeaderAuth() {
         <span class="user-menu-arrow">▾</span>
       </button>
       <div class="user-dropdown" id="user-dropdown">
-        <a href="profile.html" class="dropdown-item">👤 Min profil</a>
-        <a href="shop.html" class="dropdown-item">🛒 Shop</a>
-        <a href="event.html" class="dropdown-item">🏆 Veckans Event</a>
-        <button class="dropdown-item" id="open-settings">⚙️ Inställningar</button>
-        <button class="dropdown-item dropdown-logout" id="header-logout">🚪 Logga ut</button>
+        <a href="profile.html" class="dropdown-item">Min profil</a>
+        <a href="event.html" class="dropdown-item">Veckans event</a>
+        <button class="dropdown-item" id="open-settings">Inställningar</button>
+        <button class="dropdown-item dropdown-logout" id="header-logout">Logga ut</button>
       </div>
     </div>`;
 
@@ -704,7 +580,7 @@ function openSettingsModal() {
   const user = getCurrentUser();
   if (!user) return;
 
-  const currentTheme = localStorage.getItem(THEME_KEY) || 'dark';
+  const currentTheme = localStorage.getItem(THEME_KEY) || 'light';
   const avatars = getAvailableAvatars(user);
 
   modal = document.createElement('div');
@@ -713,7 +589,7 @@ function openSettingsModal() {
   modal.innerHTML = `
     <div class="modal settings-modal">
       <div class="modal-header">
-        <h2>⚙️ Inställningar</h2>
+        <h2>Inställningar</h2>
         <button class="modal-close" id="settings-close">&times;</button>
       </div>
       <div class="settings-section">
@@ -804,14 +680,12 @@ async function loadGames() {
     shuffleGames(allGames);
     if (isGamePage()) initGamePage();
     else if (isProfilePage()) initProfilePage();
-    else if (isShopPage()) initShopPage();
     else initHomePage();
   } catch (e) { console.error('Kunde inte ladda spel:', e); }
 }
 
 function isGamePage() { return document.body.classList.contains('game-page'); }
 function isProfilePage() { return document.body.classList.contains('profile-page'); }
-function isShopPage() { return document.body.classList.contains('shop-page'); }
 
 // ===== HOME PAGE =====
 function initHomePage() {
@@ -827,12 +701,11 @@ function renderCategories() {
   const c = document.getElementById('categories-container');
   const m = document.getElementById('mobile-categories');
   const cats = [...new Set(allGames.map(g => g.category))];
-  const emojis = { 'Action':'💥','Pussel':'🧩','Sport':'⚽','Äventyr':'🌿','Utbildning':'📚' };
   cats.forEach(cat => {
     const btn = document.createElement('button');
     btn.className = 'category-tag';
     btn.dataset.category = cat;
-    btn.textContent = `${emojis[cat]||'🎮'} ${cat}`;
+    btn.textContent = cat;
     c.appendChild(btn);
     if (m) m.appendChild(btn.cloneNode(true));
   });
@@ -864,7 +737,7 @@ function createGameCard(game) {
   card.innerHTML = `
     <div class="card-thumbnail-wrapper">
       <img class="card-thumbnail" src="${game.thumbnail}" alt="${game.title}" loading="lazy"
-           onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22><rect fill=%22%2316213e%22 width=%22400%22 height=%22300%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%234a9eff%22 font-size=%2248%22>🎮</text></svg>'">
+           onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22><rect fill=%22%23e7e5e4%22 width=%22400%22 height=%22300%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2378716c%22 font-size=%2232%22>Spel</text></svg>'">
       <div class="card-play-overlay"><div class="card-play-btn">▶</div></div>
       <button class="card-fav-btn${favClass}" data-game-id="${game.id}" title="Favorit">♥</button>
     </div>
@@ -903,7 +776,7 @@ function filterGames() {
   if (activeCategory !== 'all') f = f.filter(g => g.category === activeCategory);
   if (searchQuery.trim()) { const q = searchQuery.toLowerCase().trim(); f = f.filter(g => g.title.toLowerCase().includes(q) || g.description.toLowerCase().includes(q) || g.category.toLowerCase().includes(q)); }
   const t = document.getElementById('all-games-title');
-  if (t) { if (searchQuery.trim()) t.textContent = '🔍 Sökresultat'; else if (activeCategory !== 'all') t.textContent = `🕹️ ${activeCategory}`; else t.textContent = '🕹️ Alla spel'; }
+  if (t) { if (searchQuery.trim()) t.textContent = 'Sökresultat'; else if (activeCategory !== 'all') t.textContent = activeCategory; else t.textContent = 'Alla spel'; }
   const fs = document.getElementById('featured-section'), rs = document.getElementById('recently-played-section'), nr = document.getElementById('no-results');
   const isFilt = searchQuery.trim() || activeCategory !== 'all';
   if (fs) fs.style.display = isFilt ? 'none' : '';
@@ -983,25 +856,18 @@ function initGamePage() {
     // Send skin data to game iframe
     const user = getCurrentUser();
     if (user) {
-      const skinId = gameId === 'neon-bird' ? user.birdSkin : gameId === 'neon-league' ? user.carSkin : user.arrowSkin;
+      const skinId = gameId === 'neon-Flappy Bird' ? user.Flappy BirdSkin : gameId === 'neon-league' ? user.carSkin : user.arrowSkin;
       if (skinId) iframe.contentWindow.postMessage({ type: 'skin-data', skinId }, '*');
     }
   });
   iframe.src = game.path + '?v=' + Date.now();
   saveRecentlyPlayed(game.id);
 
-  // Listen for score-based coin rewards from game iframe
+  // Score from the game iframe counts toward the weekly event (only for this week's game)
   window.addEventListener('message', async (e) => {
     if (e.data && e.data.type === 'game-score' && getCurrentUser()) {
-      const score = e.data.score || 0;
-      const earned = Math.floor(score / 10);
-      if (earned > 0) {
-        await addCoins(earned);
-        renderHeaderAuth();
-        // Add points to weekly event (only for this week's game)
-        const eventGameId = e.data.game || '';
-        await addEventScore(earned, eventGameId);
-      }
+      const points = Math.floor((e.data.score || 0) / 10);
+      if (points > 0) await addEventScore(points, e.data.game || '');
     }
   });
 
@@ -1049,7 +915,6 @@ async function initProfilePage() {
 
   document.getElementById('stat-favorites').textContent = (user.favorites || []).length;
   document.getElementById('stat-played').textContent = getRecentlyPlayed().length;
-  document.getElementById('stat-coins').textContent = user.coins || 0;
 
   const picker = document.getElementById('profile-avatar-picker');
   if (picker) {
@@ -1077,343 +942,5 @@ async function initProfilePage() {
   document.getElementById('logout-btn').addEventListener('click', async () => { await logoutUser(); window.location.href = 'index.html'; });
   document.getElementById('delete-account-btn').addEventListener('click', async () => {
     if (confirm('Är du säker?')) { await deleteAccount(); window.location.href = 'index.html'; }
-  });
-}
-
-// ===== SHOP PAGE =====
-async function initShopPage() {
-  const user = getCurrentUser();
-  if (!user) { window.location.href = 'index.html'; return; }
-  // Re-fetch profile to get latest data (coins, unlocks etc.)
-  const { data } = await supabaseClient.from('profiles').select('*').eq('id', user.uid).single();
-  if (data) currentUserData = mapProfile(data);
-  renderShop(getCurrentUser());
-}
-
-function renderShop(user) {
-  const grid = document.getElementById('shop-grid');
-  if (!grid) return;
-
-  const u = getCurrentUser() || user;
-  const coinsEl = document.getElementById('shop-coins');
-  if (coinsEl) coinsEl.textContent = u.coins || 0;
-
-  let html = '';
-
-  // Name Colors
-  html += '<h3 class="shop-category-title">🎨 Namnfärger</h3><div class="shop-items">';
-  NAME_COLORS.forEach(item => {
-    const owned = (u.unlockedColors || []).includes(item.id);
-    const equipped = u.nameColor === item.color;
-    const colorStyle = item.color === 'rainbow'
-      ? 'background:linear-gradient(90deg,#f87171,#fbbf24,#4ade80,#60a5fa,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;'
-      : `color:${item.color};`;
-    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
-      <span class="shop-item-preview" style="${colorStyle}; font-weight:800;">${item.name}</span>
-      <span class="shop-item-name">${item.name}</span>
-      ${owned
-        ? (equipped
-          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-color">Utrustad ✓</button>'
-          : `<button class="shop-btn shop-btn-equip" data-action="equip-color" data-id="${item.id}" data-color="${item.color}">Använd</button>`)
-        : `<button class="shop-btn shop-btn-buy" data-action="buy-color" data-id="${item.id}" data-color="${item.color}" data-price="${item.price}">🪙 ${item.price}</button>`
-      }
-    </div>`;
-  });
-  html += '</div>';
-
-  // Titles
-  html += '<h3 class="shop-category-title">🏅 Titlar</h3><div class="shop-items">';
-  TITLES.forEach(item => {
-    const owned = (u.unlockedTitles || []).includes(item.id);
-    const equipped = u.title === item.id;
-    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
-      <span class="shop-item-preview">${item.name}</span>
-      ${owned
-        ? (equipped
-          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-title">Utrustad ✓</button>'
-          : `<button class="shop-btn shop-btn-equip" data-action="equip-title" data-id="${item.id}">Använd</button>`)
-        : `<button class="shop-btn shop-btn-buy" data-action="buy-title" data-id="${item.id}" data-price="${item.price}">🪙 ${item.price}</button>`
-      }
-    </div>`;
-  });
-  html += '</div>';
-
-  // Name Effects
-  html += '<h3 class="shop-category-title">✨ Namneffekter</h3><div class="shop-items">';
-  NAME_EFFECTS.forEach(item => {
-    const owned = (u.unlockedEffects || []).includes(item.id);
-    const equipped = u.nameEffect === item.id;
-    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
-      <span class="shop-item-preview">${item.name}</span>
-      ${owned
-        ? (equipped
-          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-effect">Utrustad ✓</button>'
-          : `<button class="shop-btn shop-btn-equip" data-action="equip-effect" data-id="${item.id}">Använd</button>`)
-        : `<button class="shop-btn shop-btn-buy" data-action="buy-effect" data-id="${item.id}" data-price="${item.price}">🪙 ${item.price}</button>`
-      }
-    </div>`;
-  });
-  html += '</div>';
-
-  // Arrow Skins (non-corny)
-  html += '<h3 class="shop-category-title">🏹 Arrow Skins <span style="color:var(--text-muted);font-size:14px;">(Neon Dash)</span></h3><div class="shop-items">';
-  ARROW_SKINS.filter(s => s.price > 0 && !s.exclusive && !s.corny).forEach(skin => {
-    const owned = (u.unlockedSkins || []).includes(skin.id);
-    const equipped = u.arrowSkin === skin.id;
-    const fillColor = skin.primary === 'rainbow' ? '#a855f7' : skin.primary;
-    const glowColor = skin.glow === 'rainbow' ? '#a855f7' : skin.glow;
-    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
-      <div class="skin-preview">
-        <svg viewBox="0 0 48 48" width="48" height="48" style="filter:drop-shadow(0 0 6px ${glowColor});">
-          <polygon points="36,24 12,12 18,24 12,36" fill="${fillColor}"/>
-          <polygon points="30,24 18,18 21,24 18,30" fill="${skin.secondary}"/>
-        </svg>
-      </div>
-      <span class="shop-item-name" style="font-weight:700;font-size:14px;">${skin.name}</span>
-      ${owned
-        ? (equipped
-          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-skin">Utrustad ✓</button>'
-          : `<button class="shop-btn shop-btn-equip" data-action="equip-skin" data-id="${skin.id}">Använd</button>`)
-        : `<button class="shop-btn shop-btn-buy" data-action="buy-skin" data-id="${skin.id}" data-price="${skin.price}">🪙 ${skin.price}</button>`
-      }
-    </div>`;
-  });
-  html += '</div>';
-
-  // Corny Collection (all exclusive)
-  // Shown in the Exclusive section below
-
-  // Bird Skins (Neon Bird, non-corny)
-  html += '<h3 class="shop-category-title">🐦 Bird Skins <span style="color:var(--text-muted);font-size:14px;">(Neon Bird)</span></h3><div class="shop-items">';
-  BIRD_SKINS.filter(s => s.price > 0 && !s.corny).forEach(skin => {
-    const owned = (u.unlockedBirdSkins || []).includes(skin.id);
-    const equipped = u.birdSkin === skin.id;
-    const fillColor = skin.primary === 'rainbow' ? '#a855f7' : skin.primary;
-    const glowColor = skin.glow === 'rainbow' ? '#a855f7' : skin.glow;
-    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
-      <div class="skin-preview">
-        <svg viewBox="0 0 48 48" width="48" height="48" style="filter:drop-shadow(0 0 6px ${glowColor});">
-          <circle cx="24" cy="24" r="12" fill="${fillColor}"/>
-          <circle cx="24" cy="24" r="12" fill="none" stroke="${glowColor}" stroke-width="1" opacity="0.5"/>
-          <circle cx="29" cy="21" r="3" fill="#fff"/>
-          <circle cx="30" cy="21" r="1.5" fill="#111"/>
-          <polygon points="35,22 42,24 35,26" fill="#ff6a00"/>
-          <ellipse cx="20" cy="20" rx="8" ry="3.5" fill="${skin.secondary}" opacity="0.7" transform="rotate(-20 20 20)"/>
-        </svg>
-      </div>
-      <span class="shop-item-name" style="font-weight:700;font-size:14px;">${skin.name}</span>
-      ${owned
-        ? (equipped
-          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-bird-skin">Utrustad ✓</button>'
-          : `<button class="shop-btn shop-btn-equip" data-action="equip-bird-skin" data-id="${skin.id}">Använd</button>`)
-        : `<button class="shop-btn shop-btn-buy" data-action="buy-bird-skin" data-id="${skin.id}" data-price="${skin.price}">🪙 ${skin.price}</button>`
-      }
-    </div>`;
-  });
-  html += '</div>';
-
-  // Car Skins (Neon League)
-  html += '<h3 class="shop-category-title">\ud83c\udfce\ufe0f Car Skins <span style="color:var(--text-muted);font-size:14px;">(Neon League)</span></h3><div class="shop-items">';
-  CAR_SKINS.filter(s => s.price > 0).forEach(skin => {
-    const owned = (u.unlockedCarSkins || []).includes(skin.id);
-    const equipped = u.carSkin === skin.id;
-    const fillColor = skin.primary === 'rainbow' ? '#a855f7' : skin.primary;
-    const glowColor = skin.glow === 'rainbow' ? '#a855f7' : skin.glow;
-    html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
-      <div class="skin-preview">
-        <svg viewBox="0 0 56 32" width="56" height="32" style="filter:drop-shadow(0 0 6px ${glowColor});">
-          <rect x="4" y="4" width="40" height="22" rx="4" fill="${fillColor}"/>
-          <rect x="26" y="8" width="10" height="14" rx="2" fill="${skin.secondary}" opacity="0.5"/>
-          <polygon points="44,9 48,15 44,21" fill="#fff" opacity="0.5"/>
-          <rect x="8" y="2" width="8" height="4" rx="1" fill="rgba(255,255,255,0.2)"/>
-          <rect x="8" y="24" width="8" height="4" rx="1" fill="rgba(255,255,255,0.2)"/>
-          <rect x="28" y="2" width="8" height="4" rx="1" fill="rgba(255,255,255,0.2)"/>
-          <rect x="28" y="24" width="8" height="4" rx="1" fill="rgba(255,255,255,0.2)"/>
-        </svg>
-      </div>
-      <span class="shop-item-name" style="font-weight:700;font-size:14px;">${skin.name}</span>
-      ${owned
-        ? (equipped
-          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-car-skin">Utrustad \u2713</button>'
-          : `<button class="shop-btn shop-btn-equip" data-action="equip-car-skin" data-id="${skin.id}">Anv\u00e4nd</button>`)
-        : `<button class="shop-btn shop-btn-buy" data-action="buy-car-skin" data-id="${skin.id}" data-price="${skin.price}">\ud83e\ude99 ${skin.price}</button>`
-      }
-    </div>`;
-  });
-  html += '</div>';
-
-  // Extra Emojis
-  html += `<h3 class="shop-category-title">😈 Extra Avatarer <span style="color:var(--text-muted);font-size:14px;">(${EMOJI_PACK_PRICE} coins styck)</span></h3><div class="shop-items emoji-items">`;
-  AVATARS_LOCKED.forEach(emoji => {
-    const owned = (u.unlockedEmojis || []).includes(emoji);
-    html += `<div class="shop-item shop-emoji-item ${owned ? 'owned' : ''}">
-      <span class="shop-emoji">${emoji}</span>
-      ${owned
-        ? '<span class="shop-owned-label">Ägd</span>'
-        : `<button class="shop-btn shop-btn-buy shop-btn-sm" data-action="buy-emoji" data-emoji="${emoji}" data-price="${EMOJI_PACK_PRICE}">🪙 ${EMOJI_PACK_PRICE}</button>`
-      }
-    </div>`;
-  });
-  html += '</div>';
-
-  // Exclusive items — tabbed: Avatar, Neon Dash, Neon Bird
-  html += '<h3 class="shop-category-title">⭐ Exclusive</h3>';
-  html += `<div class="exclusive-tabs" style="display:flex;gap:0;margin-bottom:12px;">
-    <button class="exc-tab exc-tab-active" data-exc-tab="avatar" style="flex:1;padding:10px 0;border:1px solid rgba(168,85,247,0.3);background:rgba(168,85,247,0.15);color:#a855f7;font-weight:700;font-size:14px;cursor:pointer;border-radius:10px 0 0 10px;">Avatar</button>
-    <button class="exc-tab" data-exc-tab="dash" style="flex:1;padding:10px 0;border:1px solid rgba(168,85,247,0.15);background:rgba(255,255,255,0.03);color:var(--text-muted);font-weight:700;font-size:14px;cursor:pointer;border-radius:0;">Neon Dash</button>
-    <button class="exc-tab" data-exc-tab="bird" style="flex:1;padding:10px 0;border:1px solid rgba(168,85,247,0.15);background:rgba(255,255,255,0.03);color:var(--text-muted);font-weight:700;font-size:14px;cursor:pointer;border-radius:0 10px 10px 0;">Neon Bird</button>
-  </div>`;
-
-  // --- Avatar tab ---
-  const hasCornyAvatar = (u.unlockedEmojis || []).includes('corny');
-  html += '<div class="exc-panel" data-exc-panel="avatar"><div class="shop-items">';
-  CORNY_AVATAR_FLAVORS.forEach(flavor => {
-    if (hasCornyAvatar) {
-      const eq = u.avatar === flavor.id;
-      html += `<div class="shop-item ${eq ? 'equipped' : ''}">
-        <span class="shop-item-preview"><img src="${flavor.img}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;"></span>
-        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${flavor.name}</span>
-        ${eq ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-corny-avatar">Utrustad \u2713</button>'
-             : `<button class="shop-btn shop-btn-equip" data-action="equip-corny-avatar" data-id="${flavor.id}">Anv\u00e4nd</button>`}
-      </div>`;
-    } else {
-      html += `<div class="shop-item" style="opacity:0.5;">
-        <span class="shop-item-preview"><img src="${flavor.img}" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#1a1a2e;filter:grayscale(1);"></span>
-        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${flavor.name}</span>
-        <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt \u2b50</span>
-      </div>`;
-    }
-  });
-  html += '</div></div>';
-
-  // --- Neon Dash tab ---
-  html += '<div class="exc-panel" data-exc-panel="dash" style="display:none;"><div class="shop-items">';
-  ARROW_SKINS.filter(s => s.corny).forEach(skin => {
-    const imgSrc = skin.img || CORNY_IMAGE_URL;
-    const owned = (u.unlockedSkins || []).includes(skin.id);
-    const equipped = u.arrowSkin === skin.id;
-    if (owned) {
-      html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
-        <div class="skin-preview"><img src="${imgSrc}" style="width:56px;height:auto;object-fit:contain;filter:drop-shadow(0 0 6px ${skin.glow});"></div>
-        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}</span>
-        ${equipped
-          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-skin">Utrustad ✓</button>'
-          : `<button class="shop-btn shop-btn-equip" data-action="equip-skin" data-id="${skin.id}">Använd</button>`}
-      </div>`;
-    } else {
-      html += `<div class="shop-item" style="opacity:0.5;">
-        <div class="skin-preview"><img src="${imgSrc}" style="width:56px;height:auto;object-fit:contain;filter:grayscale(1) drop-shadow(0 0 6px #888);"></div>
-        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}</span>
-        <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
-      </div>`;
-    }
-  });
-  html += '</div></div>';
-
-  // --- Neon Bird tab ---
-  html += '<div class="exc-panel" data-exc-panel="bird" style="display:none;"><div class="shop-items">';
-  BIRD_SKINS.filter(s => s.corny).forEach(skin => {
-    const arrowSkin = ARROW_SKINS.find(a => a.id === skin.id);
-    const imgSrc = (arrowSkin && arrowSkin.img) || CORNY_IMAGE_URL;
-    const owned = (u.unlockedBirdSkins || []).includes(skin.id);
-    const equipped = u.birdSkin === skin.id;
-    if (owned) {
-      html += `<div class="shop-item ${equipped ? 'equipped' : ''}">
-        <div class="skin-preview"><img src="${imgSrc}" style="width:56px;height:auto;object-fit:contain;filter:drop-shadow(0 0 6px ${skin.glow});"></div>
-        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}</span>
-        ${equipped
-          ? '<button class="shop-btn shop-btn-equipped" data-action="unequip-bird-skin">Utrustad ✓</button>'
-          : `<button class="shop-btn shop-btn-equip" data-action="equip-bird-skin" data-id="${skin.id}">Använd</button>`}
-      </div>`;
-    } else {
-      html += `<div class="shop-item" style="opacity:0.5;">
-        <div class="skin-preview"><img src="${imgSrc}" style="width:56px;height:auto;object-fit:contain;filter:grayscale(1) drop-shadow(0 0 6px #888);"></div>
-        <span class="shop-item-name" style="font-weight:700;font-size:13px;">${skin.name}</span>
-        <span class="shop-btn" style="background:rgba(168,85,247,0.15);color:#a855f7;cursor:default;">Exklusivt ⭐</span>
-      </div>`;
-    }
-  });
-  html += '</div></div>';
-
-  grid.innerHTML = html;
-
-  // Tab switching for exclusive section
-  grid.querySelectorAll('.exc-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      const target = tab.dataset.excTab;
-      grid.querySelectorAll('.exc-tab').forEach(t => {
-        t.classList.remove('exc-tab-active');
-        t.style.background = 'rgba(255,255,255,0.03)';
-        t.style.color = 'var(--text-muted)';
-        t.style.borderColor = 'rgba(168,85,247,0.15)';
-      });
-      tab.classList.add('exc-tab-active');
-      tab.style.background = 'rgba(168,85,247,0.15)';
-      tab.style.color = '#a855f7';
-      tab.style.borderColor = 'rgba(168,85,247,0.3)';
-      grid.querySelectorAll('.exc-panel').forEach(p => {
-        p.style.display = p.dataset.excPanel === target ? '' : 'none';
-      });
-    });
-  });
-
-  // Event handlers
-  grid.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const action = btn.dataset.action;
-      const price = parseInt(btn.dataset.price) || 0;
-      const id = btn.dataset.id;
-      const emoji = btn.dataset.emoji;
-      const color = btn.dataset.color;
-
-      if (action.startsWith('buy-')) {
-        if (!await spendCoins(price)) { alert(`Inte tillräckligt med coins! Du behöver ${price} 🪙`); return; }
-        if (action === 'buy-color') {
-          const colors = [...(currentUserData.unlockedColors || []), id];
-          await updateUser({ unlockedColors: colors, nameColor: color });
-        }
-        if (action === 'buy-title') {
-          const titles = [...(currentUserData.unlockedTitles || []), id];
-          await updateUser({ unlockedTitles: titles, title: id });
-        }
-        if (action === 'buy-effect') {
-          const effects = [...(currentUserData.unlockedEffects || []), id];
-          await updateUser({ unlockedEffects: effects, nameEffect: id });
-        }
-        if (action === 'buy-emoji') {
-          const emojis = [...(currentUserData.unlockedEmojis || []), emoji];
-          await updateUser({ unlockedEmojis: emojis });
-        }
-        if (action === 'buy-skin') {
-          const skins = [...(currentUserData.unlockedSkins || []), id];
-          await updateUser({ unlockedSkins: skins, arrowSkin: id });
-        }
-        if (action === 'buy-bird-skin') {
-          const skins = [...(currentUserData.unlockedBirdSkins || []), id];
-          await updateUser({ unlockedBirdSkins: skins, birdSkin: id });
-        }
-        if (action === 'buy-car-skin') {
-          const skins = [...(currentUserData.unlockedCarSkins || []), id];
-          await updateUser({ unlockedCarSkins: skins, carSkin: id });
-        }
-      }
-      if (action === 'equip-corny-avatar') await updateUser({ avatar: id || 'corny' });
-      if (action === 'unequip-corny-avatar') await updateUser({ avatar: '\ud83d\ude00' });
-      if (action === 'equip-color') await updateUser({ nameColor: color });
-      if (action === 'unequip-color') await updateUser({ nameColor: null });
-      if (action === 'equip-title') await updateUser({ title: id });
-      if (action === 'unequip-title') await updateUser({ title: null });
-      if (action === 'equip-effect') await updateUser({ nameEffect: id });
-      if (action === 'unequip-effect') await updateUser({ nameEffect: null });
-      if (action === 'equip-skin') await updateUser({ arrowSkin: id });
-      if (action === 'unequip-skin') await updateUser({ arrowSkin: null });
-      if (action === 'equip-bird-skin') await updateUser({ birdSkin: id });
-      if (action === 'unequip-bird-skin') await updateUser({ birdSkin: null });
-      if (action === 'equip-car-skin') await updateUser({ carSkin: id });
-      if (action === 'unequip-car-skin') await updateUser({ carSkin: null });
-
-      renderShop(getCurrentUser());
-      renderHeaderAuth();
-    });
   });
 }

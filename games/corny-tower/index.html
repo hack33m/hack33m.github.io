@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Corny Tower</title>
+<title>Tower</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #1a9fcc; overflow: hidden; touch-action: none; -webkit-tap-highlight-color: transparent; }
+body { background: #f5f5f4; overflow: hidden; touch-action: none; -webkit-tap-highlight-color: transparent; }
 canvas { display: block; width: 100vw; height: 100vh; }
 </style>
 </head>
@@ -60,15 +60,20 @@ cornyImg.src = '../../images/corny.jpg';
 let cornyLoaded = false;
 cornyImg.onload = () => { cornyLoaded = true; };
 
-// Colors
+// Colors (flat minimalist palette)
 const COL = {
-  caramel: '#d4860a',
-  chocolate: '#5c3317',
-  cream: '#fff8e7',
-  caramelLight: '#f5b342',
-  bgTop: '#1a9fcc',
-  bgBot: '#1e3a5f'
+  bg: '#f5f5f4',
+  surface: '#ffffff',
+  surface2: '#e7e5e4',
+  line: '#d6d3d1',
+  ink: '#1c1917',
+  muted: '#78716c',
+  accent: '#2563eb',
+  block: '#ca8a04',       // yellow
+  blockAlt: '#daad4f'     // pale yellow tint, every other block
 };
+const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+function font(weight, size) { return weight + ' ' + Math.round(size) + 'px ' + FONT; }
 
 // Game constants
 const BLOCK_H = 30;
@@ -86,21 +91,10 @@ let perfectStreak = 0;
 let bonusScore = 0;
 let cameraY = 0;
 let targetCameraY = 0;
-let highscore = parseInt(localStorage.getItem('corny-tower-hi')) || 0;
+let highscore = parseInt(localStorage.getItem('corny-Tower-hi')) || 0;
 let perfectText = null; // {text, x, y, alpha, timer}
 let shakeTimer = 0;
 let shakeAmount = 0;
-
-// Create block texture pattern from corny image
-let blockPattern = null;
-function createBlockPattern() {
-  if (!cornyLoaded) return null;
-  if (blockPattern) return blockPattern;
-  try {
-    blockPattern = ctx.createPattern(cornyImg, 'repeat');
-    return blockPattern;
-  } catch(e) { return null; }
-}
 
 function startGame() {
   state = 'playing';
@@ -175,7 +169,7 @@ function dropBlock() {
     perfectStreak++;
     bonusScore += perfectStreak;
     perfectText = {
-      text: 'PERFEKT!',
+      text: 'Perfekt!',
       x: last.x + last.w / 2,
       y: last.y - BLOCK_H - 20,
       alpha: 1,
@@ -234,24 +228,37 @@ function gameOver() {
   const total = score + bonusScore;
   if (total > highscore) {
     highscore = total;
-    localStorage.setItem('corny-tower-hi', highscore);
+    localStorage.setItem('corny-Tower-hi', highscore);
   }
   // Send score to parent
   try {
-    window.parent.postMessage({ type: 'gameScore', game: 'corny-tower', score: total }, '*');
+    window.parent.postMessage({ type: 'gameScore', game: 'corny-Tower', score: total }, '*');
   } catch(e) {}
 }
 
 // Drawing functions
 function drawBg() {
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, COL.bgTop);
-  grad.addColorStop(1, COL.bgBot);
-  ctx.fillStyle = grad;
+  ctx.fillStyle = COL.bg;
   ctx.fillRect(0, 0, W, H);
 }
 
-function drawBlock(b, camY) {
+function drawButton(label, cx, y, w, h) {
+  ctx.beginPath();
+  ctx.roundRect(cx - w / 2, y, w, h, 10);
+  ctx.fillStyle = COL.accent;
+  ctx.fill();
+  ctx.font = font(600, Math.min(W * 0.055, 20));
+  ctx.fillStyle = COL.surface;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, cx, y + h / 2);
+}
+
+function blockColor(i) {
+  return i % 2 === 0 ? COL.block : COL.blockAlt;
+}
+
+function drawBlock(b, camY, fill) {
   const x = b.x;
   const y = b.y + camY;
   const w = b.w;
@@ -259,60 +266,21 @@ function drawBlock(b, camY) {
 
   if (y > H + 50 || y < -50) return;
 
-  ctx.save();
-
-  // Main block body with corny image texture
+  // Corny image clipped to the rounded block (flat fill until it has loaded), thin ink outline
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 4);
-
-  // Use corny image as texture if loaded
-  const pat = createBlockPattern();
-  if (pat) {
+  ctx.roundRect(x, y, w, h, 6);
+  if (cornyLoaded) {
     ctx.save();
     ctx.clip();
-    // Draw the image scaled to fit the block
     ctx.drawImage(cornyImg, x, y, w, h);
-    // Overlay with semi-transparent caramel for consistent look
-    ctx.fillStyle = 'rgba(212, 134, 10, 0.35)';
-    ctx.fillRect(x, y, w, h);
     ctx.restore();
   } else {
-    ctx.fillStyle = COL.caramel;
+    ctx.fillStyle = fill || COL.block;
     ctx.fill();
   }
-
-  // Chocolate border
-  ctx.strokeStyle = COL.chocolate;
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = COL.ink;
+  ctx.lineWidth = 1.5;
   ctx.stroke();
-
-  // Wrapper texture - horizontal lines
-  ctx.strokeStyle = 'rgba(92, 51, 23, 0.2)';
-  ctx.lineWidth = 1;
-  for (let ly = y + 6; ly < y + h - 2; ly += 8) {
-    ctx.beginPath();
-    ctx.moveTo(x + 3, ly);
-    ctx.lineTo(x + w - 3, ly);
-    ctx.stroke();
-  }
-
-  // Top highlight
-  ctx.beginPath();
-  ctx.moveTo(x + 4, y + 3);
-  ctx.lineTo(x + w - 4, y + 3);
-  ctx.strokeStyle = 'rgba(245, 179, 66, 0.5)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Bottom shadow
-  ctx.beginPath();
-  ctx.moveTo(x + 4, y + h - 2);
-  ctx.lineTo(x + w - 4, y + h - 2);
-  ctx.strokeStyle = 'rgba(92, 51, 23, 0.3)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.restore();
 }
 
 function drawFallingPiece(p, camY) {
@@ -322,15 +290,21 @@ function drawFallingPiece(p, camY) {
   ctx.translate(cx, cy);
   ctx.rotate(p.rot);
 
+  // Same look as a stacked block: Corny image when loaded, flat yellow otherwise
   ctx.beginPath();
-  ctx.roundRect(-p.w / 2, -p.h / 2, p.w, p.h, 3);
-  ctx.fillStyle = COL.caramel;
-  ctx.globalAlpha = 0.7;
-  ctx.fill();
-  ctx.strokeStyle = COL.chocolate;
+  ctx.roundRect(-p.w / 2, -p.h / 2, p.w, p.h, 6);
+  if (cornyLoaded) {
+    ctx.save();
+    ctx.clip();
+    ctx.drawImage(cornyImg, -p.w / 2, -p.h / 2, p.w, p.h);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = COL.block;
+    ctx.fill();
+  }
+  ctx.strokeStyle = COL.ink;
   ctx.lineWidth = 1.5;
   ctx.stroke();
-  ctx.globalAlpha = 1;
 
   ctx.restore();
 }
@@ -338,17 +312,23 @@ function drawFallingPiece(p, camY) {
 function drawMenu() {
   drawBg();
 
-  // Corny image
+  // Corny image (game content), flat with a 1px border, no shadow
   if (cornyLoaded) {
     const imgW = Math.min(W * 0.5, 180);
     const imgH = imgW * (cornyImg.height / cornyImg.width);
     const imgX = W / 2 - imgW / 2;
     const imgY = H * 0.12;
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.4)';
-    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.roundRect(imgX, imgY, imgW, imgH, 10);
+    ctx.clip();
     ctx.drawImage(cornyImg, imgX, imgY, imgW, imgH);
     ctx.restore();
+    ctx.beginPath();
+    ctx.roundRect(imgX + 0.5, imgY + 0.5, imgW - 1, imgH - 1, 10);
+    ctx.strokeStyle = COL.line;
+    ctx.lineWidth = 1;
+    ctx.stroke();
   }
 
   // Title
@@ -356,47 +336,25 @@ function drawMenu() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  ctx.font = 'bold ' + Math.min(W * 0.12, 56) + 'px Arial, sans-serif';
-  ctx.fillStyle = COL.chocolate;
-  ctx.fillText('CORNY TOWER', W / 2 + 2, H * 0.52 + 2);
-  ctx.fillStyle = COL.caramelLight;
-  ctx.fillText('CORNY TOWER', W / 2, H * 0.52);
+  ctx.font = font(700, Math.min(W * 0.11, 48));
+  ctx.fillStyle = COL.ink;
+  ctx.fillText('Tower', W / 2, H * 0.52);
 
   // Subtitle
-  ctx.font = Math.min(W * 0.05, 20) + 'px Arial, sans-serif';
-  ctx.fillStyle = COL.cream;
+  ctx.font = font(400, Math.min(W * 0.05, 18));
+  ctx.fillStyle = COL.muted;
   ctx.fillText('Stapla s\u00e5 h\u00f6gt du kan!', W / 2, H * 0.58);
 
   // Highscore
   if (highscore > 0) {
-    ctx.font = 'bold ' + Math.min(W * 0.045, 18) + 'px Arial, sans-serif';
-    ctx.fillStyle = COL.caramelLight;
+    ctx.font = font(600, Math.min(W * 0.045, 16));
+    ctx.fillStyle = COL.accent;
     ctx.fillText('B\u00e4sta: ' + highscore + ' po\u00e4ng', W / 2, H * 0.635);
   }
 
   // Play button
   const btnW = Math.min(W * 0.55, 220);
-  const btnH = 56;
-  const btnX = W / 2 - btnW / 2;
-  const btnY = H * 0.7;
-
-  ctx.beginPath();
-  ctx.roundRect(btnX, btnY, btnW, btnH, 14);
-  ctx.fillStyle = COL.caramel;
-  ctx.fill();
-  ctx.strokeStyle = COL.chocolate;
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  // Button highlight
-  ctx.beginPath();
-  ctx.roundRect(btnX + 3, btnY + 3, btnW - 6, btnH / 2 - 3, [11, 11, 0, 0]);
-  ctx.fillStyle = 'rgba(245, 179, 66, 0.35)';
-  ctx.fill();
-
-  ctx.font = 'bold ' + Math.min(W * 0.065, 26) + 'px Arial, sans-serif';
-  ctx.fillStyle = COL.cream;
-  ctx.fillText('SPELA', W / 2, btnY + btnH / 2);
+  drawButton('Spela', W / 2, H * 0.7, btnW, 52);
 
   ctx.restore();
 }
@@ -416,17 +374,26 @@ function drawPlaying() {
 
   const camY = cameraY;
 
+  // Ground line under the base block
+  const groundY = H - 20 + camY;
+  if (groundY < H + 2) {
+    ctx.fillStyle = COL.surface2;
+    ctx.fillRect(0, groundY, W, Math.max(0, H - groundY) + 20);
+    ctx.fillStyle = COL.line;
+    ctx.fillRect(0, groundY, W, 1);
+  }
+
   // Draw blocks
-  for (const b of blocks) {
-    drawBlock(b, camY);
+  for (let i = 0; i < blocks.length; i++) {
+    drawBlock(blocks[i], camY, blockColor(i));
   }
 
   // Draw current block
   if (currentBlock) {
-    drawBlock(currentBlock, camY);
+    drawBlock(currentBlock, camY, blockColor(blocks.length));
 
     // Drop guide line (subtle)
-    ctx.strokeStyle = 'rgba(245, 179, 66, 0.2)';
+    ctx.strokeStyle = COL.line;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -450,17 +417,15 @@ function drawPlaying() {
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.globalAlpha = perfectText.alpha;
+    ctx.globalAlpha = Math.max(0, perfectText.alpha);
     const s = perfectText.scale;
-    ctx.font = 'bold ' + Math.round(28 * s) + 'px Arial, sans-serif';
-    ctx.fillStyle = COL.chocolate;
-    ctx.fillText(perfectText.text, perfectText.x + 2, perfectText.y + cameraY + 2);
-    ctx.fillStyle = COL.caramelLight;
+    ctx.font = font(700, 26 * s);
+    ctx.fillStyle = COL.accent;
     ctx.fillText(perfectText.text, perfectText.x, perfectText.y + cameraY);
     if (perfectStreak > 1) {
-      ctx.font = 'bold 18px Arial, sans-serif';
-      ctx.fillStyle = COL.cream;
-      ctx.fillText('x' + perfectStreak + ' KOMBO!', perfectText.x, perfectText.y + cameraY + 30);
+      ctx.font = font(600, 16);
+      ctx.fillStyle = COL.ink;
+      ctx.fillText('x' + perfectStreak + ' kombo!', perfectText.x, perfectText.y + cameraY + 28);
     }
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -470,81 +435,71 @@ function drawPlaying() {
   ctx.save();
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.font = 'bold 24px Arial, sans-serif';
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillText('Po\u00e4ng: ' + (score + bonusScore), 17, 17);
-  ctx.fillStyle = COL.cream;
+  ctx.font = font(700, 22);
+  ctx.fillStyle = COL.ink;
   ctx.fillText('Po\u00e4ng: ' + (score + bonusScore), 15, 15);
 
-  ctx.font = '16px Arial, sans-serif';
-  ctx.fillStyle = 'rgba(255,248,231,0.7)';
-  ctx.fillText('Block: ' + score, 15, 44);
+  ctx.font = font(400, 15);
+  ctx.fillStyle = COL.muted;
+  ctx.fillText('Block: ' + score, 15, 43);
 
   // Highscore
   ctx.textAlign = 'right';
-  ctx.font = 'bold 16px Arial, sans-serif';
-  ctx.fillStyle = 'rgba(255,248,231,0.6)';
-  ctx.fillText('B\u00e4sta: ' + highscore, W - 15, 17);
+  ctx.font = font(600, 15);
+  ctx.fillStyle = COL.muted;
+  ctx.fillText('B\u00e4sta: ' + highscore, W - 15, 18);
   ctx.restore();
 }
 
 function drawGameOver() {
-  drawPlaying(); // Draw the tower behind
+  drawPlaying(); // Draw the Tower behind
 
-  // Overlay
-  ctx.fillStyle = 'rgba(30, 58, 95, 0.7)';
+  // Overlay backdrop
+  ctx.fillStyle = 'rgba(245, 245, 244, 0.92)';
   ctx.fillRect(0, 0, W, H);
+
+  // White panel
+  const panelW = Math.min(W - 32, 340);
+  const panelX = W / 2 - panelW / 2;
+  const panelY = H * 0.2;
+  const panelH = H * 0.6 - panelY + 56 + 24;
+  ctx.beginPath();
+  ctx.roundRect(panelX + 0.5, panelY + 0.5, panelW - 1, panelH - 1, 10);
+  ctx.fillStyle = COL.surface;
+  ctx.fill();
+  ctx.strokeStyle = COL.line;
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   // Game Over
-  ctx.font = 'bold ' + Math.min(W * 0.11, 48) + 'px Arial, sans-serif';
-  ctx.fillStyle = COL.chocolate;
-  ctx.fillText('SPELET SLUT', W / 2 + 2, H * 0.28 + 2);
-  ctx.fillStyle = COL.caramelLight;
-  ctx.fillText('SPELET SLUT', W / 2, H * 0.28);
+  ctx.font = font(700, Math.min(W * 0.09, 34));
+  ctx.fillStyle = COL.ink;
+  ctx.fillText('Spelet slut', W / 2, H * 0.28);
 
   // Score
   const total = score + bonusScore;
-  ctx.font = 'bold ' + Math.min(W * 0.08, 36) + 'px Arial, sans-serif';
-  ctx.fillStyle = COL.cream;
+  ctx.font = font(700, Math.min(W * 0.08, 32));
+  ctx.fillStyle = COL.accent;
   ctx.fillText(total + ' po\u00e4ng', W / 2, H * 0.38);
 
-  ctx.font = Math.min(W * 0.045, 18) + 'px Arial, sans-serif';
-  ctx.fillStyle = 'rgba(255,248,231,0.7)';
+  ctx.font = font(400, Math.min(W * 0.045, 16));
+  ctx.fillStyle = COL.muted;
   ctx.fillText(score + ' block + ' + bonusScore + ' bonus', W / 2, H * 0.44);
 
   // New highscore
   if (total >= highscore && total > 0) {
-    ctx.font = 'bold ' + Math.min(W * 0.055, 22) + 'px Arial, sans-serif';
-    ctx.fillStyle = COL.caramelLight;
-    ctx.fillText('NYTT REKORD!', W / 2, H * 0.51);
+    ctx.font = font(600, Math.min(W * 0.05, 18));
+    ctx.fillStyle = COL.ink;
+    ctx.fillText('Nytt rekord!', W / 2, H * 0.51);
   }
 
   // Restart button
   const btnW = Math.min(W * 0.55, 220);
-  const btnH = 56;
-  const btnX = W / 2 - btnW / 2;
-  const btnY = H * 0.6;
-
-  ctx.beginPath();
-  ctx.roundRect(btnX, btnY, btnW, btnH, 14);
-  ctx.fillStyle = COL.caramel;
-  ctx.fill();
-  ctx.strokeStyle = COL.chocolate;
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.roundRect(btnX + 3, btnY + 3, btnW - 6, btnH / 2 - 3, [11, 11, 0, 0]);
-  ctx.fillStyle = 'rgba(245, 179, 66, 0.35)';
-  ctx.fill();
-
-  ctx.font = 'bold ' + Math.min(W * 0.065, 26) + 'px Arial, sans-serif';
-  ctx.fillStyle = COL.cream;
-  ctx.fillText('SPELA IGEN', W / 2, btnY + btnH / 2);
+  drawButton('Spela igen', W / 2, H * 0.6, btnW, 52);
 
   ctx.restore();
 }

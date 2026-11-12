@@ -1,15 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1a0533"/>
-      <stop offset="100%" style="stop-color:#3b1f6e"/>
-    </linearGradient>
-  </defs>
-  <rect fill="url(#bg)" width="400" height="300"/>
-  <rect x="120" y="60" width="50" height="50" rx="8" fill="#a855f7" opacity="0.8"/>
-  <rect x="180" y="60" width="50" height="50" rx="8" fill="#6366f1" opacity="0.8"/>
-  <rect x="150" y="120" width="50" height="50" rx="8" fill="#ec4899" opacity="0.8"/>
-  <rect x="210" y="120" width="50" height="50" rx="8" fill="#14b8a6" opacity="0.8"/>
-  <text x="200" y="230" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="28" fill="#fff">Puzzle Blocks</text>
-  <text x="200" y="265" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#c084fc">PUSSEL</text>
+  <rect width="400" height="300" fill="#efe9fd"/>
+  <rect x="188" y="56" width="56" height="56" rx="8" fill="#2563eb"/>
+  <rect x="220" y="120" width="56" height="56" rx="8" fill="#0d9488"/>
+  <rect x="124" y="56" width="56" height="56" rx="8" fill="#7c3aed"/>
+  <circle cx="184" cy="84" r="10" fill="#7c3aed"/>
+  <rect x="156" y="120" width="56" height="56" rx="8" fill="#db2777"/>
+  <circle cx="216" cy="148" r="10" fill="#db2777"/>
 </svg>

@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
-<title>Neon Tetris</title>
+<title>Tetris</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a1a;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+body{background:#f5f5f4;color:#1c1917;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
 canvas{display:block;width:100vw;height:100vh}
 </style>
 </head>
@@ -49,17 +49,18 @@ resize();
 // --- Constants ---
 const COLS=10,ROWS=20;
 const COLORS={
-  I:'#00d4ff',
-  O:'#ffe600',
-  T:'#a855f7',
-  S:'#39ff14',
-  Z:'#ff3344',
-  J:'#00d4ff',
-  L:'#ff6a00'
+  I:'#2563eb', // accent
+  O:'#ca8a04', // yellow
+  T:'#7c3aed', // purple
+  S:'#16a34a', // green
+  Z:'#dc2626', // red
+  J:'#0d9488', // teal
+  L:'#ea580c'  // orange
 };
-// Unique J color - make it a deeper blue to distinguish from I
-const J_COLOR='#4488ff';
-COLORS.J=J_COLOR;
+// Palette (flat minimalist)
+const C_BG='#f5f5f4',C_SURFACE='#ffffff',C_SURFACE2='#e7e5e4',C_LINE='#d6d3d1';
+const C_INK='#1c1917',C_MUTED='#78716c',C_ACCENT='#2563eb',C_RED='#dc2626',C_GREEN='#16a34a';
+const FONT="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
 
 const SHAPES={
   I:[[0,0],[1,0],[2,0],[3,0]],
@@ -188,8 +189,8 @@ function checkLines(){
     const oy=getOffsetY();
     for(const r of clearingRows){
       for(let c=0;c<COLS;c++){
-        const color=COLORS[board[r][c]]||'#fff';
-        for(let i=0;i<6;i++){
+        const color=COLORS[board[r][c]]||C_MUTED;
+        for(let i=0;i<2;i++){
           particles.push({
             x:ox+(c+0.5)*cs,
             y:oy+(r+0.5)*cs,
@@ -274,24 +275,16 @@ function getOffsetY(){
   return Math.floor((H-cs*ROWS)/2);
 }
 
-function drawCell(x,y,color,alpha,cs,ox,oy,glow){
+function drawCell(x,y,color,alpha,cs,ox,oy){
   const px=ox+x*cs;
   const py=oy+y*cs;
   const pad=1;
   ctx.save();
   ctx.globalAlpha=alpha;
-  if(glow){
-    ctx.shadowColor=color;
-    ctx.shadowBlur=12;
-  }
   ctx.fillStyle=color;
   ctx.beginPath();
-  ctx.roundRect(px+pad,py+pad,cs-pad*2,cs-pad*2,[3]);
+  ctx.roundRect(px+pad,py+pad,cs-pad*2,cs-pad*2,[Math.max(2,Math.min(6,cs*0.2))]);
   ctx.fill();
-  // inner highlight
-  ctx.globalAlpha=alpha*0.3;
-  ctx.fillStyle='#fff';
-  ctx.fillRect(px+pad+2,py+pad+2,cs-pad*2-4,3);
   ctx.restore();
 }
 
@@ -301,12 +294,12 @@ function drawBoard(){
   const oy=getOffsetY();
 
   // Board background
-  ctx.fillStyle='rgba(10,10,30,0.85)';
+  ctx.fillStyle=C_SURFACE;
   ctx.fillRect(ox-1,oy-1,cs*COLS+2,cs*ROWS+2);
 
   // Grid lines
-  ctx.strokeStyle='rgba(100,100,150,0.1)';
-  ctx.lineWidth=0.5;
+  ctx.strokeStyle=C_SURFACE2;
+  ctx.lineWidth=1;
   for(let r=0;r<=ROWS;r++){
     ctx.beginPath();ctx.moveTo(ox,oy+r*cs);ctx.lineTo(ox+COLS*cs,oy+r*cs);ctx.stroke();
   }
@@ -314,14 +307,10 @@ function drawBoard(){
     ctx.beginPath();ctx.moveTo(ox+c*cs,oy);ctx.lineTo(ox+c*cs,oy+ROWS*cs);ctx.stroke();
   }
 
-  // Board border glow
-  ctx.save();
-  ctx.shadowColor='#a855f7';
-  ctx.shadowBlur=15;
-  ctx.strokeStyle='#a855f7';
-  ctx.lineWidth=2;
+  // Board border
+  ctx.strokeStyle=C_LINE;
+  ctx.lineWidth=1;
   ctx.strokeRect(ox-1,oy-1,cs*COLS+2,cs*ROWS+2);
-  ctx.restore();
 
   // Placed blocks
   for(let r=0;r<ROWS;r++){
@@ -329,7 +318,7 @@ function drawBoard(){
     for(let c=0;c<COLS;c++){
       if(board[r][c]){
         const alpha=clearing?Math.max(0,clearAnim/0.4):1;
-        drawCell(c,r,COLORS[board[r][c]],alpha,cs,ox,oy,!clearing);
+        drawCell(c,r,COLORS[board[r][c]],alpha,cs,ox,oy);
       }
     }
   }
@@ -340,7 +329,7 @@ function drawBoard(){
   const gy=getGhostY();
   if(gy!==current.y){
     for(const c of current.cells){
-      drawCell(current.x+c[0],gy+c[1],COLORS[current.type],0.2,cs,ox,oy,false);
+      drawCell(current.x+c[0],gy+c[1],COLORS[current.type],0.2,cs,ox,oy);
     }
   }
 
@@ -348,7 +337,7 @@ function drawBoard(){
   for(const c of current.cells){
     const py=current.y+c[1];
     if(py>=0){
-      drawCell(current.x+c[0],py,COLORS[current.type],1,cs,ox,oy,true);
+      drawCell(current.x+c[0],py,COLORS[current.type],1,cs,ox,oy);
     }
   }
 }
@@ -360,15 +349,15 @@ function drawNextPiece(){
   const nx=ox+COLS*cs+cs*0.8;
   const ny=oy;
 
-  ctx.fillStyle='#c8c8ff';
-  ctx.font=`bold ${Math.round(cs*0.55)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillStyle=C_MUTED;
+  ctx.font=`600 ${Math.round(cs*0.55)}px ${FONT}`;
   ctx.textAlign='left';
-  ctx.fillText('NASTA',nx,ny-cs*0.3);
+  ctx.fillText('Nästa',nx,ny-cs*0.3);
 
   if(!next)return;
   const scs=cs*0.75;
   for(const c of next.cells){
-    drawCell(c[0],c[1],COLORS[next.type],1,scs,nx,ny,true);
+    drawCell(c[0],c[1],COLORS[next.type],1,scs,nx,ny);
   }
 }
 
@@ -381,46 +370,46 @@ function drawHUD(){
 
   ctx.textAlign='left';
   const fs=Math.round(cs*0.5);
-  ctx.font=`bold ${fs}px "Segoe UI",Arial,sans-serif`;
+  const labelFont=`600 ${fs}px ${FONT}`;
+  const valueFont=`700 ${Math.round(fs*1.2)}px ${FONT}`;
 
   // Score
-  ctx.fillStyle='#888';
-  ctx.fillText('POANG',nx,sy);
-  ctx.fillStyle='#00d4ff';
-  ctx.font=`bold ${Math.round(fs*1.2)}px "Segoe UI",Arial,sans-serif`;
+  ctx.font=labelFont;
+  ctx.fillStyle=C_MUTED;
+  ctx.fillText('Poäng',nx,sy);
+  ctx.fillStyle=C_ACCENT;
+  ctx.font=valueFont;
   ctx.fillText(score.toLocaleString(),nx,sy+fs*1.4);
 
   // Lines
-  ctx.fillStyle='#888';
-  ctx.font=`bold ${fs}px "Segoe UI",Arial,sans-serif`;
-  ctx.fillText('RADER',nx,sy+fs*3.5);
-  ctx.fillStyle='#39ff14';
-  ctx.font=`bold ${Math.round(fs*1.2)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillStyle=C_MUTED;
+  ctx.font=labelFont;
+  ctx.fillText('Rader',nx,sy+fs*3.5);
+  ctx.fillStyle=C_INK;
+  ctx.font=valueFont;
   ctx.fillText(''+lines,nx,sy+fs*4.9);
 
   // Level
-  ctx.fillStyle='#888';
-  ctx.font=`bold ${fs}px "Segoe UI",Arial,sans-serif`;
-  ctx.fillText('NIVA',nx,sy+fs*7);
-  ctx.fillStyle='#a855f7';
-  ctx.font=`bold ${Math.round(fs*1.2)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillStyle=C_MUTED;
+  ctx.font=labelFont;
+  ctx.fillText('Nivå',nx,sy+fs*7);
+  ctx.fillStyle=C_INK;
+  ctx.font=valueFont;
   ctx.fillText(''+level,nx,sy+fs*8.4);
 
   // Hi Score
-  ctx.fillStyle='#888';
-  ctx.font=`bold ${fs}px "Segoe UI",Arial,sans-serif`;
-  ctx.fillText('BAST',nx,sy+fs*10.5);
-  ctx.fillStyle='#ffe600';
-  ctx.font=`bold ${Math.round(fs*1.2)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillStyle=C_MUTED;
+  ctx.font=labelFont;
+  ctx.fillText('Bäst',nx,sy+fs*10.5);
+  ctx.fillStyle=C_INK;
+  ctx.font=valueFont;
   ctx.fillText(hiScore.toLocaleString(),nx,sy+fs*11.9);
 }
 
 function drawParticles(){
   for(const p of particles){
     ctx.save();
-    ctx.globalAlpha=p.life/p.maxLife;
-    ctx.shadowColor=p.color;
-    ctx.shadowBlur=8;
+    ctx.globalAlpha=Math.max(0,p.life/p.maxLife);
     ctx.fillStyle=p.color;
     ctx.beginPath();
     ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
@@ -430,7 +419,7 @@ function drawParticles(){
 }
 
 function drawMenu(){
-  ctx.fillStyle='#0a0a1a';
+  ctx.fillStyle=C_BG;
   ctx.fillRect(0,0,W,H);
 
   const cx=W/2,cy=H/2;
@@ -439,34 +428,21 @@ function drawMenu(){
   ctx.save();
   ctx.textAlign='center';
   ctx.textBaseline='middle';
-
-  // Glow
-  ctx.shadowColor='#00d4ff';
-  ctx.shadowBlur=30;
-  ctx.fillStyle='#00d4ff';
-  ctx.font=`bold ${Math.min(W*0.12,72)}px "Segoe UI",Arial,sans-serif`;
-  ctx.fillText('NEON',cx,cy-H*0.12);
-  ctx.shadowColor='#ff2d95';
-  ctx.fillStyle='#ff2d95';
-  ctx.fillText('TETRIS',cx,cy-H*0.02);
+  ctx.fillStyle=C_INK;
+  ctx.font=`700 ${Math.min(W*0.12,72)}px ${FONT}`;
+  ctx.fillText('Tetris',cx,cy-H*0.08);
   ctx.restore();
 
-  // Draw some decorative tetrominos
-  const t=gameTime*0.5;
+  // Small static row of blocks under the title
   ctx.save();
-  ctx.globalAlpha=0.15;
-  const decoSize=Math.min(W,H)*0.04;
-  for(let i=0;i<7;i++){
-    const type=TYPES[i];
-    const angle=t+i*0.9;
-    const dx=cx+Math.cos(angle)*W*0.3;
-    const dy=cy+Math.sin(angle)*H*0.35;
-    ctx.fillStyle=COLORS[type];
-    ctx.shadowColor=COLORS[type];
-    ctx.shadowBlur=15;
-    for(const c of SHAPES[type]){
-      ctx.fillRect(dx+c[0]*decoSize,dy+c[1]*decoSize,decoSize-2,decoSize-2);
-    }
+  const dot=Math.max(10,Math.min(W,H)*0.03);
+  const gap=dot*0.4;
+  const rowW=TYPES.length*dot+(TYPES.length-1)*gap;
+  for(let i=0;i<TYPES.length;i++){
+    ctx.fillStyle=COLORS[TYPES[i]];
+    ctx.beginPath();
+    ctx.roundRect(cx-rowW/2+i*(dot+gap),cy-H*0.08+Math.min(W*0.12,72)*0.6,dot,dot,[3]);
+    ctx.fill();
   }
   ctx.restore();
 
@@ -474,36 +450,30 @@ function drawMenu(){
   ctx.save();
   const bw=Math.min(W*0.5,220),bh=55;
   const bx=cx-bw/2,by=cy+H*0.1;
-  ctx.shadowColor='#39ff14';
-  ctx.shadowBlur=20;
-  ctx.strokeStyle='#39ff14';
-  ctx.lineWidth=2;
+  ctx.fillStyle=C_ACCENT;
   ctx.beginPath();
-  ctx.roundRect(bx,by,bw,bh,[12]);
-  ctx.stroke();
-  ctx.fillStyle='rgba(57,255,20,0.1)';
+  ctx.roundRect(bx,by,bw,bh,[10]);
   ctx.fill();
-  ctx.shadowBlur=0;
-  ctx.fillStyle='#39ff14';
-  ctx.font=`bold ${Math.min(W*0.05,24)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillStyle=C_SURFACE;
+  ctx.font=`600 ${Math.min(W*0.05,24)}px ${FONT}`;
   ctx.textAlign='center';
   ctx.textBaseline='middle';
-  ctx.fillText('SPELA',cx,by+bh/2);
+  ctx.fillText('Spela',cx,by+bh/2);
   ctx.restore();
 
   // High score
   if(hiScore>0){
-    ctx.fillStyle='#ffe600';
-    ctx.font=`bold ${Math.min(W*0.035,18)}px "Segoe UI",Arial,sans-serif`;
+    ctx.fillStyle=C_INK;
+    ctx.font=`600 ${Math.min(W*0.035,18)}px ${FONT}`;
     ctx.textAlign='center';
-    ctx.fillText('BASTA: '+hiScore.toLocaleString(),cx,by+bh+40);
+    ctx.fillText('Bästa: '+hiScore.toLocaleString(),cx,by+bh+40);
   }
 
   // Controls hint
-  ctx.fillStyle='#555';
-  ctx.font=`${Math.min(W*0.028,14)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillStyle=C_MUTED;
+  ctx.font=`400 ${Math.min(W*0.028,14)}px ${FONT}`;
   ctx.textAlign='center';
-  ctx.fillText('Piltangenter / WASD for att styra, Mellanslag for att sla ner',cx,H-30);
+  ctx.fillText('Piltangenter / WASD för att styra, mellanslag för att släppa',cx,H-30);
 
   // Store button rect for click detection
   drawMenu._btn={x:bx,y:by,w:bw,h:bh};
@@ -511,50 +481,54 @@ function drawMenu(){
 
 function drawGameOver(){
   // Dim overlay
-  ctx.fillStyle='rgba(10,10,26,0.8)';
+  ctx.fillStyle='rgba(245,245,244,0.92)';
   ctx.fillRect(0,0,W,H);
 
   const cx=W/2,cy=H/2;
+
+  // Panel
+  const bw=Math.min(W*0.5,220),bh=50;
+  const bx=cx-bw/2,by=cy+70;
+  const pw=Math.min(W-32,340);
+  const pTop=cy-110,pBot=by+bh+24;
+  ctx.save();
+  ctx.fillStyle=C_SURFACE;
+  ctx.strokeStyle=C_LINE;
+  ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.roundRect(cx-pw/2,pTop,pw,pBot-pTop,[10]);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
   ctx.textAlign='center';
   ctx.textBaseline='middle';
 
-  ctx.save();
-  ctx.shadowColor='#ff3344';
-  ctx.shadowBlur=25;
-  ctx.fillStyle='#ff3344';
-  ctx.font=`bold ${Math.min(W*0.1,56)}px "Segoe UI",Arial,sans-serif`;
-  ctx.fillText('SPELET SLUT',cx,cy-60);
-  ctx.restore();
+  ctx.fillStyle=C_RED;
+  ctx.font=`700 ${Math.min(W*0.08,40)}px ${FONT}`;
+  ctx.fillText('Spelet slut',cx,cy-60);
 
-  ctx.fillStyle='#fff';
-  ctx.font=`bold ${Math.min(W*0.05,28)}px "Segoe UI",Arial,sans-serif`;
-  ctx.fillText('POANG: '+score.toLocaleString(),cx,cy);
+  ctx.fillStyle=C_INK;
+  ctx.font=`700 ${Math.min(W*0.05,28)}px ${FONT}`;
+  ctx.fillText('Poäng: '+score.toLocaleString(),cx,cy);
 
   if(score>=hiScore&&score>0){
-    ctx.fillStyle='#ffe600';
-    ctx.font=`bold ${Math.min(W*0.04,20)}px "Segoe UI",Arial,sans-serif`;
-    ctx.fillText('NYTT REKORD!',cx,cy+35);
+    ctx.fillStyle=C_GREEN;
+    ctx.font=`600 ${Math.min(W*0.04,20)}px ${FONT}`;
+    ctx.fillText('Nytt rekord!',cx,cy+35);
   }
 
   // Restart button
-  const bw=Math.min(W*0.5,220),bh=50;
-  const bx=cx-bw/2,by=cy+70;
   ctx.save();
-  ctx.shadowColor='#39ff14';
-  ctx.shadowBlur=15;
-  ctx.strokeStyle='#39ff14';
-  ctx.lineWidth=2;
+  ctx.fillStyle=C_ACCENT;
   ctx.beginPath();
-  ctx.roundRect(bx,by,bw,bh,[12]);
-  ctx.stroke();
-  ctx.fillStyle='rgba(57,255,20,0.1)';
+  ctx.roundRect(bx,by,bw,bh,[10]);
   ctx.fill();
-  ctx.shadowBlur=0;
-  ctx.fillStyle='#39ff14';
-  ctx.font=`bold ${Math.min(W*0.045,22)}px "Segoe UI",Arial,sans-serif`;
+  ctx.fillStyle=C_SURFACE;
+  ctx.font=`600 ${Math.min(W*0.045,22)}px ${FONT}`;
   ctx.textAlign='center';
   ctx.textBaseline='middle';
-  ctx.fillText('SPELA IGEN',cx,by+bh/2);
+  ctx.fillText('Spela igen',cx,by+bh/2);
   ctx.restore();
 
   drawGameOver._btn={x:bx,y:by,w:bw,h:bh};
@@ -665,7 +639,7 @@ function update(dt){
 // --- Render ---
 function render(){
   ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#0a0a1a';
+  ctx.fillStyle=C_BG;
   ctx.fillRect(0,0,W,H);
 
   if(state==='menu'){

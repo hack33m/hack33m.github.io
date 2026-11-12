@@ -1,10 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
-  <rect width="400" height="300" fill="#0a0a1a"/>
-  <rect x="160" y="80" width="30" height="30" rx="4" fill="#00d4ff"/><rect x="190" y="80" width="30" height="30" rx="4" fill="#00d4ff"/>
-  <rect x="190" y="110" width="30" height="30" rx="4" fill="#00d4ff"/><rect x="220" y="110" width="30" height="30" rx="4" fill="#00d4ff"/>
-  <rect x="130" y="170" width="30" height="30" rx="4" fill="#a855f7"/><rect x="160" y="170" width="30" height="30" rx="4" fill="#a855f7"/>
-  <rect x="190" y="170" width="30" height="30" rx="4" fill="#a855f7"/><rect x="160" y="200" width="30" height="30" rx="4" fill="#a855f7"/>
-  <rect x="220" y="200" width="30" height="30" rx="4" fill="#39ff14"/><rect x="250" y="200" width="30" height="30" rx="4" fill="#39ff14"/>
-  <rect x="220" y="230" width="30" height="30" rx="4" fill="#39ff14"/><rect x="250" y="230" width="30" height="30" rx="4" fill="#39ff14"/>
-  <text x="200" y="45" text-anchor="middle" font-family="Segoe UI" font-size="30" font-weight="bold" fill="#00d4ff">NEON TETRIS</text>
+  <rect width="400" height="300" fill="#efe9fd"/>
+  <!-- Well -->
+  <rect x="127" y="22" width="146" height="192" fill="#ffffff"/>
+  <path d="M126,22 V215 H274 V22" fill="none" stroke="#1c1917" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Stack -->
+  <rect x="129" y="190" width="22" height="22" rx="4" fill="#0d9488"/>
+  <rect x="153" y="190" width="22" height="22" rx="4" fill="#0d9488"/>
+  <rect x="177" y="190" width="22" height="22" rx="4" fill="#ea580c"/>
+  <rect x="201" y="190" width="22" height="22" rx="4" fill="#ea580c"/>
+  <rect x="249" y="190" width="22" height="22" rx="4" fill="#2563eb"/>
+  <rect x="129" y="166" width="22" height="22" rx="4" fill="#dc2626"/>
+  <rect x="153" y="166" width="22" height="22" rx="4" fill="#dc2626"/>
+  <rect x="177" y="166" width="22" height="22" rx="4" fill="#ca8a04"/>
+  <rect x="249" y="166" width="22" height="22" rx="4" fill="#2563eb"/>
+  <rect x="129" y="142" width="22" height="22" rx="4" fill="#16a34a"/>
+  <rect x="249" y="142" width="22" height="22" rx="4" fill="#2563eb"/>
+  <!-- Falling piece -->
+  <rect x="225" y="30" width="22" height="22" rx="4" fill="#7c3aed"/>
+  <rect x="225" y="54" width="22" height="22" rx="4" fill="#7c3aed"/>
+  <rect x="225" y="78" width="22" height="22" rx="4" fill="#7c3aed"/>
+  <rect x="201" y="54" width="22" height="22" rx="4" fill="#7c3aed"/>
 </svg>

@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neon Drift</title>
+  <title>Drift</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
+      color: #1c1917;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -55,35 +56,44 @@
   const W = () => window.innerWidth;
   const H = () => window.innerHeight;
 
-  // --- Colors ---
-  const CYAN = '#00d4ff';
-  const PINK = '#ff2d95';
-  const PURPLE = '#a855f7';
-  const GREEN = '#39ff14';
-  const ORANGE = '#ff6a00';
-  const BG = '#0a0a1a';
+  // --- Colors (flat minimalist palette) ---
+  const BG = '#f5f5f4';
+  const SURFACE = '#ffffff';
+  const SURFACE2 = '#e7e5e4';
+  const LINE = '#d6d3d1';
+  const INK = '#1c1917';
+  const MUTED = '#78716c';
+  const ACCENT = '#2563eb';
+  const RED = '#dc2626';
+  const GREEN = '#16a34a';
+  const YELLOW = '#ca8a04';
+  const ORANGE = '#ea580c';
+  const PURPLE = '#7c3aed';
+  const TEAL = '#0d9488';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
-  const NEON_COLORS = [CYAN, PINK, PURPLE, GREEN, ORANGE];
+  const OBSTACLE_COLORS = [RED, ORANGE, PURPLE, TEAL, YELLOW];
 
   // --- Skin System ---
+  // Every skin id is kept; colours are toned down to the palette. glow/glowStyle are no longer drawn.
   const SKIN_DATA = {
-    default:  { primary: '#00d4ff', secondary: '#ffffff', trail: '#00d4ff', glow: '#00d4ff', glowStyle: 'normal' },
-    crimson:  { primary: '#ff2d55', secondary: '#ffaacc', trail: '#ff2d55', glow: '#ff2d55', glowStyle: 'normal' },
-    emerald:  { primary: '#39ff14', secondary: '#ccffcc', trail: '#39ff14', glow: '#39ff14', glowStyle: 'normal' },
-    sunset:   { primary: '#ff6a00', secondary: '#ffdd44', trail: '#ff8c00', glow: '#ff6a00', glowStyle: 'normal' },
-    phantom:  { primary: '#a855f7', secondary: '#e0ccff', trail: '#a855f7', glow: '#a855f7', glowStyle: 'pulse' },
-    arctic:   { primary: '#88eeff', secondary: '#ffffff', trail: '#aaeeff', glow: '#88eeff', glowStyle: 'frost' },
-    golden:   { primary: '#fbbf24', secondary: '#fff8e0', trail: '#fbbf24', glow: '#fbbf24', glowStyle: 'normal' },
-    inferno:  { primary: '#ff4400', secondary: '#ff8800', trail: '#ff2200', glow: '#ff4400', glowStyle: 'flicker' },
-    void:     { primary: '#1a0033', secondary: '#6600cc', trail: '#3300aa', glow: '#6600cc', glowStyle: 'reverse' },
+    default:  { primary: '#2563eb', secondary: '#ffffff', trail: '#2563eb', glow: '#2563eb', glowStyle: 'normal' },
+    crimson:  { primary: '#dc2626', secondary: '#fecaca', trail: '#dc2626', glow: '#dc2626', glowStyle: 'normal' },
+    emerald:  { primary: '#16a34a', secondary: '#bbf7d0', trail: '#16a34a', glow: '#16a34a', glowStyle: 'normal' },
+    sunset:   { primary: '#ea580c', secondary: '#fde68a', trail: '#ea580c', glow: '#ea580c', glowStyle: 'normal' },
+    phantom:  { primary: '#7c3aed', secondary: '#ddd6fe', trail: '#7c3aed', glow: '#7c3aed', glowStyle: 'pulse' },
+    arctic:   { primary: '#0d9488', secondary: '#ffffff', trail: '#5eead4', glow: '#0d9488', glowStyle: 'frost' },
+    golden:   { primary: '#ca8a04', secondary: '#fef3c7', trail: '#ca8a04', glow: '#ca8a04', glowStyle: 'normal' },
+    inferno:  { primary: '#c2410c', secondary: '#fdba74', trail: '#dc2626', glow: '#c2410c', glowStyle: 'flicker' },
+    void:     { primary: '#1c1917', secondary: '#a8a29e', trail: '#57534e', glow: '#1c1917', glowStyle: 'reverse' },
     rainbow:  { primary: 'rainbow', secondary: '#ffffff', trail: 'rainbow', glow: 'rainbow', glowStyle: 'rainbow' },
     'corny-choklad':  { primary: '#6B3410', secondary: '#D4A574', trail: '#8B4513', glow: '#A0522D', glowStyle: 'normal' },
     'corny-mork':     { primary: '#3D1C00', secondary: '#8B6914', trail: '#5C2E00', glow: '#5C2E00', glowStyle: 'normal' },
-    'corny-vit':      { primary: '#FFF8DC', secondary: '#FFD700', trail: '#FAEBD7', glow: '#FFD700', glowStyle: 'normal' },
-    'corny-kokos':    { primary: '#F5F5DC', secondary: '#8B7355', trail: '#FFDEAD', glow: '#DEB887', glowStyle: 'normal' },
-    'corny-banan':    { primary: '#FFD700', secondary: '#8B6914', trail: '#FFA500', glow: '#FFD700', glowStyle: 'normal' },
+    'corny-vit':      { primary: '#FFF8DC', secondary: '#ca8a04', trail: '#d6d3d1', glow: '#ca8a04', glowStyle: 'normal' },
+    'corny-kokos':    { primary: '#F5F5DC', secondary: '#8B7355', trail: '#d6d3d1', glow: '#DEB887', glowStyle: 'normal' },
+    'corny-banan':    { primary: '#eab308', secondary: '#8B6914', trail: '#ca8a04', glow: '#eab308', glowStyle: 'normal' },
     'corny-jordnot':  { primary: '#C4A265', secondary: '#8B6914', trail: '#B8860B', glow: '#DAA520', glowStyle: 'normal' },
-    'corny-jordgubb': { primary: '#FF69B4', secondary: '#FFF0F5', trail: '#FF1493', glow: '#FF69B4', glowStyle: 'normal' },
+    'corny-jordgubb': { primary: '#db2777', secondary: '#fce7f3', trail: '#db2777', glow: '#db2777', glowStyle: 'normal' },
     'corny-brownie':  { primary: '#4A2000', secondary: '#A0522D', trail: '#7B3F00', glow: '#8B4513', glowStyle: 'normal' },
     'corny-karamell': { primary: '#DAA520', secondary: '#FFE4B5', trail: '#D4A574', glow: '#DAA520', glowStyle: 'normal' },
   };
@@ -110,10 +120,10 @@
   loadCornyImg('corny-brownie', 'corny-brownie.png');
   loadCornyImg('corny-karamell', 'corny-karamell.png');
 
-  let skinPrimary = CYAN;
+  let skinPrimary = ACCENT;
   let skinSecondary = '#ffffff';
-  let skinTrail = CYAN;
-  let skinGlow = CYAN;
+  let skinTrail = ACCENT;
+  let skinGlow = ACCENT;
   let skinGlowStyle = 'normal';
 
   let _equippedSkinId = 'default';
@@ -132,10 +142,10 @@
     skinGlowStyle = skin.glowStyle;
     if (skin.primary === 'rainbow') {
       const hue = (Date.now() / 15) % 360;
-      skinPrimary = `hsl(${hue}, 100%, 55%)`;
+      skinPrimary = `hsl(${hue}, 65%, 48%)`;
       skinSecondary = '#ffffff';
-      skinTrail = `hsl(${(hue + 60) % 360}, 100%, 55%)`;
-      skinGlow = `hsl(${hue}, 100%, 55%)`;
+      skinTrail = `hsl(${(hue + 60) % 360}, 65%, 48%)`;
+      skinGlow = `hsl(${hue}, 65%, 48%)`;
     } else {
       skinPrimary = skin.primary;
       skinSecondary = skin.secondary;
@@ -262,7 +272,7 @@
     const ox = seg.x + lane;
     const oy = segIdx * ROAD_SEGMENT_LEN;
     const type = Math.random() < 0.5 ? 'car' : 'barrier';
-    const color = NEON_COLORS[Math.floor(Math.random() * NEON_COLORS.length)];
+    const color = OBSTACLE_COLORS[Math.floor(Math.random() * OBSTACLE_COLORS.length)];
     obstacles.push({ x: ox, y: oy, type, color, w: type === 'car' ? 22 : 40, h: type === 'car' ? 40 : 16 });
   }
 
@@ -283,37 +293,6 @@
       });
     }
   }
-
-  // --- Stars (background) ---
-  let stars = [];
-  function initStars() {
-    stars = [];
-    for (let i = 0; i < 80; i++) {
-      stars.push({
-        x: Math.random() * W(),
-        y: Math.random() * H(),
-        size: Math.random() * 2 + 0.5,
-        speed: Math.random() * 0.5 + 0.2,
-        brightness: Math.random()
-      });
-    }
-  }
-  initStars();
-
-  // --- Menu Stars ---
-  let menuStars = [];
-  function initMenuStars() {
-    menuStars = [];
-    for (let i = 0; i < 100; i++) {
-      menuStars.push({
-        x: Math.random() * W(), y: Math.random() * H(),
-        size: Math.random() * 2 + 0.5,
-        alpha: Math.random() * 0.7 + 0.3,
-        twinkleSpeed: Math.random() * 2 + 1
-      });
-    }
-  }
-  initMenuStars();
 
   // --- Start Game ---
   function startGame() {
@@ -469,12 +448,6 @@
       if (p.life <= 0) particles.splice(i, 1);
     }
 
-    // Stars scroll
-    for (const s of stars) {
-      s.y += car.speed * s.speed * 0.3;
-      if (s.y > H()) { s.y = 0; s.x = Math.random() * W(); }
-    }
-
     // Ensure enough road
     const neededIdx = Math.floor((cameraY + H() + 500) / ROAD_SEGMENT_LEN);
     if (neededIdx >= roadSegments.length - 50) {
@@ -485,8 +458,8 @@
   // --- End Game ---
   function endGame() {
     state = STATE.GAMEOVER;
-    spawnParticles(car.x, car.y, PINK, 30, 6);
-    spawnParticles(car.x, car.y, ORANGE, 20, 5);
+    spawnParticles(car.x, car.y, RED, 14, 6);
+    spawnParticles(car.x, car.y, ORANGE, 8, 5);
     if (score > highScore) {
       highScore = score;
       localStorage.setItem('neon-drift-hi', highScore);
@@ -519,93 +492,55 @@
     }
   }
 
+  // --- Flat button (fixed hit area is handled by the click listener) ---
+  function drawButton(cx, cy, bw, bh, label, fontPx) {
+    ctx.beginPath();
+    ctx.roundRect(cx - bw / 2, cy - bh / 2, bw, bh, 10);
+    ctx.fillStyle = ACCENT;
+    ctx.fill();
+    ctx.font = `600 ${fontPx}px ${FONT}`;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, cx, cy);
+  }
+
   // --- Draw Menu ---
   function drawMenu(w, h) {
-    const t = Date.now() / 1000;
-
-    // Stars
-    for (const s of menuStars) {
-      const a = s.alpha * (0.5 + 0.5 * Math.sin(t * s.twinkleSpeed));
-      ctx.fillStyle = `rgba(255,255,255,${a})`;
-      ctx.fillRect(s.x, s.y, s.size, s.size);
-    }
-
-    // Decorative road lines
-    ctx.save();
-    ctx.globalAlpha = 0.15;
-    for (let i = 0; i < 6; i++) {
-      const lx = w * 0.2 + i * w * 0.12;
-      ctx.strokeStyle = NEON_COLORS[i % NEON_COLORS.length];
-      ctx.lineWidth = 2;
-      ctx.setLineDash([20, 30]);
-      ctx.lineDashOffset = -t * 60;
-      ctx.beginPath();
-      ctx.moveTo(lx, 0);
-      ctx.lineTo(lx, h);
-      ctx.stroke();
-    }
-    ctx.setLineDash([]);
-    ctx.restore();
-
     // Title
     const titleY = h * 0.25;
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Title glow
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 40;
-    ctx.font = `bold ${Math.min(w * 0.12, 72)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = CYAN;
-    ctx.fillText('NEON DRIFT', w / 2, titleY);
-    ctx.shadowBlur = 20;
-    ctx.fillText('NEON DRIFT', w / 2, titleY);
-    ctx.shadowBlur = 0;
+    ctx.font = `700 ${Math.min(w * 0.12, 64)}px ${FONT}`;
+    ctx.fillStyle = INK;
+    ctx.fillText('Drift', w / 2, titleY);
 
     // Subtitle
-    ctx.font = `${Math.min(w * 0.04, 20)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = PINK;
-    ctx.shadowColor = PINK;
-    ctx.shadowBlur = 10;
-    ctx.fillText('TOPPRACING MED DRIFT', w / 2, titleY + 50);
-    ctx.shadowBlur = 0;
+    ctx.font = `600 ${Math.min(w * 0.04, 20)}px ${FONT}`;
+    ctx.fillStyle = ACCENT;
+    ctx.fillText('Toppracing med drift', w / 2, titleY + 50);
 
     // Description
-    ctx.font = `${Math.min(w * 0.035, 16)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#8888aa';
-    ctx.fillText('Undvik hinder och drifta genom neonbanorna!', w / 2, titleY + 90);
+    ctx.font = `400 ${Math.min(w * 0.035, 16)}px ${FONT}`;
+    ctx.fillStyle = MUTED;
+    ctx.fillText('Undvik hinder och drifta genom banorna!', w / 2, titleY + 90);
     ctx.fillText('Ju längre du klarar, desto snabbare blir det.', w / 2, titleY + 115);
 
     // Controls
-    ctx.font = `${Math.min(w * 0.03, 14)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = PURPLE;
+    ctx.font = `400 ${Math.min(w * 0.03, 14)}px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText('Tangenter: ← → eller A/D  |  Mobil: Tryck vänster/höger', w / 2, titleY + 155);
 
     // Play button
     const bx = w / 2, by = h / 2 + 100, bw = 220, bh = 56;
-    const pulse = 1 + Math.sin(t * 3) * 0.04;
-    ctx.save();
-    ctx.translate(bx, by);
-    ctx.scale(pulse, pulse);
-    ctx.beginPath();
-    ctx.roundRect(-bw/2, -bh/2, bw, bh, 14);
-    ctx.fillStyle = CYAN;
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 25;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.font = `bold ${Math.min(w * 0.045, 22)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#0a0a1a';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('SPELA', 0, 0);
-    ctx.restore();
+    drawButton(bx, by, bw, bh, 'Spela', Math.min(w * 0.045, 22));
 
     // High score
     if (highScore > 0) {
-      ctx.font = `${Math.min(w * 0.035, 16)}px 'Segoe UI', sans-serif`;
-      ctx.fillStyle = GREEN;
+      ctx.font = `600 ${Math.min(w * 0.035, 16)}px ${FONT}`;
+      ctx.fillStyle = ACCENT;
       ctx.textAlign = 'center';
       ctx.fillText(`Bästa: ${highScore}`, w / 2, by + 50);
     }
@@ -615,12 +550,6 @@
 
   // --- Draw Game ---
   function drawGame(w, h) {
-    // Stars
-    for (const s of stars) {
-      ctx.fillStyle = `rgba(255,255,255,${0.3 + s.brightness * 0.4})`;
-      ctx.fillRect(s.x, s.y, s.size, s.size);
-    }
-
     // Road segments
     const startSeg = Math.floor(cameraY / ROAD_SEGMENT_LEN);
     const visibleSegs = Math.ceil(h / ROAD_SEGMENT_LEN) + 5;
@@ -632,8 +561,8 @@
       const screenY = segIdx * ROAD_SEGMENT_LEN - cameraY;
       const nextSeg = segIdx + 1 < roadSegments.length ? roadSegments[segIdx + 1] : seg;
 
-      // Road surface
-      ctx.fillStyle = (Math.floor(segIdx / 6) % 2 === 0) ? '#111122' : '#0e0e1e';
+      // Road surface (very faint banding so speed is readable)
+      ctx.fillStyle = (Math.floor(segIdx / 6) % 2 === 0) ? SURFACE2 : '#e2e0de';
       ctx.beginPath();
       ctx.moveTo(seg.x - ROAD_WIDTH_BASE / 2, h - screenY);
       ctx.lineTo(seg.x + ROAD_WIDTH_BASE / 2, h - screenY);
@@ -643,7 +572,7 @@
 
       // Edge lines
       if (i % 2 === 0) {
-        ctx.strokeStyle = CYAN + '55';
+        ctx.strokeStyle = MUTED;
         ctx.lineWidth = 2;
         // Left edge
         ctx.beginPath();
@@ -659,7 +588,7 @@
 
       // Center dashes
       if (segIdx % 10 < 5) {
-        ctx.strokeStyle = '#ffffff22';
+        ctx.strokeStyle = SURFACE;
         ctx.lineWidth = 2;
         ctx.setLineDash([]);
         ctx.beginPath();
@@ -669,15 +598,13 @@
       }
     }
 
-    // Drift trails
+    // Drift trails (flat tyre marks)
     for (const trail of driftTrails) {
       const screenY = h - (trail.y - cameraY);
       if (screenY < -20 || screenY > h + 20) continue;
       ctx.save();
-      ctx.globalAlpha = trail.alpha * 0.7;
+      ctx.globalAlpha = trail.alpha * 0.5;
       ctx.fillStyle = trail.color;
-      ctx.shadowColor = trail.color;
-      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(trail.x, screenY, trail.size, 0, Math.PI * 2);
       ctx.fill();
@@ -695,35 +622,28 @@
       if (obs.type === 'car') {
         // Other car (simple top-down)
         ctx.fillStyle = obs.color;
-        ctx.shadowColor = obs.color;
-        ctx.shadowBlur = 12;
         ctx.beginPath();
         ctx.roundRect(-obs.w / 2, -obs.h / 2, obs.w, obs.h, 6);
         ctx.fill();
         // Windshield
-        ctx.fillStyle = '#ffffff33';
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
         ctx.fillRect(-obs.w / 2 + 3, -obs.h / 2 + 4, obs.w - 6, 10);
         // Taillights
-        ctx.fillStyle = '#ff3344';
-        ctx.shadowColor = '#ff3344';
-        ctx.shadowBlur = 6;
+        ctx.fillStyle = INK;
         ctx.fillRect(-obs.w / 2 + 2, obs.h / 2 - 5, 5, 3);
         ctx.fillRect(obs.w / 2 - 7, obs.h / 2 - 5, 5, 3);
       } else {
         // Barrier
         ctx.fillStyle = obs.color;
-        ctx.shadowColor = obs.color;
-        ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.roundRect(-obs.w / 2, -obs.h / 2, obs.w, obs.h, 3);
         ctx.fill();
         // Stripes
-        ctx.fillStyle = '#0a0a1a';
+        ctx.fillStyle = SURFACE;
         for (let sx = -obs.w / 2 + 4; sx < obs.w / 2; sx += 10) {
           ctx.fillRect(sx, -obs.h / 2, 4, obs.h);
         }
       }
-      ctx.shadowBlur = 0;
       ctx.restore();
     }
 
@@ -733,42 +653,35 @@
     ctx.translate(car.x, carScreenY);
     ctx.rotate(car.angle);
 
-    // Car glow
-    ctx.shadowColor = skinGlow;
-    ctx.shadowBlur = 20 + car.driftAmount * 20;
-
-    // Car body
+    // Car body (flat fill, thin ink outline so light skins stay visible)
     ctx.fillStyle = skinPrimary;
     ctx.beginPath();
     ctx.roundRect(-CAR_W / 2, -CAR_H / 2, CAR_W, CAR_H, 6);
     ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 
     // Car details
-    ctx.shadowBlur = 0;
     // Windshield
-    ctx.fillStyle = skinSecondary + '44';
+    ctx.fillStyle = skinSecondary.charAt(0) === '#' ? skinSecondary + '88' : skinSecondary;
     ctx.fillRect(-CAR_W / 2 + 3, -CAR_H / 2 + 5, CAR_W - 6, 12);
 
     // Hood stripe
-    ctx.fillStyle = skinSecondary + '33';
+    ctx.fillStyle = skinSecondary.charAt(0) === '#' ? skinSecondary + '55' : skinSecondary;
     ctx.fillRect(-3, -CAR_H / 2, 6, CAR_H);
 
     // Headlights
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur = 8;
+    ctx.fillStyle = '#fef3c7';
     ctx.fillRect(-CAR_W / 2 + 2, -CAR_H / 2 + 1, 5, 4);
     ctx.fillRect(CAR_W / 2 - 7, -CAR_H / 2 + 1, 5, 4);
 
-    // Taillights (red with glow when drifting)
-    const tailColor = car.driftAmount > 0.2 ? ORANGE : '#ff3344';
+    // Taillights (orange when drifting)
+    const tailColor = car.driftAmount > 0.2 ? ORANGE : RED;
     ctx.fillStyle = tailColor;
-    ctx.shadowColor = tailColor;
-    ctx.shadowBlur = car.driftAmount > 0.2 ? 15 : 6;
     ctx.fillRect(-CAR_W / 2 + 2, CAR_H / 2 - 5, 6, 3);
     ctx.fillRect(CAR_W / 2 - 8, CAR_H / 2 - 5, 6, 3);
 
-    ctx.shadowBlur = 0;
     ctx.restore();
 
     // Particles
@@ -776,8 +689,6 @@
       ctx.save();
       ctx.globalAlpha = p.life;
       ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 6;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
       ctx.fill();
@@ -790,45 +701,40 @@
     ctx.textBaseline = 'top';
 
     // Score
-    ctx.font = `bold ${Math.min(w * 0.06, 32)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 10;
+    ctx.font = `700 ${Math.min(w * 0.06, 32)}px ${FONT}`;
+    ctx.fillStyle = INK;
     ctx.fillText(`${score}m`, 20, 20);
-    ctx.shadowBlur = 0;
 
     // Speed indicator
     const speedPct = car.speed / 18;
-    ctx.font = `${Math.min(w * 0.035, 16)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = speedPct > 0.7 ? ORANGE : CYAN;
+    ctx.font = `400 ${Math.min(w * 0.035, 16)}px ${FONT}`;
+    ctx.fillStyle = speedPct > 0.7 ? ORANGE : MUTED;
     ctx.fillText(`${Math.floor(car.speed * 20)} km/h`, 20, 58);
 
     // Speed bar
     const barW = 100, barH = 6, barX = 20, barY = 80;
-    ctx.fillStyle = '#222244';
-    ctx.fillRect(barX, barY, barW, barH);
-    const barColor = speedPct > 0.7 ? ORANGE : speedPct > 0.4 ? GREEN : CYAN;
+    ctx.fillStyle = SURFACE2;
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barW, barH, 3);
+    ctx.fill();
+    const barColor = speedPct > 0.7 ? ORANGE : speedPct > 0.4 ? GREEN : ACCENT;
     ctx.fillStyle = barColor;
-    ctx.shadowColor = barColor;
-    ctx.shadowBlur = 8;
-    ctx.fillRect(barX, barY, barW * speedPct, barH);
-    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barW * speedPct, barH, 3);
+    ctx.fill();
 
     // Drift indicator
     if (car.driftAmount > 0.15) {
-      ctx.font = `bold ${Math.min(w * 0.04, 18)}px 'Segoe UI', sans-serif`;
-      ctx.fillStyle = PINK;
-      ctx.shadowColor = PINK;
-      ctx.shadowBlur = 15;
+      ctx.font = `700 ${Math.min(w * 0.04, 18)}px ${FONT}`;
+      ctx.fillStyle = ACCENT;
       ctx.textAlign = 'center';
-      ctx.fillText('DRIFT!', w / 2, 20);
-      ctx.shadowBlur = 0;
+      ctx.fillText('Drift!', w / 2, 20);
     }
 
     // High score
     ctx.textAlign = 'right';
-    ctx.font = `${Math.min(w * 0.03, 14)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#8888aa';
+    ctx.font = `400 ${Math.min(w * 0.03, 14)}px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText(`Bästa: ${highScore}m`, w - 20, 20);
 
     ctx.restore();
@@ -837,7 +743,7 @@
   // --- Draw Game Over ---
   function drawGameOver(w, h) {
     // Overlay
-    ctx.fillStyle = 'rgba(10, 10, 26, 0.8)';
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, w, h);
 
     ctx.save();
@@ -846,53 +752,42 @@
 
     const cy = h / 2;
 
+    // White panel
+    const panelW = Math.min(w - 32, 340);
+    const panelTop = cy - 130;
+    const panelH = (cy + 100 + 28 + 24) - panelTop;
+    ctx.beginPath();
+    ctx.roundRect(w / 2 - panelW / 2, panelTop, panelW, panelH, 10);
+    ctx.fillStyle = SURFACE;
+    ctx.fill();
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
     // Game Over title
-    ctx.font = `bold ${Math.min(w * 0.1, 56)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = PINK;
-    ctx.shadowColor = PINK;
-    ctx.shadowBlur = 30;
-    ctx.fillText('SPELET SLUT', w / 2, cy - 80);
-    ctx.shadowBlur = 0;
+    ctx.font = `700 ${Math.min(w * 0.1, 44)}px ${FONT}`;
+    ctx.fillStyle = RED;
+    ctx.fillText('Spelet slut', w / 2, cy - 80);
 
     // Score
-    ctx.font = `bold ${Math.min(w * 0.07, 38)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#ffffff';
+    ctx.font = `700 ${Math.min(w * 0.07, 38)}px ${FONT}`;
+    ctx.fillStyle = INK;
     ctx.fillText(`${score}m`, w / 2, cy - 20);
 
     // Label
-    ctx.font = `${Math.min(w * 0.035, 16)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#8888aa';
+    ctx.font = `400 ${Math.min(w * 0.035, 16)}px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText('Distans', w / 2, cy + 10);
 
     // High score
-    ctx.font = `${Math.min(w * 0.04, 20)}px 'Segoe UI', sans-serif`;
+    ctx.font = `600 ${Math.min(w * 0.04, 20)}px ${FONT}`;
     const isNew = score >= highScore && score > 0;
-    ctx.fillStyle = isNew ? GREEN : PURPLE;
-    if (isNew) {
-      ctx.shadowColor = GREEN;
-      ctx.shadowBlur = 15;
-    }
+    ctx.fillStyle = isNew ? GREEN : MUTED;
     ctx.fillText(isNew ? `Nytt rekord! ${highScore}m` : `Bästa: ${highScore}m`, w / 2, cy + 45);
-    ctx.shadowBlur = 0;
 
     // Retry button
     const bx = w / 2, by = cy + 100, bw = 220, bh = 56;
-    const t = Date.now() / 1000;
-    const pulse = 1 + Math.sin(t * 3) * 0.04;
-    ctx.save();
-    ctx.translate(bx, by);
-    ctx.scale(pulse, pulse);
-    ctx.beginPath();
-    ctx.roundRect(-bw/2, -bh/2, bw, bh, 14);
-    ctx.fillStyle = PINK;
-    ctx.shadowColor = PINK;
-    ctx.shadowBlur = 25;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.font = `bold ${Math.min(w * 0.045, 22)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('FÖRSÖK IGEN', 0, 0);
-    ctx.restore();
+    drawButton(bx, by, bw, bh, 'Försök igen', Math.min(w * 0.045, 22));
 
     ctx.restore();
   }

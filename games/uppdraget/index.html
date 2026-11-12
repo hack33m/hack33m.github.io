@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Uppdraget</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a0f;
+      background: #f5f5f4;
+      color: #1c1917;
       overflow: hidden;
-      font-family: 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -39,25 +39,30 @@
   const H = () => window.innerHeight;
 
   // === COLORS ===
+  // Flat minimalist palette (see shared style spec). Tints are palette colours mixed with white.
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
   const COL = {
-    bg: '#0a0a0f',
-    grass: '#2a3a20', grassLight: '#3a4a2a',
-    dirt: '#3a3020', dirtLight: '#4a4030',
-    water: '#1a3050', waterLight: '#2a4a6a',
-    snow: '#4a5060', snowLight: '#6a7080',
-    wood: '#5a4030', woodDark: '#3a2a1a',
-    stone: '#5a5a5a', stoneDark: '#3a3a3a',
-    roof: '#8a3030', roofDark: '#6a2020',
-    tree: '#1a3a1a', treeDark: '#0a2a0a', trunk: '#4a3020',
-    night: '#080810', nightSky: '#0a0f20',
-    gold: '#b48c50', goldLight: '#d4a55a',
-    text: '#e8dcc8', textDim: '#8a7e6a',
-    danger: '#aa3030',
-    maja: '#d4a574', majaHair: '#8a5a30', majaDress: '#5a7aaa',
-    ben: '#c49a6a', benHair: '#2a1a0a', benShirt: '#5a7050',
-    hilde: '#e8c8a8', hildeHair: '#d4b470', hildeDress: '#7a5a6a',
-    soldier: '#4a5a3a', soldierHelm: '#3a4a2a',
-    lantern: '#ffaa40',
+    bg: '#f5f5f4', surface: '#ffffff', surface2: '#e7e5e4', line: '#d6d3d1',
+    ink: '#1c1917', muted: '#78716c', accent: '#2563eb',
+    red: '#dc2626', green: '#16a34a', yellow: '#ca8a04',
+    grass: '#ecf8f0', forest: '#dcf1e4',
+    dirt: '#f4e8cd',
+    water: '#c8d8fa', waterLight: '#92b1f5',
+    snow: '#e7e5e4',
+    wood: '#ffffff', woodDark: '#1c1917',
+    stone: '#e7e5e4', stoneDark: '#d6d3d1',
+    roof: '#dc2626',
+    window: '#ead09b', door: '#78716c',
+    tree: '#8bd1a5', trunk: '#78716c',
+    night: '#e7e5e4',
+    gold: '#2563eb',
+    text: '#1c1917', textDim: '#78716c',
+    danger: '#dc2626',
+    maja: '#f9cdb6', majaHair: '#78716c', majaDress: '#2563eb',
+    ben: '#f5b492', benHair: '#1c1917', benShirt: '#16a34a',
+    hilde: '#fbdece', hildeHair: '#ca8a04', hildeDress: '#7c3aed',
+    soldier: '#dc2626', soldierHelm: '#1c1917', soldierSkin: '#f9cdb6',
+    lantern: '#ca8a04',
   };
 
   // === STATE ===
@@ -94,7 +99,7 @@
 
   // === HELPERS ===
   function drawText(text, x, y, size, color, align, maxW, bold) {
-    ctx.font = `${bold ? '700' : '400'} ${size}px 'Nunito', sans-serif`;
+    ctx.font = `${bold ? '700' : '400'} ${size}px ${FONT}`;
     ctx.fillStyle = color;
     ctx.textAlign = align || 'center';
     ctx.textBaseline = 'middle';
@@ -103,7 +108,7 @@
   }
 
   function wrapText(text, x, y, maxW, lineH, size, color, bold) {
-    ctx.font = `${bold ? '700' : '400'} ${size}px 'Nunito', sans-serif`;
+    ctx.font = `${bold ? '700' : '400'} ${size}px ${FONT}`;
     ctx.fillStyle = color;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -122,6 +127,24 @@
     }
     if (line.trim()) ctx.fillText(line.trim(), x, cy);
     return cy + lineH;
+  }
+
+  // Split text into lines that fit maxW using the current ctx.font (same rule as wrapText)
+  function splitLines(text, maxW) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      const test = line + word + ' ';
+      if (ctx.measureText(test).width > maxW && line) {
+        lines.push(line.trim());
+        line = word + ' ';
+      } else {
+        line = test;
+      }
+    }
+    if (line.trim()) lines.push(line.trim());
+    return lines;
   }
 
   function lerp(a, b, t) { return a + (b - a) * t; }
@@ -197,14 +220,14 @@
     const colors = character === 'maja' ? { skin: COL.maja, hair: COL.majaHair, clothes: COL.majaDress }
       : character === 'ben' ? { skin: COL.ben, hair: COL.benHair, clothes: COL.benShirt }
       : character === 'hilde' ? { skin: COL.hilde, hair: COL.hildeHair, clothes: COL.hildeDress }
-      : character === 'soldier' ? { skin: '#8a8a6a', hair: COL.soldierHelm, clothes: COL.soldier }
+      : character === 'soldier' ? { skin: COL.soldierSkin, hair: COL.soldierHelm, clothes: COL.soldier }
       : { skin: COL.maja, hair: COL.majaHair, clothes: COL.majaDress };
 
     ctx.save();
     ctx.translate(x, y + bob);
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    // Ground shadow (soft, neutral)
+    ctx.fillStyle = 'rgba(28,25,23,0.1)';
     ctx.beginPath();
     ctx.ellipse(0, 14 * s, 8 * s, 3 * s, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -246,7 +269,7 @@
     ctx.arc(-3 * s + eyeOff * 0.5, -8 * s, 1.5 * s, 0, Math.PI * 2);
     ctx.arc(3 * s + eyeOff * 0.5, -8 * s, 1.5 * s, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#1a1a1a';
+    ctx.fillStyle = COL.ink;
     ctx.beginPath();
     ctx.arc(-3 * s + eyeOff, -8 * s, 0.8 * s, 0, Math.PI * 2);
     ctx.arc(3 * s + eyeOff, -8 * s, 0.8 * s, 0, Math.PI * 2);
@@ -372,18 +395,18 @@
     const by = H() - 140;
     const bh = 120;
 
-    // Box
-    ctx.fillStyle = 'rgba(10, 8, 5, 0.92)';
-    ctx.strokeStyle = COL.gold;
-    ctx.lineWidth = 2;
-    roundRect(bx, by, bw, bh, 10);
+    // Box: white panel, 1px line border, flat
+    ctx.fillStyle = COL.surface;
+    ctx.strokeStyle = COL.line;
+    ctx.lineWidth = 1;
+    roundRect(bx + 0.5, by + 0.5, bw - 1, bh - 1, 10);
     ctx.fill();
     ctx.stroke();
 
     // Speaker
     if (currentDialogue.speaker) {
-      ctx.fillStyle = COL.gold;
-      ctx.font = '700 14px Nunito, sans-serif';
+      ctx.fillStyle = COL.accent;
+      ctx.font = `600 14px ${FONT}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(currentDialogue.speaker, bx + 16, by + 12);
@@ -395,10 +418,7 @@
 
     // Continue indicator
     if (dialogueComplete) {
-      const blink = Math.sin(Date.now() * 0.005) > 0;
-      if (blink) {
-        drawText('▼', bx + bw - 20, by + bh - 16, 14, COL.gold, 'center');
-      }
+      drawText('▼', bx + bw - 20, by + bh - 16, 12, COL.muted, 'center');
     }
   }
 
@@ -428,11 +448,27 @@
   function drawObjective() {
     if (objectiveAlpha <= 0 || !objective) return;
     const a = Math.min(objectiveAlpha, 1);
-    ctx.fillStyle = `rgba(180, 140, 80, ${a})`;
-    ctx.font = '600 14px Nunito, sans-serif';
+    ctx.font = `600 14px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(objective, W() / 2, 16);
+    // Flat white card below the score row, wrapped so it stays readable on phones
+    const maxTextW = Math.min(W() - 56, 520);
+    const lines = splitLines(objective, maxTextW);
+    let textW = 0;
+    for (const l of lines) textW = Math.max(textW, ctx.measureText(l).width);
+    const cardW = textW + 24;
+    const cardH = lines.length * 20 + 14;
+    const top = 40;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = COL.surface;
+    ctx.strokeStyle = COL.line;
+    ctx.lineWidth = 1;
+    roundRect(W() / 2 - cardW / 2 + 0.5, top + 0.5, cardW - 1, cardH - 1, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = COL.ink;
+    lines.forEach((l, i) => ctx.fillText(l, W() / 2, top + 8 + i * 20));
+    ctx.globalAlpha = 1;
     if (objectiveAlpha > 1) objectiveAlpha -= 0.003;
     else objectiveAlpha -= 0.001;
   }
@@ -443,7 +479,16 @@
     const sx = interactTarget.x - cam.x;
     const sy = interactTarget.y - cam.y - 30;
     const bob = Math.sin(Date.now() * 0.004) * 3;
-    drawText('[E] Prata', sx, sy + bob, 12, COL.gold, 'center');
+    // Small flat label so the prompt reads on any ground
+    ctx.font = `600 12px ${FONT}`;
+    const tw = ctx.measureText('[E] Prata').width + 14;
+    ctx.fillStyle = COL.accent;
+    roundRect(sx - tw / 2, sy + bob - 10, tw, 20, 6);
+    ctx.fill();
+    ctx.fillStyle = COL.surface;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('[E] Prata', sx, sy + bob);
   }
 
   // === TOUCH CONTROLS ===
@@ -451,8 +496,8 @@
     if (!('ontouchstart' in window)) return;
     // Joystick area
     const cx = W() / 2, cy = H() - 80;
-    ctx.strokeStyle = 'rgba(180, 140, 80, 0.2)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = COL.line;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(cx, cy, 50, 0, Math.PI * 2);
     ctx.stroke();
@@ -461,20 +506,25 @@
       const dx = touchX - cx, dy = touchY - cy;
       const d = Math.min(Math.sqrt(dx * dx + dy * dy), 40);
       const a = Math.atan2(dy, dx);
-      ctx.fillStyle = 'rgba(180, 140, 80, 0.3)';
+      ctx.fillStyle = 'rgba(28, 25, 23, 0.18)';
       ctx.beginPath();
       ctx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 15, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Action button
-    ctx.fillStyle = 'rgba(180, 140, 80, 0.15)';
-    ctx.strokeStyle = 'rgba(180, 140, 80, 0.3)';
+    // Action button: flat white with 1px border
+    ctx.fillStyle = COL.surface;
+    ctx.strokeStyle = COL.line;
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(W() - 60, H() - 80, 25, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    drawText('E', W() - 60, H() - 80, 16, 'rgba(180,140,80,0.5)', 'center');
+    ctx.font = `600 16px ${FONT}`;
+    ctx.fillStyle = COL.ink;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('E', W() - 60, H() - 80);
   }
 
   // === LEVEL SYSTEM ===
@@ -497,10 +547,10 @@
         ctx.fillRect(path.x - cam.x, path.y - cam.y, path.w, path.h);
       }
     } else if (type === 'forest') {
-      ctx.fillStyle = '#0f1a0f';
+      ctx.fillStyle = COL.forest;
       ctx.fillRect(-cam.x, -cam.y, lw, lh);
     } else if (type === 'border') {
-      ctx.fillStyle = '#1a1a20';
+      ctx.fillStyle = COL.surface2;
       ctx.fillRect(-cam.x, -cam.y, lw, lh);
     } else if (type === 'night') {
       ctx.fillStyle = COL.night;
@@ -514,14 +564,10 @@
     // Trunk
     ctx.fillStyle = COL.trunk;
     ctx.fillRect(sx - 4 * s, sy - 10 * s, 8 * s, 20 * s);
-    // Canopy
+    // Canopy: one flat circle
     ctx.fillStyle = COL.tree;
     ctx.beginPath();
     ctx.arc(sx, sy - 20 * s, 18 * s, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = COL.treeDark;
-    ctx.beginPath();
-    ctx.arc(sx - 4 * s, sy - 22 * s, 12 * s, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -531,9 +577,9 @@
     ctx.fillStyle = color || COL.wood;
     ctx.fillRect(sx, sy, w, h);
     ctx.strokeStyle = COL.woodDark;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(sx, sy, w, h);
-    // Roof
+    // Roof: flat triangle
     ctx.fillStyle = COL.roof;
     ctx.beginPath();
     ctx.moveTo(sx - 5, sy);
@@ -541,26 +587,14 @@
     ctx.lineTo(sx + w + 5, sy);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = COL.roofDark;
-    ctx.beginPath();
-    ctx.moveTo(sx - 5, sy);
-    ctx.lineTo(sx + w / 2, sy - 25);
-    ctx.lineTo(sx + w / 2, sy);
-    ctx.closePath();
-    ctx.fill();
     // Window
-    ctx.fillStyle = '#ffdd88';
+    ctx.fillStyle = COL.window;
     ctx.fillRect(sx + w / 2 - 6, sy + 10, 12, 12);
     ctx.strokeStyle = COL.woodDark;
+    ctx.lineWidth = 1;
     ctx.strokeRect(sx + w / 2 - 6, sy + 10, 12, 12);
-    ctx.beginPath();
-    ctx.moveTo(sx + w / 2, sy + 10);
-    ctx.lineTo(sx + w / 2, sy + 22);
-    ctx.moveTo(sx + w / 2 - 6, sy + 16);
-    ctx.lineTo(sx + w / 2 + 6, sy + 16);
-    ctx.stroke();
     // Door
-    ctx.fillStyle = COL.woodDark;
+    ctx.fillStyle = COL.door;
     ctx.fillRect(sx + w / 2 - 5, sy + h - 18, 10, 18);
   }
 
@@ -586,16 +620,9 @@
     const sx = x - cam.x, sy = y - cam.y;
     ctx.fillStyle = COL.stone;
     ctx.fillRect(sx, sy, w, h);
-    ctx.fillStyle = COL.stoneDark;
-    for (let bx = 0; bx < w; bx += 12) {
-      for (let by = 0; by < h; by += 8) {
-        const off = (Math.floor(by / 8) % 2) * 6;
-        ctx.fillRect(sx + bx + off, sy + by, 11, 7);
-        ctx.strokeStyle = '#2a2a2a';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(sx + bx + off, sy + by, 11, 7);
-      }
-    }
+    ctx.strokeStyle = COL.stoneDark;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sx, sy, w, h);
   }
 
   // === PARTICLES ===
@@ -631,14 +658,15 @@
     for (const p of particles) {
       const sx = p.x - cam.x, sy = p.y - cam.y;
       if (p.type === 'snow') {
-        ctx.fillStyle = `rgba(255,255,255,${p.life * 0.6})`;
+        // Light background: snow is drawn as small muted dots
+        ctx.fillStyle = `rgba(120,113,108,${p.life * 0.35})`;
         ctx.beginPath();
-        ctx.arc(sx, sy, p.size, 0, Math.PI * 2);
+        ctx.arc(sx, sy, p.size * 0.8, 0, Math.PI * 2);
         ctx.fill();
       } else if (p.type === 'firefly') {
-        ctx.fillStyle = `rgba(200,180,80,${p.life * 0.5})`;
+        ctx.fillStyle = `rgba(202,138,4,${p.life * 0.5})`;
         ctx.beginPath();
-        ctx.arc(sx, sy, p.size * 2, 0, Math.PI * 2);
+        ctx.arc(sx, sy, p.size, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -705,7 +733,7 @@
         const range = e.spotRange || 100;
         const angle = e.spotAngle || 0.6;
         const dir = e.dir || 0;
-        ctx.fillStyle = e.alerted ? 'rgba(200,50,50,0.08)' : 'rgba(255,220,120,0.06)';
+        ctx.fillStyle = e.alerted ? 'rgba(220,38,38,0.14)' : 'rgba(202,138,4,0.12)';
         ctx.beginPath();
         ctx.moveTo(sx, sy);
         ctx.arc(sx, sy, range, dir - angle / 2, dir + angle / 2);
@@ -780,45 +808,45 @@
     const line = storyLines[storyIndex];
     if (!line) return;
 
-    // Background
-    ctx.fillStyle = 'rgba(10, 8, 5, 0.95)';
+    // Background: plain light page
+    ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, W(), H());
 
-    // Ambient particles
-    const time = Date.now() * 0.001;
-    for (let i = 0; i < 20; i++) {
-      const px = (Math.sin(time * 0.3 + i * 1.5) * 0.5 + 0.5) * W();
-      const py = (Math.cos(time * 0.2 + i * 2.1) * 0.5 + 0.5) * H();
-      ctx.fillStyle = `rgba(180,140,80,${0.03 + Math.sin(time + i) * 0.02})`;
-      ctx.beginPath();
-      ctx.arc(px, py, 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Speaker name
-    const boxW = Math.min(W() - 60, 550);
+    // Reading column: comfortable line length (about 60 characters) and generous line height
+    const textSize = W() < 420 ? 17 : 19;
+    const lineH = Math.round(textSize * 1.6);
+    const boxW = Math.min(W() - 48, 560);
     const boxX = (W() - boxW) / 2;
-    let cy = H() / 2 - 60;
+
+    // Centre the block vertically using the full text so it does not Jump while typing
+    ctx.font = `400 ${textSize}px ${FONT}`;
+    const totalLines = splitLines(line.text, boxW).length;
+    const speakerH = line.speaker ? 34 : 0;
+    const blockH = speakerH + totalLines * lineH;
+    let cy = Math.max(40, (H() - blockH) / 2 - 20);
 
     if (line.speaker) {
-      drawText(line.speaker, W() / 2, cy, 16, COL.gold, 'center', null, true);
-      cy += 30;
+      ctx.font = `600 15px ${FONT}`;
+      ctx.fillStyle = COL.accent;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(line.speaker, boxX, cy);
+      cy += speakerH;
     }
 
     // Text
     const visibleText = line.text.substring(0, storyCharIndex);
-    const endY = wrapText(visibleText, boxX, cy, boxW, 26, 17, COL.text, false);
+    wrapText(visibleText, boxX, cy, boxW, lineH, textSize, COL.text, false);
 
     // Continue
     if (storyComplete) {
-      const blink = Math.sin(Date.now() * 0.005) > 0;
-      if (blink) drawText('Tryck för att fortsätta...', W() / 2, H() - 40, 13, COL.textDim, 'center');
+      drawText('Tryck för att fortsätta...', W() / 2, H() - 40, 13, COL.muted, 'center');
     }
 
     // Progress dots
     const dotY = H() - 70;
     for (let i = 0; i < storyLines.length; i++) {
-      ctx.fillStyle = i <= storyIndex ? COL.gold : 'rgba(180,140,80,0.2)';
+      ctx.fillStyle = i <= storyIndex ? COL.accent : COL.line;
       ctx.beginPath();
       ctx.arc(W() / 2 + (i - storyLines.length / 2) * 14 + 7, dotY, 3, 0, Math.PI * 2);
       ctx.fill();
@@ -848,7 +876,7 @@
   }
 
   function drawChapterTitle() {
-    ctx.fillStyle = 'rgba(10, 8, 5, 1)';
+    ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, W(), H());
 
     // Fade in for first 40 frames, hold, fade out last 30 frames
@@ -857,7 +885,11 @@
     else if (chapterTimer > CHAPTER_DURATION - 30) alpha = (CHAPTER_DURATION - chapterTimer) / 30;
 
     ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-    drawText(`KAPITEL ${chapterTitleNum}`, W() / 2, H() / 2 - 20, 14, COL.textDim, 'center', null, false);
+    ctx.font = `600 14px ${FONT}`;
+    ctx.fillStyle = COL.muted;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Kapitel ${chapterTitleNum}`, W() / 2, H() / 2 - 22);
     drawText(chapterTitleText, W() / 2, H() / 2 + 15, 32, COL.text, 'center', null, true);
     ctx.globalAlpha = 1;
   }
@@ -902,7 +934,7 @@
 
   function drawFade() {
     if (fadeAlpha > 0) {
-      ctx.fillStyle = `rgba(10,8,5,${fadeAlpha})`;
+      ctx.fillStyle = `rgba(245,245,244,${fadeAlpha})`;
       ctx.fillRect(0, 0, W(), H());
     }
   }
@@ -1166,7 +1198,7 @@
 
     addNPC('hilde_f', 30, 400, 'hilde', 'Hilde', [
       'Det är så fint här i skogen. Helt annorlunda mot Norge.',
-      'Vet du vad jag saknar mest? Min gamla hund, Rex. Vi fick lämna honom.',
+      'Vet du vad jag saknar mest? Min gamla hund, T-Rex. Vi fick lämna honom.',
     ]);
     addNPC('ben_f', 40, 380, 'ben', 'Ben', [
       'Jag brukade läsa böcker med min mamma. Hon lärde mig att läsa på tre språk.',
@@ -1730,19 +1762,8 @@
 
   // === DRAW END ===
   function drawEnd() {
-    ctx.fillStyle = 'rgba(10, 8, 5, 1)';
+    ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, W(), H());
-
-    // Particles
-    const time = Date.now() * 0.001;
-    for (let i = 0; i < 30; i++) {
-      const px = (Math.sin(time * 0.2 + i * 1.3) * 0.5 + 0.5) * W();
-      const py = (Math.cos(time * 0.15 + i * 1.7) * 0.5 + 0.5) * H();
-      ctx.fillStyle = `rgba(180,140,80,${0.04 + Math.sin(time + i) * 0.03})`;
-      ctx.beginPath();
-      ctx.arc(px, py, 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
 
     let title, summary;
     if (score >= 80) {
@@ -1756,113 +1777,108 @@
       summary = 'Du tog dig igenom. Ibland är det modigaste man kan göra att överleva och berätta sin historia vidare.';
     }
 
-    drawText(title, W() / 2, H() / 2 - 80, 36, COL.text, 'center', null, true);
+    // Measure the summary first so the whole block can be centred
+    const boxW = Math.min(W() - 48, 460);
+    const sumSize = 16, sumLineH = 26;
+    ctx.font = `400 ${sumSize}px ${FONT}`;
+    const sumLines = splitLines(summary, boxW);
+    const blockH = 44 + sumLines.length * sumLineH + 24 + 28 + 28 + 48;
+    let y = Math.max(32, (H() - blockH) / 2);
 
-    const boxW = Math.min(W() - 60, 450);
-    wrapText(summary, (W() - boxW) / 2, H() / 2 - 30, boxW, 24, 16, COL.textDim, false);
+    drawText(title, W() / 2, y + 18, Math.min(W() * 0.09, 34), COL.text, 'center', null, true);
+    y += 44;
 
-    drawText(`Mod-poäng: ${score}`, W() / 2, H() / 2 + 50, 20, COL.gold, 'center', null, true);
+    ctx.font = `400 ${sumSize}px ${FONT}`;
+    ctx.fillStyle = COL.text;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    sumLines.forEach((l, i) => ctx.fillText(l, W() / 2, y + i * sumLineH));
+    y += sumLines.length * sumLineH + 24;
 
-    const blink = Math.sin(Date.now() * 0.003) > 0;
-    if (blink) drawText('Tryck för att spela igen', W() / 2, H() / 2 + 100, 14, COL.textDim, 'center');
+    drawText(`Mod-poäng: ${score}`, W() / 2, y + 14, 20, COL.accent, 'center', null, true);
+    y += 28 + 28;
+
+    // Flat primary button (tapping anywhere still restarts, as before)
+    drawPrimaryButton('Tryck för att spela igen', W() / 2, y + 24);
+  }
+
+  function drawPrimaryButton(label, cx, cy) {
+    ctx.font = `600 16px ${FONT}`;
+    const bw = Math.min(ctx.measureText(label).width + 40, W() - 32);
+    const bh = 48;
+    ctx.fillStyle = COL.accent;
+    roundRect(cx - bw / 2, cy - bh / 2, bw, bh, 10);
+    ctx.fill();
+    ctx.fillStyle = COL.surface;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, cx, cy, bw - 16);
   }
 
   // === TITLE SCREEN ===
   function drawTitle() {
-    ctx.fillStyle = 'rgba(10, 8, 5, 1)';
+    ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, W(), H());
 
-    const time = Date.now() * 0.001;
+    // Ground line
+    const groundY = H() * 0.65 + 20;
+    ctx.strokeStyle = COL.line;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY + 0.5);
+    ctx.lineTo(W(), groundY + 0.5);
+    ctx.stroke();
 
-    // Subtle trees in background
+    // A few flat trees
     for (let i = 0; i < 8; i++) {
+      if (i === 3 || i === 4) continue; // keep the middle clear for the three friends
       const tx = W() * (i + 0.5) / 8;
       const ty = H() * 0.65;
-      const s = 1.5 + Math.sin(i * 2.3) * 0.5;
-      ctx.fillStyle = `rgba(20, 40, 20, ${0.3 + Math.sin(i) * 0.1})`;
+      const s = 1.2 + Math.sin(i * 2.3) * 0.3;
+      ctx.fillStyle = COL.tree;
       ctx.beginPath();
-      ctx.moveTo(tx - 20 * s, ty + 20);
-      ctx.lineTo(tx, ty - 30 * s);
-      ctx.lineTo(tx + 20 * s, ty + 20);
+      ctx.moveTo(tx - 16 * s, ty + 20);
+      ctx.lineTo(tx, ty + 20 - 44 * s);
+      ctx.lineTo(tx + 16 * s, ty + 20);
       ctx.closePath();
       ctx.fill();
     }
 
-    // Stars
-    for (let i = 0; i < 25; i++) {
-      const sx = (Math.sin(i * 3.7 + 1) * 0.5 + 0.5) * W();
-      const sy = (Math.sin(i * 2.1 + 3) * 0.3 + 0.1) * H();
-      const twinkle = (Math.sin(time * 1.5 + i * 2) + 1) * 0.3;
-      ctx.fillStyle = `rgba(255,255,240,${twinkle})`;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Moon
-    ctx.fillStyle = 'rgba(232, 220, 200, 0.7)';
-    ctx.beginPath();
-    ctx.arc(W() * 0.75, H() * 0.2, 25, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(10, 8, 5, 1)';
-    ctx.beginPath();
-    ctx.arc(W() * 0.75 + 8, H() * 0.2 - 5, 22, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Three silhouettes
-    const cx = W() / 2, cy = H() * 0.62;
+    // Three friends standing on the ground line
+    const cx = W() / 2, cy = groundY - 10;
+    const friendCols = [COL.majaDress, COL.benShirt, COL.hildeDress];
     for (let i = -1; i <= 1; i++) {
       const sx = cx + i * 30;
-      ctx.fillStyle = 'rgba(20, 16, 10, 0.9)';
+      ctx.fillStyle = COL.ink;
       ctx.beginPath();
       ctx.arc(sx, cy - 12, 6, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillRect(sx - 5, cy - 6, 10, 16);
+      ctx.fillStyle = friendCols[i + 1];
+      roundRect(sx - 5, cy - 5, 10, 15, 3);
+      ctx.fill();
     }
 
-    // Lantern glow
-    ctx.fillStyle = 'rgba(180, 140, 60, 0.06)';
+    // Lantern: one small flat dot
+    ctx.fillStyle = COL.lantern;
     ctx.beginPath();
-    ctx.arc(cx, cy, 40, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255, 180, 60, 0.15)';
-    ctx.beginPath();
-    ctx.arc(cx, cy + 5, 4, 0, Math.PI * 2);
+    ctx.arc(cx + 12, cy + 2, 3, 0, Math.PI * 2);
     ctx.fill();
 
-    drawText('UPPDRAGET', W() / 2, H() * 0.25, Math.min(W() * 0.08, 48), COL.text, 'center', null, true);
-    drawText('Svarta Rosorna', W() / 2, H() * 0.25 + 40, 16, COL.gold, 'center', null, false);
-    drawText('Baserat på boken av Camilla Lagerqvist', W() / 2, H() * 0.25 + 65, 12, COL.textDim, 'center', null, false);
+    drawText('Uppdraget', W() / 2, H() * 0.25, Math.min(W() * 0.1, 44), COL.text, 'center', null, true);
+    ctx.font = `600 16px ${FONT}`;
+    ctx.fillStyle = COL.accent;
+    ctx.fillText('Svarta Rosorna', W() / 2, H() * 0.25 + 40);
+    drawText('Baserat på boken av Camilla Lagerqvist', W() / 2, H() * 0.25 + 64, 13, COL.muted, 'center', null, false);
 
-    const btnBlink = (Math.sin(time * 2) + 1) * 0.15 + 0.7;
-    drawText('Tryck för att börja', W() / 2, H() * 0.85, 16, `rgba(180,140,80,${btnBlink})`, 'center', null, true);
+    // Flat primary button (tapping anywhere still starts, as before)
+    drawPrimaryButton('Tryck för att börja', W() / 2, H() * 0.85);
   }
 
   // === DRAW PLAY ===
   function drawPlay() {
-    // Sky
-    if (currentLevel.type === 'night') {
-      ctx.fillStyle = COL.nightSky;
-    } else if (currentLevel.type === 'forest') {
-      ctx.fillStyle = '#0a0f0a';
-    } else {
-      ctx.fillStyle = '#2a3a4a';
-    }
+    // Plain background outside the level area
+    ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, W(), H());
-
-    // Stars for night
-    if (currentLevel.type === 'night') {
-      const time = Date.now() * 0.001;
-      for (let i = 0; i < 40; i++) {
-        const sx = ((i * 137.5) % W());
-        const sy = ((i * 97.3) % (H() * 0.4));
-        const t = (Math.sin(time + i * 1.7) + 1) * 0.3;
-        ctx.fillStyle = `rgba(255,255,240,${t})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 1, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
 
     drawGround(currentLevel.type);
 
@@ -1875,7 +1891,7 @@
     for (const h of (currentLevel.houses || [])) {
       drawHouse(h.x, h.y, h.w, h.h);
       if (h.label) {
-        drawText(h.label, h.x + h.w / 2 - cam.x, h.y - 12 - cam.y, 10, COL.textDim, 'center');
+        drawText(h.label, h.x + h.w / 2 - cam.x, h.y - 32 - cam.y, 11, COL.muted, 'center');
       }
     }
 
@@ -1895,7 +1911,11 @@
     for (const npc of npcs) {
       drawCharacter(npc.x - cam.x, npc.y - cam.y, npc.character, npc.dir || 0, npc.walkFrame || 0, 1);
       if (npc.name && dist(player, npc) < 80) {
-        drawText(npc.name, npc.x - cam.x, npc.y - cam.y - 28, 11, COL.gold, 'center');
+        ctx.font = `600 11px ${FONT}`;
+        ctx.fillStyle = COL.ink;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(npc.name, npc.x - cam.x, npc.y - cam.y - 28);
       }
     }
 
@@ -1919,7 +1939,7 @@
     drawTouchControls();
 
     // Score
-    drawText(`Mod: ${score}`, W() - 20, 20, 14, COL.gold, 'right', null, true);
+    drawText(`Mod: ${score}`, W() - 20, 22, 15, COL.accent, 'right', null, true);
 
     // Dialogue
     if (state === STATE.DIALOGUE) {

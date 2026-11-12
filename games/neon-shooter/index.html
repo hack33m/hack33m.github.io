@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Neon Shooter</title>
+  <title>Shooter</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -59,13 +59,20 @@
   }
 
   // === Colors ===
-  const CYAN = '#00d4ff';
-  const PINK = '#ff2d95';
-  const PURPLE = '#a855f7';
-  const GREEN = '#39ff14';
-  const ORANGE = '#ff6a00';
-  const BG = '#0a0a1a';
-  const NEON_COLORS = [CYAN, PINK, PURPLE, GREEN, ORANGE];
+  // Flat minimalist palette. The old names are kept as identifiers so the
+  // game logic that references them stays untouched.
+  const CYAN = '#2563eb';   // accent: player bullets, shield, highlights
+  const PINK = '#dc2626';   // red: basic enemies, damage, lives
+  const PURPLE = '#7c3aed';
+  const GREEN = '#0d9488';  // teal: shooter enemies and their bullets
+  const ORANGE = '#ea580c';
+  const BG = '#f5f5f4';
+  const INK = '#1c1917';
+  const MUTED = '#78716c';
+  const LINE = '#d6d3d1';
+  const SURFACE = '#ffffff';
+  const SURFACE_2 = '#e7e5e4';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
   // === Helpers ===
   function hexToRgba(hex, a) {
@@ -75,14 +82,32 @@
     return `rgba(${r},${g},${b},${a})`;
   }
 
-  function drawGlow(x, y, radius, color, alpha) {
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    grad.addColorStop(0, hexToRgba(color, alpha));
-    grad.addColorStop(1, hexToRgba(color, 0));
-    ctx.fillStyle = grad;
+  // Flat overlay panel used by the menu and game over screens.
+  function drawPanel(cx, top, bottom) {
+    const pw = Math.min(420, W() - 32);
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
     ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.roundRect(cx - pw / 2, top + 1, pw, bottom - top, 10);
     ctx.fill();
+    ctx.fillStyle = SURFACE;
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(cx - pw / 2, top, pw, bottom - top, 10);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  function drawPrimaryButton(bx, by, bw, bh, label) {
+    ctx.fillStyle = CYAN;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 8);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `600 18px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, bx + bw / 2, by + bh / 2);
   }
 
   function dist(a, b) {
@@ -629,42 +654,21 @@
       ctx.translate(sx, sy);
     }
 
-    // Background
+    // Background (plain, flat)
     ctx.fillStyle = BG;
     ctx.fillRect(-10, -10, W() + 20, H() + 20);
 
-    // Stars
-    for (const s of stars) {
-      ctx.fillStyle = hexToRgba('#ffffff', s.alpha);
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Grid lines (subtle)
-    ctx.strokeStyle = hexToRgba(CYAN, 0.04);
-    ctx.lineWidth = 0.5;
-    const gridSize = 60;
-    for (let x = 0; x < W(); x += gridSize) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H()); ctx.stroke();
-    }
-    for (let y = 0; y < H(); y += gridSize) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W(), y); ctx.stroke();
-    }
-
     if (state === 'playing' || state === 'gameover') {
-      // Powerups
+      // Powerups: flat coloured disc with a white letter
       for (const p of powerups) {
         const bob = Math.sin(p.bobPhase) * 3;
         const alpha = p.life < 2 ? (0.5 + 0.5 * Math.sin(p.life * 10)) : 1;
-        drawGlow(p.x, p.y + bob, 20, p.color, 0.3 * alpha);
-        ctx.strokeStyle = hexToRgba(p.color, alpha);
-        ctx.lineWidth = 2;
+        ctx.fillStyle = hexToRgba(p.color, alpha);
         ctx.beginPath();
         ctx.arc(p.x, p.y + bob, p.r, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = hexToRgba(p.color, alpha);
-        ctx.font = 'bold 11px monospace';
+        ctx.fill();
+        ctx.fillStyle = hexToRgba('#ffffff', alpha);
+        ctx.font = `700 11px ${FONT}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(p.label, p.x, p.y + bob);
@@ -672,22 +676,19 @@
 
       // Enemy bullets
       for (const b of enemyBullets) {
-        drawGlow(b.x, b.y, 10, b.color, 0.4);
         ctx.fillStyle = b.color;
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Enemies
+      // Enemies: flat filled shapes, briefly ink-coloured when hit
       for (const e of enemies) {
-        const color = e.flashTimer > 0 ? '#ffffff' : e.color;
-        drawGlow(e.x, e.y, e.r * 2.5, e.color, 0.25);
+        const color = e.flashTimer > 0 ? INK : e.color;
+        ctx.fillStyle = color;
 
         if (e.type === 2) {
           // Tank: hexagon
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 2.5;
           ctx.beginPath();
           for (let i = 0; i < 6; i++) {
             const a = (Math.PI / 3) * i - Math.PI / 6;
@@ -697,64 +698,49 @@
             else ctx.lineTo(px, py);
           }
           ctx.closePath();
-          ctx.stroke();
-          ctx.fillStyle = hexToRgba(e.color, 0.15);
           ctx.fill();
           // HP bar
           if (e.hp < e.maxHp) {
             const bw = e.r * 2;
             const bh = 3;
-            ctx.fillStyle = hexToRgba('#ffffff', 0.2);
+            ctx.fillStyle = SURFACE_2;
             ctx.fillRect(e.x - bw / 2, e.y - e.r - 8, bw, bh);
             ctx.fillStyle = e.color;
             ctx.fillRect(e.x - bw / 2, e.y - e.r - 8, bw * (e.hp / e.maxHp), bh);
           }
         } else if (e.type === 1) {
           // Fast: triangle
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 2;
           const a = angle(e, player);
           ctx.beginPath();
           ctx.moveTo(e.x + Math.cos(a) * e.r, e.y + Math.sin(a) * e.r);
           ctx.lineTo(e.x + Math.cos(a + 2.4) * e.r, e.y + Math.sin(a + 2.4) * e.r);
           ctx.lineTo(e.x + Math.cos(a - 2.4) * e.r, e.y + Math.sin(a - 2.4) * e.r);
           ctx.closePath();
-          ctx.stroke();
-          ctx.fillStyle = hexToRgba(e.color, 0.2);
           ctx.fill();
         } else if (e.type === 3) {
           // Shooter: diamond
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(e.x, e.y - e.r);
           ctx.lineTo(e.x + e.r, e.y);
           ctx.lineTo(e.x, e.y + e.r);
           ctx.lineTo(e.x - e.r, e.y);
           ctx.closePath();
-          ctx.stroke();
-          ctx.fillStyle = hexToRgba(e.color, 0.2);
           ctx.fill();
           // Dot in center
-          ctx.fillStyle = color;
+          ctx.fillStyle = '#ffffff';
           ctx.beginPath();
           ctx.arc(e.x, e.y, 3, 0, Math.PI * 2);
           ctx.fill();
         } else {
           // Basic: circle
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.fillStyle = hexToRgba(e.color, 0.15);
           ctx.fill();
         }
       }
 
       // Player bullets
       for (const b of bullets) {
-        drawGlow(b.x, b.y, 8, b.color, 0.5);
         ctx.fillStyle = b.color;
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
@@ -765,23 +751,19 @@
       const pAlpha = player.invincible > 0 ? (0.4 + 0.6 * Math.abs(Math.sin(player.invincible * 10))) : 1;
       ctx.globalAlpha = pAlpha;
 
-      // Shield visual
+      // Shield visual: thin accent ring
       if (player.shieldTimer > 0) {
-        const sAlpha = player.shieldTimer < 1.5 ? 0.3 + 0.3 * Math.sin(player.shieldTimer * 8) : 0.4;
+        const sAlpha = player.shieldTimer < 1.5 ? 0.4 + 0.3 * Math.sin(player.shieldTimer * 8) : 0.7;
         ctx.strokeStyle = hexToRgba(CYAN, sAlpha);
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(player.x, player.y, player.r + 8, 0, Math.PI * 2);
         ctx.stroke();
-        drawGlow(player.x, player.y, player.r + 14, CYAN, sAlpha * 0.3);
       }
 
-      // Ship body (triangle pointing at angle)
-      drawGlow(player.x, player.y, 30, CYAN, 0.2);
+      // Ship body (flat ink arrow pointing at angle)
       const pa = player.angle;
-      ctx.fillStyle = hexToRgba(CYAN, 0.2);
-      ctx.strokeStyle = CYAN;
-      ctx.lineWidth = 2;
+      ctx.fillStyle = INK;
       ctx.beginPath();
       ctx.moveTo(player.x + Math.cos(pa) * 18, player.y + Math.sin(pa) * 18);
       ctx.lineTo(player.x + Math.cos(pa + 2.5) * 12, player.y + Math.sin(pa + 2.5) * 12);
@@ -789,12 +771,6 @@
       ctx.lineTo(player.x + Math.cos(pa - 2.5) * 12, player.y + Math.sin(pa - 2.5) * 12);
       ctx.closePath();
       ctx.fill();
-      ctx.stroke();
-
-      // Engine glow
-      const ex = player.x + Math.cos(pa + Math.PI) * 10;
-      const ey = player.y + Math.sin(pa + Math.PI) * 10;
-      drawGlow(ex, ey, 8, ORANGE, 0.5 * pAlpha);
 
       ctx.globalAlpha = 1;
 
@@ -812,7 +788,7 @@
 
       // Touch joystick visual
       if (touchMoveStart && touchMovePos) {
-        ctx.strokeStyle = hexToRgba(CYAN, 0.3);
+        ctx.strokeStyle = LINE;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(touchMoveStart.x, touchMoveStart.y, 40, 0, Math.PI * 2);
@@ -821,7 +797,7 @@
         const jdy = touchMovePos.y - touchMoveStart.y;
         const jd = Math.min(Math.hypot(jdx, jdy), 40);
         const ja = Math.atan2(jdy, jdx);
-        ctx.fillStyle = hexToRgba(CYAN, 0.4);
+        ctx.fillStyle = hexToRgba(CYAN, 0.5);
         ctx.beginPath();
         ctx.arc(
           touchMoveStart.x + Math.cos(ja) * jd,
@@ -850,55 +826,54 @@
     const pad = 16;
 
     // Score (top left)
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 18px monospace';
+    ctx.fillStyle = INK;
+    ctx.font = `700 18px ${FONT}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(`POÄNG: ${score}`, pad, pad);
+    ctx.fillText(`Poäng: ${score}`, pad, pad);
 
     // Hi score
-    ctx.fillStyle = hexToRgba('#ffffff', 0.4);
-    ctx.font = '12px monospace';
-    ctx.fillText(`BÄST: ${hiScore}`, pad, pad + 24);
+    ctx.fillStyle = MUTED;
+    ctx.font = `400 12px ${FONT}`;
+    ctx.fillText(`Bäst: ${hiScore}`, pad, pad + 24);
 
     // Wave (top center)
     ctx.fillStyle = CYAN;
-    ctx.font = 'bold 16px monospace';
+    ctx.font = `600 16px ${FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillText(`VÅG ${wave}`, W() / 2, pad);
+    ctx.fillText(`Våg ${wave}`, W() / 2, pad);
 
     // Wave incoming text
     if (!waveActive && waveCooldown > 0 && wave > 0) {
-      ctx.fillStyle = hexToRgba(PINK, 0.6 + 0.4 * Math.sin(Date.now() / 200));
-      ctx.font = 'bold 20px monospace';
-      ctx.fillText('NÄSTA VÅG KOMMER...', W() / 2, pad + 30);
+      ctx.fillStyle = MUTED;
+      ctx.font = `600 18px ${FONT}`;
+      ctx.fillText('Nästa våg kommer...', W() / 2, pad + 30);
     }
 
     // Lives (top right) - hearts
     ctx.textAlign = 'right';
-    ctx.font = '20px sans-serif';
     for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = i < lives ? PINK : hexToRgba(PINK, 0.2);
+      ctx.fillStyle = i < lives ? PINK : SURFACE_2;
       drawHeart(W() - pad - i * 28, pad + 10, 10);
     }
 
     // Active powerups (below lives)
     let py = pad + 34;
     ctx.textAlign = 'right';
-    ctx.font = '11px monospace';
+    ctx.font = `600 11px ${FONT}`;
     if (player.shieldTimer > 0) {
       ctx.fillStyle = CYAN;
-      ctx.fillText(`SKÖLD ${player.shieldTimer.toFixed(1)}s`, W() - pad, py);
+      ctx.fillText(`Sköld ${player.shieldTimer.toFixed(1)}s`, W() - pad, py);
       py += 16;
     }
     if (player.rapidTimer > 0) {
       ctx.fillStyle = ORANGE;
-      ctx.fillText(`SNABB ${player.rapidTimer.toFixed(1)}s`, W() - pad, py);
+      ctx.fillText(`Snabb ${player.rapidTimer.toFixed(1)}s`, W() - pad, py);
       py += 16;
     }
     if (player.spreadTimer > 0) {
       ctx.fillStyle = PURPLE;
-      ctx.fillText(`SPRID ${player.spreadTimer.toFixed(1)}s`, W() - pad, py);
+      ctx.fillText(`Sprid ${player.spreadTimer.toFixed(1)}s`, W() - pad, py);
     }
   }
 
@@ -914,33 +889,30 @@
 
   // === Menu ===
   function drawMenu() {
-    // Dim overlay
-    ctx.fillStyle = hexToRgba('#000000', 0.75);
+    // Light overlay
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, W(), H());
 
     const cx = W() / 2;
     const cy = H() / 2;
 
+    drawPanel(cx, cy - 165, cy + 200);
+
     // Title
-    ctx.save();
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = CYAN;
-    ctx.font = `bold ${Math.min(60, W() * 0.08)}px monospace`;
+    ctx.fillStyle = INK;
+    ctx.font = `700 ${Math.min(44, W() * 0.08)}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('NEON SHOOTER', cx, cy - 120);
-    ctx.shadowBlur = 0;
-    ctx.restore();
+    ctx.fillText('Shooter', cx, cy - 120);
 
     // Subtitle
-    ctx.fillStyle = hexToRgba('#ffffff', 0.6);
-    ctx.font = `${Math.min(16, W() * 0.03)}px monospace`;
-    ctx.fillText('Överlev vågor av fiender i den neonfärgade arenan', cx, cy - 75);
+    ctx.fillStyle = MUTED;
+    ctx.font = `400 ${Math.min(16, W() * 0.03)}px ${FONT}`;
+    ctx.fillText('Överlev vågor av fiender i arenan', cx, cy - 75);
 
     // Controls
-    ctx.fillStyle = hexToRgba('#ffffff', 0.5);
-    ctx.font = `${Math.min(13, W() * 0.025)}px monospace`;
+    ctx.fillStyle = MUTED;
+    ctx.font = `400 ${Math.min(13, W() * 0.025)}px ${FONT}`;
     const lines = isMobile
       ? [
         'Vänster sida: Virtuell joystick för rörelse',
@@ -957,7 +929,7 @@
     });
 
     // Powerup legend
-    ctx.font = `${Math.min(12, W() * 0.022)}px monospace`;
+    ctx.font = `600 ${Math.min(12, W() * 0.022)}px ${FONT}`;
     const pLegend = [
       { label: 'R = Snabb eld', color: ORANGE },
       { label: 'S = Sköld', color: CYAN },
@@ -970,8 +942,8 @@
 
     // Hi score
     if (hiScore > 0) {
-      ctx.fillStyle = hexToRgba(PINK, 0.7);
-      ctx.font = '14px monospace';
+      ctx.fillStyle = INK;
+      ctx.font = `600 14px ${FONT}`;
       ctx.fillText(`Bästa poäng: ${hiScore}`, cx, cy + 110);
     }
 
@@ -980,57 +952,39 @@
     const bx = cx - bw / 2;
     const by = cy + 130;
     playBtnBounds = { x: bx, y: by, w: bw, h: bh };
-
-    ctx.save();
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 15;
-    ctx.strokeStyle = CYAN;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(bx, by, bw, bh, 8);
-    ctx.stroke();
-    ctx.fillStyle = hexToRgba(CYAN, 0.1);
-    ctx.fill();
-    ctx.restore();
-
-    ctx.fillStyle = CYAN;
-    ctx.font = 'bold 18px monospace';
-    ctx.fillText('SPELA', cx, by + bh / 2);
+    drawPrimaryButton(bx, by, bw, bh, 'Spela');
   }
 
   // === Game Over ===
   function drawGameOver() {
-    ctx.fillStyle = hexToRgba('#000000', 0.8);
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, W(), H());
 
     const cx = W() / 2;
     const cy = H() / 2;
 
+    drawPanel(cx, cy - 135, cy + 145);
+
     // Title
-    ctx.save();
-    ctx.shadowColor = PINK;
-    ctx.shadowBlur = 25;
     ctx.fillStyle = PINK;
-    ctx.font = `bold ${Math.min(48, W() * 0.07)}px monospace`;
+    ctx.font = `700 ${Math.min(36, W() * 0.07)}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('SPELET SLUT', cx, cy - 90);
-    ctx.shadowBlur = 0;
-    ctx.restore();
+    ctx.fillText('Spelet slut', cx, cy - 90);
 
     // Score
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px monospace';
-    ctx.fillText(`POÄNG: ${score}`, cx, cy - 35);
+    ctx.fillStyle = INK;
+    ctx.font = `700 24px ${FONT}`;
+    ctx.fillText(`Poäng: ${score}`, cx, cy - 35);
 
     // Waves
-    ctx.fillStyle = CYAN;
-    ctx.font = '18px monospace';
+    ctx.fillStyle = MUTED;
+    ctx.font = `400 18px ${FONT}`;
     ctx.fillText(`Vågor överlevda: ${wave}`, cx, cy + 5);
 
     // Hi score
-    ctx.fillStyle = hexToRgba(PINK, 0.7);
-    ctx.font = '16px monospace';
+    ctx.fillStyle = MUTED;
+    ctx.font = `400 16px ${FONT}`;
     ctx.fillText(`Bästa: ${hiScore}`, cx, cy + 40);
 
     // Retry button
@@ -1038,22 +992,7 @@
     const bx = cx - bw / 2;
     const by = cy + 70;
     retryBtnBounds = { x: bx, y: by, w: bw, h: bh };
-
-    ctx.save();
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 15;
-    ctx.strokeStyle = CYAN;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(bx, by, bw, bh, 8);
-    ctx.stroke();
-    ctx.fillStyle = hexToRgba(CYAN, 0.1);
-    ctx.fill();
-    ctx.restore();
-
-    ctx.fillStyle = CYAN;
-    ctx.font = 'bold 18px monospace';
-    ctx.fillText('FÖRSÖK IGEN', cx, by + bh / 2);
+    drawPrimaryButton(bx, by, bw, bh, 'Försök igen');
   }
 
   // === Game Loop ===

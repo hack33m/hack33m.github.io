@@ -44,7 +44,8 @@
       "Bash(node -c games/block-blast/index.html 2>&1 || echo \"Checking JS extraction...\" && sed -n '/<script>/,/<\\\\/script>/p' games/block-blast/index.html > /tmp/bb_check.js && node -c /tmp/bb_check.js 2>&1)",
       "Bash(sed -n '/<script>/,/<\\\\/script>/p' games/block-blast/index.html | sed '1d;$d' > /tmp/bb_check.js && node -c /tmp/bb_check.js 2>&1)",
       "Bash(node -c /Users/ehsan/Dev/Elia/projekt1/js/app.js 2>&1)",
-      "Bash(sed -n '/<script>/,/<\\\\/script>/p' /Users/ehsan/Dev/Elia/projekt1/games/neon-league/index.html | sed '1d;$d' > /tmp/nl_check.js && node -c /tmp/nl_check.js 2>&1)"
+      "Bash(sed -n '/<script>/,/<\\\\/script>/p' /Users/ehsan/Dev/Elia/projekt1/games/neon-league/index.html | sed '1d;$d' > /tmp/nl_check.js && node -c /tmp/nl_check.js 2>&1)",
+      "Bash(echo:*)"
     ]
   }
 }

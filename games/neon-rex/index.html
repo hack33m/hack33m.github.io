@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neon Rex</title>
+  <title>T-Rex</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
+      color: #1c1917;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -57,18 +58,24 @@
   const W = () => window.innerWidth;
   const H = () => window.innerHeight;
 
-  // Neon colors
-  const NEON_CYAN = '#00d4ff';
-  const NEON_PINK = '#ff2d95';
-  const NEON_PURPLE = '#a855f7';
-  const NEON_GREEN = '#39ff14';
-  const NEON_ORANGE = '#ff6a00';
-  const NEON_YELLOW = '#ffe600';
+  // Palette (flat minimalist)
+  const C_BG = '#f5f5f4';
+  const C_SURFACE = '#ffffff';
+  const C_SURFACE2 = '#e7e5e4';
+  const C_LINE = '#d6d3d1';
+  const C_INK = '#1c1917';
+  const C_MUTED = '#78716c';
+  const C_ACCENT = '#2563eb';
+  const C_RED = '#dc2626';
+  const C_GREEN = '#16a34a';
+  const C_ORANGE = '#ea580c';
+  const C_PURPLE = '#7c3aed';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
   // Game state
   let state = 'menu';
   let score = 0;
-  let highScore = parseInt(localStorage.getItem('neon-rex-hi') || '0');
+  let highScore = parseInt(localStorage.getItem('neon-T-Rex-hi') || '0');
   let gameSpeed = 6;
   let frameCount = 0;
   let groundY = 0;
@@ -76,11 +83,11 @@
   // Dino
   const dino = {
     x: 60, y: 0, w: 44, h: 48,
-    vy: 0, jumping: false, ducking: false,
+    vy: 0, Jumping: false, ducking: false,
     legFrame: 0, legTimer: 0,
   };
   const GRAVITY = 0.6;
-  const JUMP_FORCE = -12;
+  const Jump_FORCE = -12;
   const DUCK_H = 30;
 
   // Obstacles
@@ -118,7 +125,7 @@
       if (ty > H() * 0.6) {
         dino.ducking = true;
       } else {
-        jump();
+        Jump();
       }
     }
   });
@@ -131,12 +138,12 @@
     else if (state === 'gameover') startGame();
   });
 
-  function jump() {
-    if (!dino.jumping) {
-      dino.vy = JUMP_FORCE;
-      dino.jumping = true;
+  function Jump() {
+    if (!dino.Jumping) {
+      dino.vy = Jump_FORCE;
+      dino.Jumping = true;
       dino.ducking = false;
-      spawnParticles(dino.x + dino.w / 2, groundY, NEON_CYAN, 6);
+      spawnParticles(dino.x + dino.w / 2, groundY, C_MUTED, 6);
     }
   }
 
@@ -150,7 +157,7 @@
     particles = [];
     dino.y = 0;
     dino.vy = 0;
-    dino.jumping = false;
+    dino.Jumping = false;
     dino.ducking = false;
   }
 
@@ -171,16 +178,16 @@
   function spawnObstacle() {
     const type = Math.random();
     if (type < 0.35) {
-      // Small cactus (neon crystal)
+      // Small cactus (crystal)
       obstacles.push({ type: 'small', x: W() + 50, w: 20, h: 40 + Math.random() * 15 });
     } else if (type < 0.65) {
-      // Tall cactus (neon pillar)
+      // Tall cactus (pillar)
       obstacles.push({ type: 'tall', x: W() + 50, w: 22, h: 55 + Math.random() * 15 });
     } else if (type < 0.8) {
       // Double obstacle
       obstacles.push({ type: 'double', x: W() + 50, w: 50, h: 40 });
     } else {
-      // Flying pterodactyl (neon drone)
+      // Flying pterodactyl (drone)
       const flyH = Math.random() < 0.5 ? 0 : 35;
       obstacles.push({ type: 'flyer', x: W() + 50, w: 40, h: 28, flyHeight: flyH, wingFrame: 0 });
     }
@@ -202,8 +209,8 @@
     }
 
     // Input
-    if (keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) jump();
-    dino.ducking = !dino.jumping && (keys['ArrowDown'] || keys['s'] || keys['S']);
+    if (keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) Jump();
+    dino.ducking = !dino.Jumping && (keys['ArrowDown'] || keys['s'] || keys['S']);
 
     // Dino physics
     dino.vy += GRAVITY;
@@ -211,7 +218,7 @@
     if (dino.y >= 0) {
       dino.y = 0;
       dino.vy = 0;
-      dino.jumping = false;
+      dino.Jumping = false;
     }
 
     // Dino animation
@@ -266,11 +273,11 @@
         state = 'gameover';
         if (score > highScore) {
           highScore = score;
-          localStorage.setItem('neon-rex-hi', highScore);
+          localStorage.setItem('neon-T-Rex-hi', highScore);
         }
-        spawnParticles(dino.x + dino.w / 2, groundY - dh / 2 + dino.y, NEON_PINK, 15);
+        spawnParticles(dino.x + dino.w / 2, groundY - dh / 2 + dino.y, C_RED, 15);
         try {
-          window.parent.postMessage({ type: 'game-score', score, game: 'neon-rex' }, '*');
+          window.parent.postMessage({ type: 'game-score', score, game: 'neon-T-Rex' }, '*');
         } catch(e) {}
       }
     }
@@ -292,13 +299,9 @@
 
     ctx.save();
 
-    // Glow
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 12;
-
     if (dino.ducking) {
       // Ducking dino - wider, shorter
-      ctx.fillStyle = NEON_CYAN;
+      ctx.fillStyle = C_INK;
       // Body
       ctx.beginPath();
       ctx.roundRect(x, y + 4, 50, 22, 6);
@@ -308,10 +311,10 @@
       ctx.roundRect(x + 35, y, 16, 16, 4);
       ctx.fill();
       // Eye
-      ctx.fillStyle = '#0a0a1a';
+      ctx.fillStyle = C_BG;
       ctx.fillRect(x + 44, y + 4, 4, 4);
       // Legs
-      ctx.fillStyle = NEON_CYAN;
+      ctx.fillStyle = C_INK;
       if (dino.legFrame === 0) {
         ctx.fillRect(x + 8, y + 24, 5, 6);
         ctx.fillRect(x + 22, y + 24, 5, 6);
@@ -321,7 +324,7 @@
       }
     } else {
       // Standing dino
-      ctx.fillStyle = NEON_CYAN;
+      ctx.fillStyle = C_INK;
       // Body
       ctx.beginPath();
       ctx.roundRect(x + 4, y + 12, 30, 24, 5);
@@ -333,17 +336,17 @@
       // Jaw
       ctx.fillRect(x + 28, y + 12, 14, 8);
       // Eye
-      ctx.fillStyle = '#0a0a1a';
+      ctx.fillStyle = C_BG;
       ctx.fillRect(x + 32, y + 5, 5, 5);
       // Tiny arms
-      ctx.fillStyle = NEON_CYAN;
+      ctx.fillStyle = C_INK;
       ctx.fillRect(x + 24, y + 24, 8, 4);
       ctx.fillRect(x + 30, y + 26, 4, 5);
       // Tail
       ctx.fillRect(x, y + 16, 8, 6);
       ctx.fillRect(x - 4, y + 14, 6, 5);
       // Legs
-      if (dino.jumping) {
+      if (dino.Jumping) {
         ctx.fillRect(x + 8, y + 36, 6, 12);
         ctx.fillRect(x + 22, y + 36, 6, 12);
       } else if (dino.legFrame === 0) {
@@ -363,9 +366,7 @@
 
     if (o.type === 'flyer') {
       const y = groundY - 30 - o.flyHeight;
-      ctx.shadowColor = NEON_ORANGE;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = NEON_ORANGE;
+      ctx.fillStyle = C_PURPLE;
 
       // Body
       ctx.beginPath();
@@ -378,10 +379,10 @@
       // Beak
       ctx.fillRect(o.x + 38, y + 8, 6, 4);
       // Eye
-      ctx.fillStyle = '#0a0a1a';
+      ctx.fillStyle = C_BG;
       ctx.fillRect(o.x + 34, y + 7, 3, 3);
       // Wings
-      ctx.fillStyle = NEON_ORANGE;
+      ctx.fillStyle = C_PURPLE;
       if (o.wingFrame === 0) {
         ctx.beginPath();
         ctx.moveTo(o.x + 12, y + 8);
@@ -397,12 +398,10 @@
       }
     } else {
       const y = groundY - o.h;
-      let color = NEON_PINK;
-      if (o.type === 'tall') color = NEON_PURPLE;
-      if (o.type === 'double') color = NEON_PINK;
+      let color = C_RED;
+      if (o.type === 'tall') color = C_ORANGE;
+      if (o.type === 'double') color = C_RED;
 
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
       ctx.fillStyle = color;
 
       if (o.type === 'double') {
@@ -435,8 +434,8 @@
         ctx.lineTo(o.x + o.w / 2, y - 6);
         ctx.lineTo(o.x + o.w, y + 8);
         ctx.fill();
-        // Inner glow line
-        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        // Inner highlight line
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(o.x + o.w / 2, y - 2);
@@ -451,43 +450,27 @@
   function drawGround() {
     groundY = H() * 0.75;
 
-    // Ground line with glow
-    ctx.save();
-    ctx.shadowColor = NEON_PURPLE;
-    ctx.shadowBlur = 6;
-    ctx.strokeStyle = NEON_PURPLE;
+    // Flat ground below the line
+    ctx.fillStyle = C_SURFACE2;
+    ctx.fillRect(0, groundY, W(), H() - groundY);
+
+    // Short scrolling ground ticks (motion reference)
+    ctx.strokeStyle = C_LINE;
+    ctx.lineWidth = 2;
+    for (let x = -groundOffset; x < W(); x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, groundY + 10);
+      ctx.lineTo(x + 12, groundY + 10);
+      ctx.stroke();
+    }
+
+    // Ground line
+    ctx.strokeStyle = C_INK;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, groundY);
     ctx.lineTo(W(), groundY);
     ctx.stroke();
-    ctx.restore();
-
-    // Grid lines below ground
-    ctx.strokeStyle = 'rgba(168, 85, 247, 0.15)';
-    ctx.lineWidth = 1;
-    for (let i = 1; i < 8; i++) {
-      ctx.beginPath();
-      ctx.moveTo(0, groundY + i * 20);
-      ctx.lineTo(W(), groundY + i * 20);
-      ctx.stroke();
-    }
-    // Vertical grid with parallax
-    for (let x = -groundOffset; x < W(); x += 40) {
-      ctx.beginPath();
-      ctx.moveTo(x, groundY);
-      ctx.lineTo(x - 30, H());
-      ctx.stroke();
-    }
-  }
-
-  function drawStars() {
-    for (const s of stars) {
-      ctx.fillStyle = `rgba(255,255,255,${0.3 + s.speed * 0.5})`;
-      ctx.beginPath();
-      ctx.arc(s.x, H() * s.y, s.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
   }
 
   function drawParticles() {
@@ -503,15 +486,12 @@
 
   function drawHUD() {
     ctx.textAlign = 'right';
-    ctx.font = 'bold 22px Segoe UI, sans-serif';
-    ctx.fillStyle = '#fff';
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 6;
+    ctx.font = `700 22px ${FONT}`;
+    ctx.fillStyle = C_INK;
     ctx.fillText(String(score).padStart(5, '0'), W() - 20, 35);
-    ctx.shadowBlur = 0;
 
-    ctx.font = '13px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = `400 13px ${FONT}`;
+    ctx.fillStyle = C_MUTED;
     ctx.fillText(`HI ${String(highScore).padStart(5, '0')}`, W() - 20, 55);
   }
 
@@ -521,26 +501,20 @@
     ctx.textAlign = 'center';
 
     // Title
-    ctx.save();
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 25;
-    ctx.font = `bold ${Math.min(64, W() * 0.13)}px Segoe UI, sans-serif`;
-    ctx.fillStyle = NEON_CYAN;
-    ctx.fillText('NEON REX', W() / 2, H() * 0.28);
-    ctx.restore();
+    ctx.font = `700 ${Math.min(64, W() * 0.13)}px ${FONT}`;
+    ctx.fillStyle = C_INK;
+    ctx.fillText('T-Rex', W() / 2, H() * 0.28);
 
     // Subtitle
-    ctx.font = '18px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = `400 18px ${FONT}`;
+    ctx.fillStyle = C_MUTED;
     ctx.fillText('Spring, hoppa och ducka!', W() / 2, H() * 0.36);
 
     // Draw preview dino
     ctx.save();
     const previewX = W() / 2 - 22;
     const previewY = H() * 0.48;
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 15;
-    ctx.fillStyle = NEON_CYAN;
+    ctx.fillStyle = C_INK;
     ctx.beginPath();
     ctx.roundRect(previewX + 4, previewY + 12, 30, 24, 5);
     ctx.fill();
@@ -548,107 +522,96 @@
     ctx.roundRect(previewX + 14, previewY, 28, 20, 5);
     ctx.fill();
     ctx.fillRect(previewX + 28, previewY + 12, 14, 8);
-    ctx.fillStyle = '#0a0a1a';
+    ctx.fillStyle = C_BG;
     ctx.fillRect(previewX + 32, previewY + 5, 5, 5);
-    ctx.fillStyle = NEON_CYAN;
+    ctx.fillStyle = C_INK;
     ctx.fillRect(previewX + 8, previewY + 36, 6, 12);
     ctx.fillRect(previewX + 22, previewY + 36, 6, 12);
     ctx.restore();
 
     // Controls
-    ctx.font = '15px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText('MELLANSLAG / ↑ = Hoppa', W() / 2, H() * 0.65);
+    ctx.font = `400 15px ${FONT}`;
+    ctx.fillStyle = C_MUTED;
+    ctx.fillText('Mellanslag / ↑ = Hoppa', W() / 2, H() * 0.65);
     ctx.fillText('↓ = Ducka', W() / 2, H() * 0.69);
 
     // High score
     if (highScore > 0) {
-      ctx.font = 'bold 18px Segoe UI, sans-serif';
-      ctx.fillStyle = NEON_PURPLE;
+      ctx.font = `600 18px ${FONT}`;
+      ctx.fillStyle = C_ACCENT;
       ctx.fillText(`Rekord: ${String(highScore).padStart(5, '0')}`, W() / 2, H() * 0.77);
     }
 
     // Play button
     const btnW = 200, btnH = 50;
     const bx = W() / 2 - btnW / 2, by = H() * 0.82;
-    ctx.save();
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 15;
-    ctx.strokeStyle = NEON_CYAN;
-    ctx.lineWidth = 2;
+    ctx.fillStyle = C_ACCENT;
     ctx.beginPath();
-    ctx.roundRect(bx, by, btnW, btnH, 12);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.1)';
+    ctx.roundRect(bx, by, btnW, btnH, 10);
     ctx.fill();
-    ctx.restore();
 
-    ctx.fillStyle = NEON_CYAN;
-    ctx.font = 'bold 20px Segoe UI, sans-serif';
-    ctx.fillText('SPELA', W() / 2, by + 33);
+    ctx.fillStyle = C_SURFACE;
+    ctx.font = `600 20px ${FONT}`;
+    ctx.fillText('Spela', W() / 2, by + 32);
   }
 
   function drawGameOver() {
-    ctx.fillStyle = 'rgba(10, 10, 26, 0.7)';
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, W(), H());
+
+    // Panel
+    const pw = Math.min(320, W() - 32);
+    const px = W() / 2 - pw / 2, py = H() * 0.2;
+    const ph = H() * 0.65 + 50 + 24 - py;
+    ctx.fillStyle = C_SURFACE;
+    ctx.strokeStyle = C_LINE;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, 10);
+    ctx.fill();
+    ctx.stroke();
 
     ctx.textAlign = 'center';
 
-    ctx.save();
-    ctx.shadowColor = NEON_PINK;
-    ctx.shadowBlur = 20;
-    ctx.font = `bold ${Math.min(48, W() * 0.1)}px Segoe UI, sans-serif`;
-    ctx.fillStyle = NEON_PINK;
-    ctx.fillText('GAME OVER', W() / 2, H() * 0.32);
-    ctx.restore();
+    ctx.font = `700 ${Math.min(40, W() * 0.09)}px ${FONT}`;
+    ctx.fillStyle = C_RED;
+    ctx.fillText('Game over', W() / 2, H() * 0.32);
 
-    ctx.font = 'bold 36px Segoe UI, sans-serif';
-    ctx.fillStyle = '#fff';
+    ctx.font = `700 36px ${FONT}`;
+    ctx.fillStyle = C_INK;
     ctx.fillText(String(score).padStart(5, '0'), W() / 2, H() * 0.45);
 
-    ctx.font = '16px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = `400 16px ${FONT}`;
+    ctx.fillStyle = C_MUTED;
     ctx.fillText('Poäng', W() / 2, H() * 0.49);
 
     if (score >= highScore && score > 0) {
-      ctx.font = 'bold 20px Segoe UI, sans-serif';
-      ctx.fillStyle = NEON_GREEN;
-      ctx.fillText('NYTT REKORD!', W() / 2, H() * 0.57);
+      ctx.font = `600 20px ${FONT}`;
+      ctx.fillStyle = C_GREEN;
+      ctx.fillText('Nytt rekord!', W() / 2, H() * 0.57);
     } else {
-      ctx.font = '16px Segoe UI, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = `400 16px ${FONT}`;
+      ctx.fillStyle = C_MUTED;
       ctx.fillText(`Rekord: ${String(highScore).padStart(5, '0')}`, W() / 2, H() * 0.57);
     }
 
     // Retry button
     const btnW = 200, btnH = 50;
     const bx = W() / 2 - btnW / 2, by = H() * 0.65;
-    ctx.save();
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 15;
-    ctx.strokeStyle = NEON_CYAN;
-    ctx.lineWidth = 2;
+    ctx.fillStyle = C_ACCENT;
     ctx.beginPath();
-    ctx.roundRect(bx, by, btnW, btnH, 12);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.1)';
+    ctx.roundRect(bx, by, btnW, btnH, 10);
     ctx.fill();
-    ctx.restore();
 
-    ctx.fillStyle = NEON_CYAN;
-    ctx.font = 'bold 20px Segoe UI, sans-serif';
-    ctx.fillText('FÖRSÖK IGEN', W() / 2, by + 33);
+    ctx.fillStyle = C_SURFACE;
+    ctx.font = `600 20px ${FONT}`;
+    ctx.fillText('Försök igen', W() / 2, by + 32);
   }
 
   function drawBg() {
-    // Dark gradient background
-    const grad = ctx.createLinearGradient(0, 0, 0, H());
-    grad.addColorStop(0, '#0a0a1a');
-    grad.addColorStop(0.6, '#0f1832');
-    grad.addColorStop(1, '#1a0a2e');
-    ctx.fillStyle = grad;
+    // Flat background
+    ctx.fillStyle = C_BG;
     ctx.fillRect(0, 0, W(), H());
-    drawStars();
     drawGround();
   }
 

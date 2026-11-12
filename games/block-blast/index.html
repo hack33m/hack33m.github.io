@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Corny Crunch</title>
+  <title>Block Blast</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -17,7 +17,7 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      color: #fff;
+      color: #1c1917;
     }
     canvas { display: block; }
   </style>
@@ -47,28 +47,36 @@
   // ========== CONSTANTS ==========
   const COLS = 8;
   const ROWS = 8;
-  const NEON_BLUE = '#00d4ff';
-  const NEON_PURPLE = '#a855f7';
-  const NEON_PINK = '#ff2d95';
-  const NEON_GREEN = '#39ff14';
-  const NEON_ORANGE = '#ff6a00';
-  const NEON_YELLOW = '#ffe600';
-  const NEON_RED = '#ff3344';
-  const NEON_CYAN = '#00fff7';
+  // Palette (flat minimalist)
+  const BG = '#f5f5f4';
+  const SURFACE = '#ffffff';
+  const SURFACE2 = '#e7e5e4';
+  const LINE = '#d6d3d1';
+  const INK = '#1c1917';
+  const MUTED = '#78716c';
+  const ACCENT = '#2563eb';
+  const RED = '#dc2626';
+  const GREEN = '#16a34a';
+  const YELLOW = '#ca8a04';
+  const ORANGE = '#ea580c';
+  const PURPLE = '#7c3aed';
+  const TEAL = '#0d9488';
+  const PINK = '#db2777';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
-  const BLOCK_COLORS = [NEON_BLUE, NEON_PURPLE, NEON_PINK, NEON_GREEN, NEON_ORANGE, NEON_YELLOW, NEON_RED, NEON_CYAN];
+  const BLOCK_COLORS = [ACCENT, PURPLE, PINK, GREEN, ORANGE, YELLOW, RED, TEAL];
 
-  // Corny flavors
+  // Corny flavors (color = solid fallback when the image is missing, tint = light tile behind the image)
   const CORNY_FLAVORS = [
-    { id: 'choklad',   name: 'Choklad',         color: '#6B3410', glow: '#A0522D', img: '../../images/corny-choklad.png' },
-    { id: 'mork',      name: 'Mörk Choklad',    color: '#3D1C00', glow: '#5C2E00', img: '../../images/corny-mork.png' },
-    { id: 'vit',       name: 'Vit Choklad',      color: '#FFF8DC', glow: '#FFD700', img: '../../images/corny-vit.png' },
-    { id: 'kokos',     name: 'Kokos',            color: '#F5F5DC', glow: '#DEB887', img: '../../images/corny-kokos.png' },
-    { id: 'banan',     name: 'Banan',            color: '#FFD700', glow: '#FFD700', img: '../../images/corny-banan.png' },
-    { id: 'jordnot',   name: 'Jordnöt',          color: '#C4A265', glow: '#DAA520', img: '../../images/corny-jordnot.png' },
-    { id: 'jordgubb',  name: 'Jordgubb',         color: '#FF69B4', glow: '#FF69B4', img: '../../images/corny-jordgubb.png' },
-    { id: 'brownie',   name: 'Brownie',          color: '#4A2000', glow: '#8B4513', img: '../../images/corny-brownie.png' },
-    { id: 'karamell',  name: 'Salted Caramel',   color: '#DAA520', glow: '#DAA520', img: '../../images/corny-karamell.png' },
+    { id: 'choklad',   name: 'Choklad',         color: '#ea580c', tint: '#f8c4aa', img: '../../images/corny-choklad.png' },
+    { id: 'mork',      name: 'Mörk Choklad',    color: '#1c1917', tint: '#bbb8b5', img: '../../images/corny-mork.png' },
+    { id: 'vit',       name: 'Vit Choklad',      color: '#e7e5e4', tint: '#f4e8cd', img: '../../images/corny-vit.png' },
+    { id: 'kokos',     name: 'Kokos',            color: '#0d9488', tint: '#c3e4e1', img: '../../images/corny-kokos.png' },
+    { id: 'banan',     name: 'Banan',            color: '#ca8a04', tint: '#ecd6a7', img: '../../images/corny-banan.png' },
+    { id: 'jordnot',   name: 'Jordnöt',          color: '#f29b6d', tint: '#fbdece', img: '../../images/corny-jordnot.png' },
+    { id: 'jordgubb',  name: 'Jordgubb',         color: '#db2777', tint: '#f4bed6', img: '../../images/corny-jordgubb.png' },
+    { id: 'brownie',   name: 'Brownie',          color: '#dc2626', tint: '#f4bebe', img: '../../images/corny-brownie.png' },
+    { id: 'karamell',  name: 'Salted Caramel',   color: '#7c3aed', tint: '#e5c582', img: '../../images/corny-karamell.png' },
   ];
 
   // Preload corny images
@@ -168,7 +176,7 @@
   function randomPiece() {
     const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
     const flavor = CORNY_FLAVORS[Math.floor(Math.random() * CORNY_FLAVORS.length)];
-    return { cells: shape.cells.map(c => [...c]), color: flavor.color, glow: flavor.glow, flavorId: flavor.id };
+    return { cells: shape.cells.map(c => [...c]), color: flavor.color, tint: flavor.tint, flavorId: flavor.id };
   }
 
   function spawnPieces() {
@@ -266,7 +274,7 @@
     const popY = origin.y + cell * ROWS / 2;
     let text = '+' + points;
     if (combo > 1) text += ' x' + combo;
-    scorePopups.push({ x: popX, y: popY, text, timer: 60, color: combo > 1 ? NEON_YELLOW : NEON_GREEN });
+    scorePopups.push({ x: popX, y: popY, text, timer: 60, color: combo > 1 ? YELLOW : GREEN });
 
     score += points;
     if (score > highScore) {
@@ -318,14 +326,17 @@
     const gw = cell * COLS;
     const gh = cell * ROWS;
 
-    // Grid background
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    // Grid background: white panel with a 1px border
+    ctx.fillStyle = SURFACE;
     ctx.beginPath();
     ctx.roundRect(origin.x - 4, origin.y - 4, gw + 8, gh + 8, 8);
     ctx.fill();
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     // Grid lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.strokeStyle = SURFACE2;
     ctx.lineWidth = 1;
     for (let r = 0; r <= ROWS; r++) {
       ctx.beginPath();
@@ -354,24 +365,22 @@
     const pad = 2;
     const flavor = CORNY_FLAVORS.find(f => f.id === flavorId);
     const color = flavor ? flavor.color : flavorId; // fallback to raw color
-    const glow = flavor ? flavor.glow : color;
+    const tint = flavor ? flavor.tint : color;
     const img = flavor ? cornyImages[flavor.id] : null;
+    const radius = Math.min(6, size * 0.15);
 
-    // Background rounded rect — bright glow
-    ctx.fillStyle = hexToRgba(glow, alpha * 0.55);
-    ctx.shadowColor = glow;
-    ctx.shadowBlur = 10;
+    // Flat tinted tile
+    ctx.fillStyle = hexToRgba(tint, alpha);
     ctx.beginPath();
-    ctx.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, 4);
+    ctx.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, radius);
     ctx.fill();
-    ctx.shadowBlur = 0;
 
     // Draw corny image if loaded (contain fit, preserve aspect ratio)
     if (img && img._loaded) {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.beginPath();
-      ctx.roundRect(x + pad + 1, y + pad + 1, size - pad * 2 - 2, size - pad * 2 - 2, 3);
+      ctx.roundRect(x + pad + 1, y + pad + 1, size - pad * 2 - 2, size - pad * 2 - 2, radius);
       ctx.clip();
       const boxW = size - pad * 2 - 2;
       const boxH = boxW;
@@ -387,15 +396,12 @@
       const dx = x + pad + 1 + (boxW - drawW) / 2;
       const dy = y + pad + 1 + (boxH - drawH) / 2;
       ctx.drawImage(img, dx, dy, drawW, drawH);
-      // Bright overlay to make blocks pop
-      ctx.fillStyle = hexToRgba(glow, 0.2);
-      ctx.fillRect(x + pad + 1, y + pad + 1, boxW, boxH);
       ctx.restore();
     } else {
       // Fallback: solid color block
       ctx.fillStyle = hexToRgba(color, alpha);
       ctx.beginPath();
-      ctx.roundRect(x + pad + 1, y + pad + 1, size - pad * 2 - 2, size - pad * 2 - 2, 3);
+      ctx.roundRect(x + pad + 1, y + pad + 1, size - pad * 2 - 2, size - pad * 2 - 2, radius);
       ctx.fill();
     }
   }
@@ -407,10 +413,13 @@
     const areaH = H() - areaY - 10;
 
     // Piece area background
-    ctx.fillStyle = 'rgba(255,255,255,0.02)';
+    ctx.fillStyle = SURFACE;
     ctx.beginPath();
-    ctx.roundRect(W() * 0.05, areaY - 5, W() * 0.9, areaH, 12);
+    ctx.roundRect(W() * 0.05, areaY - 5, W() * 0.9, areaH, 10);
     ctx.fill();
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     const slots = 3;
     const slotW = W() * 0.9 / slots;
@@ -469,10 +478,9 @@
       if (gr >= 0 && gr < ROWS && gc >= 0 && gc < COLS) {
         const gx = origin.x + gc * cell;
         const gy = origin.y + gr * cell;
-        const ghostFlavor = CORNY_FLAVORS.find(f => f.id === piece.flavorId);
-        ctx.fillStyle = hexToRgba(ghostFlavor ? ghostFlavor.glow : '#ffffff', valid ? 0.35 : 0.15);
+        ctx.fillStyle = valid ? hexToRgba(ACCENT, 0.18) : hexToRgba(RED, 0.12);
         ctx.beginPath();
-        ctx.roundRect(gx + 2, gy + 2, cell - 4, cell - 4, 4);
+        ctx.roundRect(gx + 2, gy + 2, cell - 4, cell - 4, 6);
         ctx.fill();
       }
     }
@@ -494,19 +502,16 @@
       const scale = 1 + (1 - alpha) * 0.3;
       for (const { r, c, color: fId } of anim.cells) {
         const fl = CORNY_FLAVORS.find(f => f.id === fId);
-        const glowCol = fl ? fl.glow : '#ffffff';
+        const tintCol = fl ? fl.tint : SURFACE2;
         const cx = origin.x + c * cell + cell / 2;
         const cy = origin.y + r * cell + cell / 2;
         ctx.save();
         ctx.translate(cx, cy);
         ctx.scale(scale, scale);
-        ctx.fillStyle = hexToRgba(glowCol, alpha * 0.8);
-        ctx.shadowColor = glowCol;
-        ctx.shadowBlur = 15 * alpha;
+        ctx.fillStyle = hexToRgba(tintCol, alpha);
         ctx.beginPath();
-        ctx.roundRect(-cell / 2 + 2, -cell / 2 + 2, cell - 4, cell - 4, 4);
+        ctx.roundRect(-cell / 2 + 2, -cell / 2 + 2, cell - 4, cell - 4, 6);
         ctx.fill();
-        ctx.shadowBlur = 0;
         ctx.restore();
       }
     }
@@ -520,20 +525,17 @@
     const cell = getCellSize();
     const gw = cell * COLS;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px "Segoe UI", sans-serif';
-    ctx.shadowColor = NEON_BLUE;
-    ctx.shadowBlur = 10;
+    ctx.fillStyle = INK;
+    ctx.font = `700 24px ${FONT}`;
     // Position score above grid, right side
     ctx.textAlign = 'right';
     ctx.fillText(score.toString(), origin.x + gw, origin.y - 10);
-    ctx.shadowBlur = 0;
 
     // High score label
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font = '11px "Segoe UI", sans-serif';
+    ctx.fillStyle = MUTED;
+    ctx.font = `400 11px ${FONT}`;
     ctx.textAlign = 'left';
-    ctx.fillText('BÄSTA: ' + highScore, origin.x, origin.y - 12);
+    ctx.fillText('Bästa: ' + highScore, origin.x, origin.y - 12);
 
     // Score popups
     ctx.textAlign = 'center';
@@ -541,39 +543,45 @@
       const alpha = Math.min(1, pop.timer / 30);
       const yOff = (60 - pop.timer) * 0.8;
       ctx.fillStyle = hexToRgba(pop.color, alpha);
-      ctx.shadowColor = pop.color;
-      ctx.shadowBlur = 10;
-      ctx.font = 'bold 22px "Segoe UI", sans-serif';
+      ctx.font = `700 22px ${FONT}`;
       ctx.fillText(pop.text, pop.x, pop.y - yOff);
-      ctx.shadowBlur = 0;
     }
   }
 
   function drawGameOver() {
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, W(), H());
 
-    ctx.textAlign = 'center';
-    ctx.shadowColor = NEON_PINK;
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = NEON_PINK;
-    ctx.font = 'bold 40px "Segoe UI", sans-serif';
-    ctx.fillText('GAME OVER', W() / 2, H() / 2 - 40);
-    ctx.shadowBlur = 0;
+    // White panel
+    const pw = Math.min(320, W() - 32);
+    const px = W() / 2 - pw / 2;
+    const py = H() / 2 - 95;
+    const ph = 200;
+    ctx.fillStyle = SURFACE;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, 10);
+    ctx.fill();
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = RED;
+    ctx.font = `700 34px ${FONT}`;
+    ctx.fillText('Game over', W() / 2, H() / 2 - 40);
+
+    ctx.fillStyle = INK;
+    ctx.font = `600 22px ${FONT}`;
     ctx.fillText('Poäng: ' + score, W() / 2, H() / 2 + 10);
 
     if (score >= highScore && score > 0) {
-      ctx.fillStyle = hexToRgba(NEON_GREEN, 0.7 + 0.3 * Math.sin(Date.now() * 0.005));
-      ctx.font = 'bold 18px "Segoe UI", sans-serif';
-      ctx.fillText('NYTT REKORD!', W() / 2, H() / 2 + 40);
+      ctx.fillStyle = GREEN;
+      ctx.font = `600 17px ${FONT}`;
+      ctx.fillText('Nytt rekord!', W() / 2, H() / 2 + 40);
     }
 
-    const p = 0.5 + 0.5 * Math.sin(Date.now() * 0.004);
-    ctx.fillStyle = hexToRgba('#ffffff', p);
-    ctx.font = '15px "Segoe UI", sans-serif';
+    ctx.fillStyle = MUTED;
+    ctx.font = `400 15px ${FONT}`;
     ctx.fillText('Tryck för att spela igen', W() / 2, H() / 2 + 80);
   }
 
@@ -713,6 +721,8 @@
     update();
 
     ctx.clearRect(0, 0, W(), H());
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W(), H());
 
     ctx.save();
     if (shakeTimer > 0) {

@@ -1,28 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#0a0a1a"/>
-      <stop offset="100%" style="stop-color:#1a0a2e"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="300" fill="url(#bg)"/>
-  <!-- Grid -->
-  <rect x="110" y="70" width="180" height="180" rx="8" fill="#1a1a3a" stroke="#a855f7" stroke-width="1" opacity="0.5"/>
-  <!-- Tiles -->
-  <rect x="120" y="80" width="38" height="38" rx="6" fill="#00d4ff"/>
-  <text x="139" y="105" text-anchor="middle" font-family="Segoe UI" font-size="16" font-weight="bold" fill="white">2</text>
-  <rect x="164" y="80" width="38" height="38" rx="6" fill="#3b82f6"/>
-  <text x="183" y="105" text-anchor="middle" font-family="Segoe UI" font-size="16" font-weight="bold" fill="white">4</text>
-  <rect x="208" y="80" width="38" height="38" rx="6" fill="#ff6a00"/>
-  <text x="227" y="105" text-anchor="middle" font-family="Segoe UI" font-size="16" font-weight="bold" fill="white">8</text>
-  <rect x="252" y="80" width="38" height="38" rx="6" fill="#ff2d95"/>
-  <text x="271" y="105" text-anchor="middle" font-family="Segoe UI" font-size="14" font-weight="bold" fill="white">16</text>
-  <rect x="120" y="124" width="38" height="38" rx="6" fill="#a855f7"/>
-  <text x="139" y="149" text-anchor="middle" font-family="Segoe UI" font-size="14" font-weight="bold" fill="white">64</text>
-  <rect x="164" y="124" width="38" height="38" rx="6" fill="#39ff14"/>
-  <text x="183" y="149" text-anchor="middle" font-family="Segoe UI" font-size="12" font-weight="bold" fill="white">128</text>
-  <rect x="252" y="168" width="38" height="38" rx="6" fill="#fbbf24"/>
-  <text x="271" y="192" text-anchor="middle" font-family="Segoe UI" font-size="10" font-weight="bold" fill="white">2048</text>
-  <!-- Title -->
-  <text x="200" y="45" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="36" font-weight="bold" fill="#fbbf24">2048</text>
+  <rect width="400" height="300" fill="#fdeee6"/>
+  <rect x="105" y="22" width="190" height="190" rx="10" fill="#d6d3d1"/>
+  <rect x="111" y="28" width="40" height="40" rx="6" fill="#ffffff"/>
+  <text x="131" y="54" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#1c1917">2</text>
+  <rect x="157" y="28" width="40" height="40" rx="6" fill="#e7e5e4"/>
+  <rect x="203" y="28" width="40" height="40" rx="6" fill="#e7e5e4"/>
+  <rect x="249" y="28" width="40" height="40" rx="6" fill="#f3e3b5"/>
+  <text x="269" y="54" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#1c1917">4</text>
+  <rect x="111" y="74" width="40" height="40" rx="6" fill="#e7e5e4"/>
+  <rect x="157" y="74" width="40" height="40" rx="6" fill="#ea580c"/>
+  <text x="177" y="100" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#ffffff">8</text>
+  <rect x="203" y="74" width="40" height="40" rx="6" fill="#e7e5e4"/>
+  <rect x="249" y="74" width="40" height="40" rx="6" fill="#ffffff"/>
+  <text x="269" y="100" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#1c1917">2</text>
+  <rect x="111" y="120" width="40" height="40" rx="6" fill="#dc2626"/>
+  <text x="131" y="146" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#ffffff">16</text>
+  <rect x="157" y="120" width="40" height="40" rx="6" fill="#db2777"/>
+  <text x="177" y="146" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#ffffff">64</text>
+  <rect x="203" y="120" width="40" height="40" rx="6" fill="#f3e3b5"/>
+  <text x="223" y="146" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#1c1917">4</text>
+  <rect x="249" y="120" width="40" height="40" rx="6" fill="#e7e5e4"/>
+  <rect x="111" y="166" width="40" height="40" rx="6" fill="#7c3aed"/>
+  <text x="131" y="191" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="700" fill="#ffffff">128</text>
+  <rect x="157" y="166" width="40" height="40" rx="6" fill="#2563eb"/>
+  <text x="177" y="190" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#ffffff">2048</text>
+  <rect x="203" y="166" width="40" height="40" rx="6" fill="#0d9488"/>
+  <text x="223" y="192" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#ffffff">32</text>
+  <rect x="249" y="166" width="40" height="40" rx="6" fill="#ea580c"/>
+  <text x="269" y="192" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#ffffff">8</text>
 </svg>

@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Neon Royale</title>
+  <title>Royale</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -18,7 +18,7 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      color: #fff;
+      color: #1c1917;
     }
     canvas { display: block; }
   </style>
@@ -46,14 +46,24 @@
   const H = () => window.innerHeight;
 
   // ========== COLORS ==========
-  const NEON_BLUE = '#00d4ff';
-  const NEON_PINK = '#ff2d95';
-  const NEON_GREEN = '#39ff14';
-  const NEON_ORANGE = '#ff6a00';
-  const NEON_PURPLE = '#a855f7';
-  const NEON_YELLOW = '#ffe600';
+  // Flat minimalist palette
+  const C_BG = '#f5f5f4';
+  const C_SURFACE = '#ffffff';
+  const C_SURFACE2 = '#e7e5e4';
+  const C_LINE = '#d6d3d1';
+  const C_INK = '#1c1917';
+  const C_MUTED = '#78716c';
+  const C_ACCENT = '#2563eb';
+  const C_RED = '#dc2626';
+  const C_GREEN = '#16a34a';
+  const C_YELLOW = '#ca8a04';
+  const C_ORANGE = '#ea580c';
+  const C_PURPLE = '#7c3aed';
+  const C_TEAL = '#0d9488';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  const font = (weight, size) => weight + ' ' + size + 'px ' + FONT;
 
-  const PLAYER_COLORS = [NEON_BLUE, NEON_PINK, NEON_GREEN, NEON_ORANGE];
+  const PLAYER_COLORS = [C_ACCENT, C_RED, C_GREEN, C_ORANGE];
   const PLAYER_NAMES = ['Spelare 1', 'Spelare 2', 'Spelare 3', 'Spelare 4'];
 
   // ========== GAME STATE ==========
@@ -487,7 +497,7 @@
 
   // ========== POWERUPS ==========
   const POWERUP_TYPES = ['heal', 'shield', 'speed', 'rapid'];
-  const POWERUP_COLORS = { heal: NEON_GREEN, shield: NEON_BLUE, speed: NEON_YELLOW, rapid: NEON_ORANGE };
+  const POWERUP_COLORS = { heal: C_GREEN, shield: C_TEAL, speed: C_YELLOW, rapid: C_PURPLE };
 
   function spawnPowerup() {
     const angle = Math.random() * Math.PI * 2;
@@ -716,7 +726,7 @@
               vx: (Math.random() - 0.5) * 8,
               vy: (Math.random() - 0.5) * 8,
               life: 15, maxLife: 15,
-              color: p.shield > 0 ? NEON_BLUE : NEON_PINK, size: 3
+              color: p.shield > 0 ? C_TEAL : C_RED, size: 3
             });
           }
           bullets.splice(i, 1);
@@ -829,7 +839,7 @@
       ctx.restore();
 
       // Divider
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.strokeStyle = C_INK;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(W() / 2, 0);
@@ -856,11 +866,11 @@
     ctx.translate(vx, vy);
 
     // Background grid
-    ctx.fillStyle = '#0a0a1a';
+    ctx.fillStyle = C_BG;
     ctx.fillRect(0, 0, vw, vh);
 
     const gridSize = 60;
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.strokeStyle = C_SURFACE2;
     ctx.lineWidth = 1;
     const startGx = -((cam.ox % gridSize) + gridSize) % gridSize;
     const startGy = -((cam.oy % gridSize) + gridSize) % gridSize;
@@ -881,24 +891,21 @@
     const acx = arenaCenter.x - cam.ox;
     const acy = arenaCenter.y - cam.oy;
 
-    // Storm effect outside arena
+    // Storm area outside arena (flat danger tint)
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, vw, vh);
     ctx.arc(acx, acy, arenaRadius, 0, Math.PI * 2, true);
-    ctx.fillStyle = hexToRgba(NEON_PURPLE, 0.15 + Math.sin(gameTime * 0.05) * 0.05);
+    ctx.fillStyle = hexToRgba(C_RED, 0.08);
     ctx.fill();
     ctx.restore();
 
     // Arena border
-    ctx.strokeStyle = hexToRgba(NEON_PURPLE, 0.6);
-    ctx.lineWidth = 3;
-    ctx.shadowColor = NEON_PURPLE;
-    ctx.shadowBlur = 15;
+    ctx.strokeStyle = C_RED;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(acx, acy, arenaRadius, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.shadowBlur = 0;
 
     // Powerups
     powerups.forEach(pw => {
@@ -906,15 +913,18 @@
       const sy = pw.y - cam.oy;
       if (sx < -30 || sx > vw + 30 || sy < -30 || sy > vh + 30) return;
 
-      pw.pulse = (pw.pulse || 0) + 0.05;
-      const scale = 1 + Math.sin(pw.pulse) * 0.15;
       const color = POWERUP_COLORS[pw.type];
 
       ctx.save();
       ctx.translate(sx, sy);
-      ctx.scale(scale, scale);
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 12;
+      // Flat white token behind the icon
+      ctx.fillStyle = C_SURFACE;
+      ctx.strokeStyle = C_LINE;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
 
       if (pw.type === 'heal') {
         // Cross
@@ -955,7 +965,6 @@
           ctx.fill();
         }
       }
-      ctx.shadowBlur = 0;
       ctx.restore();
     });
 
@@ -965,9 +974,7 @@
       const sy = b.y - cam.oy;
       if (sx < -10 || sx > vw + 10 || sy < -10 || sy > vh + 10) return;
 
-      const color = b.color || PLAYER_COLORS[b.owner] || NEON_BLUE;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 8;
+      const color = b.color || PLAYER_COLORS[b.owner] || C_INK;
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(sx, sy, 4, 0, Math.PI * 2);
@@ -978,7 +985,6 @@
       ctx.beginPath();
       ctx.arc(sx - b.vx * 0.5, sy - b.vy * 0.5, 3, 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0;
     });
 
     // Particles
@@ -1002,37 +1008,25 @@
 
       // Shield ring
       if (pl.shield > 0) {
-        ctx.strokeStyle = hexToRgba(NEON_BLUE, 0.5 + Math.sin(gameTime * 0.1) * 0.2);
+        ctx.strokeStyle = C_TEAL;
         ctx.lineWidth = 2;
-        ctx.shadowColor = NEON_BLUE;
-        ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.arc(sx, sy, pl.radius + 6, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.shadowBlur = 0;
       }
 
       // Speed boost effect
       if (pl.speedBoost > 0) {
-        ctx.fillStyle = hexToRgba(NEON_YELLOW, 0.15);
+        ctx.fillStyle = hexToRgba(C_YELLOW, 0.18);
         ctx.beginPath();
         ctx.arc(sx, sy, pl.radius + 4, 0, Math.PI * 2);
         ctx.fill();
       }
 
       // Body
-      ctx.shadowColor = pl.color;
-      ctx.shadowBlur = 12;
       ctx.fillStyle = pl.color;
       ctx.beginPath();
       ctx.arc(sx, sy, pl.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // Inner glow
-      ctx.fillStyle = hexToRgba('#ffffff', 0.3);
-      ctx.beginPath();
-      ctx.arc(sx - 3, sy - 3, pl.radius * 0.4, 0, Math.PI * 2);
       ctx.fill();
 
       // Gun barrel
@@ -1051,17 +1045,17 @@
       const barH = 4;
       const barX = sx - barW / 2;
       const barY = sy - pl.radius - 12;
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillStyle = C_SURFACE2;
       ctx.fillRect(barX, barY, barW, barH);
       const hpFrac = Math.max(0, pl.hp / 100);
-      const hpColor = hpFrac > 0.5 ? NEON_GREEN : hpFrac > 0.25 ? NEON_YELLOW : NEON_PINK;
+      const hpColor = hpFrac > 0.5 ? C_GREEN : hpFrac > 0.25 ? C_YELLOW : C_RED;
       ctx.fillStyle = hpColor;
       ctx.fillRect(barX, barY, barW * hpFrac, barH);
 
       // Name tag (only if not the viewport owner in local mode)
       if (isOnline || i !== playerIdx) {
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.font = '10px sans-serif';
+        ctx.fillStyle = C_MUTED;
+        ctx.font = font(600, 10);
         ctx.textAlign = 'center';
         ctx.fillText(pl.name, sx, barY - 4);
       }
@@ -1073,13 +1067,16 @@
     const mmY = vh - mmSize - 10;
     const mmScale = mmSize / ARENA_SIZE;
 
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillStyle = C_SURFACE;
+    ctx.strokeStyle = C_LINE;
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(mmX + mmSize / 2, mmY + mmSize / 2, mmSize / 2, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
 
     // Arena ring on minimap
-    ctx.strokeStyle = hexToRgba(NEON_PURPLE, 0.5);
+    ctx.strokeStyle = hexToRgba(C_RED, 0.6);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(mmX + mmSize / 2, mmY + mmSize / 2, arenaRadius * mmScale, 0, Math.PI * 2);
@@ -1110,16 +1107,17 @@
           const baseY = 10;
 
           // HP bar
-          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillStyle = C_SURFACE;
           ctx.fillRect(baseX, baseY, barW, 16);
           const hpFrac = Math.max(0, p.hp / 100);
-          ctx.fillStyle = p.alive ? p.color : 'rgba(255,255,255,0.2)';
+          ctx.fillStyle = p.alive ? hexToRgba(p.color, 0.3) : C_SURFACE2;
           ctx.fillRect(baseX, baseY, barW * hpFrac, 16);
-          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+          ctx.strokeStyle = C_LINE;
+          ctx.lineWidth = 1;
           ctx.strokeRect(baseX, baseY, barW, 16);
 
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 11px sans-serif';
+          ctx.fillStyle = C_INK;
+          ctx.font = font(600, 11);
           ctx.textAlign = 'left';
           ctx.fillText(p.name + (p.alive ? '' : ' \u2620'), baseX + 4, baseY + 12);
 
@@ -1128,29 +1126,32 @@
 
           // Active powerups
           let iconX = baseX + barW - 40;
-          if (p.shield > 0) { ctx.fillStyle = NEON_BLUE; ctx.fillText('\u25C6', iconX, baseY + 12); iconX -= 14; }
-          if (p.speedBoost > 0) { ctx.fillStyle = NEON_YELLOW; ctx.fillText('\u26A1', iconX, baseY + 12); iconX -= 14; }
-          if (p.rapidFire > 0) { ctx.fillStyle = NEON_ORANGE; ctx.fillText('\u25CF', iconX, baseY + 12); }
+          if (p.shield > 0) { ctx.fillStyle = POWERUP_COLORS.shield; ctx.fillText('\u25C6', iconX, baseY + 12); iconX -= 14; }
+          if (p.speedBoost > 0) { ctx.fillStyle = POWERUP_COLORS.speed; ctx.fillText('\u26A1', iconX, baseY + 12); iconX -= 14; }
+          if (p.rapidFire > 0) { ctx.fillStyle = POWERUP_COLORS.rapid; ctx.fillText('\u25CF', iconX, baseY + 12); }
         } else {
           // Online HUD - top bar
           const baseX = 10;
           const baseY = 10 + i * 28;
-          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillStyle = C_SURFACE;
           ctx.fillRect(baseX, baseY, barW, 20);
           const hpFrac = Math.max(0, p.hp / 100);
-          ctx.fillStyle = p.alive ? hexToRgba(p.color, 0.7) : 'rgba(255,255,255,0.1)';
+          ctx.fillStyle = p.alive ? hexToRgba(p.color, 0.3) : C_SURFACE2;
           ctx.fillRect(baseX, baseY, barW * hpFrac, 20);
+          ctx.strokeStyle = C_LINE;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(baseX, baseY, barW, 20);
 
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 11px sans-serif';
+          ctx.fillStyle = C_INK;
+          ctx.font = font(600, 11);
           ctx.textAlign = 'left';
           ctx.fillText(p.name + (p.alive ? '' : ' \u2620') + ' K:' + p.kills, baseX + 6, baseY + 14);
         }
       });
 
       // Timer / Arena info
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.font = '12px sans-serif';
+      ctx.fillStyle = C_MUTED;
+      ctx.font = font(600, 12);
       ctx.textAlign = 'center';
       const arenaPercent = Math.round((arenaRadius / (ARENA_SIZE / 2)) * 100);
       ctx.fillText('Arena: ' + arenaPercent + '%', W() / 2, 20);
@@ -1159,65 +1160,68 @@
 
   function drawCountdown() {
     const sec = Math.ceil(countdownTimer / 60);
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillStyle = 'rgba(245,245,244,0.6)';
     ctx.fillRect(0, 0, W(), H());
 
-    ctx.shadowColor = NEON_BLUE;
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 80px sans-serif';
+    ctx.fillStyle = C_INK;
+    ctx.font = font(700, 80);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(sec, W() / 2, H() / 2);
-    ctx.shadowBlur = 0;
     ctx.textBaseline = 'alphabetic';
   }
 
   function drawGameOver() {
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, W(), H());
+
+    // Panel
+    const panelW = Math.min(W() - 32, 380);
+    const panelTop = H() / 2 - 80;
+    const panelBottom = H() / 2 + 20 + players.length * 24 + 44;
+    ctx.fillStyle = C_SURFACE;
+    ctx.strokeStyle = C_LINE;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(W() / 2 - panelW / 2, panelTop, panelW, panelBottom - panelTop, 10);
+    ctx.fill();
+    ctx.stroke();
 
     ctx.textAlign = 'center';
     if (winner >= 0) {
-      ctx.shadowColor = PLAYER_COLORS[winner];
-      ctx.shadowBlur = 20;
       ctx.fillStyle = PLAYER_COLORS[winner];
-      ctx.font = 'bold 36px sans-serif';
+      ctx.font = font(700, 32);
       ctx.fillText(PLAYER_NAMES[winner] + ' vinner!', W() / 2, H() / 2 - 30);
     } else {
-      ctx.shadowColor = NEON_PURPLE;
-      ctx.shadowBlur = 20;
-      ctx.fillStyle = NEON_PURPLE;
-      ctx.font = 'bold 36px sans-serif';
+      ctx.fillStyle = C_INK;
+      ctx.font = font(700, 32);
       ctx.fillText('Oavgjort!', W() / 2, H() / 2 - 30);
     }
-    ctx.shadowBlur = 0;
 
     // Stats
-    ctx.font = '16px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = font(600, 16);
+    ctx.fillStyle = C_INK;
     players.forEach((p, i) => {
       ctx.fillStyle = p.color;
       ctx.fillText(p.name + ': ' + p.kills + ' kills', W() / 2, H() / 2 + 20 + i * 24);
     });
 
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '14px sans-serif';
+    ctx.fillStyle = C_MUTED;
+    ctx.font = font(400, 14);
     ctx.fillText('Tryck Enter eller klicka f\u00f6r att forts\u00e4tta', W() / 2, H() / 2 + 20 + players.length * 24 + 20);
   }
 
   function drawMenu() {
     // Title
+    ctx.fillStyle = C_BG;
+    ctx.fillRect(0, 0, W(), H());
     ctx.textAlign = 'center';
-    ctx.shadowColor = NEON_BLUE;
-    ctx.shadowBlur = 25;
-    ctx.fillStyle = NEON_BLUE;
-    ctx.font = 'bold 48px sans-serif';
-    ctx.fillText('NEON ROYALE', W() / 2, H() / 2 - 120);
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = C_INK;
+    ctx.font = font(700, 48);
+    ctx.fillText('Royale', W() / 2, H() / 2 - 120);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '14px sans-serif';
+    ctx.fillStyle = C_MUTED;
+    ctx.font = font(400, 14);
     ctx.fillText('Battle Royale \u2022 Sista spelaren vinner', W() / 2, H() / 2 - 80);
 
     // Menu buttons
@@ -1230,45 +1234,42 @@
       const by = startY + i * (bh + 16);
       const selected = i === menuSelection;
 
-      ctx.fillStyle = selected ? hexToRgba(NEON_BLUE, 0.2) : 'rgba(255,255,255,0.05)';
-      ctx.strokeStyle = selected ? NEON_BLUE : 'rgba(255,255,255,0.15)';
-      ctx.lineWidth = selected ? 2 : 1;
-      if (selected) { ctx.shadowColor = NEON_BLUE; ctx.shadowBlur = 10; }
+      ctx.fillStyle = selected ? C_ACCENT : C_SURFACE;
+      ctx.strokeStyle = selected ? C_ACCENT : C_LINE;
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.roundRect(bx, by, bw, bh, 10);
       ctx.fill();
       ctx.stroke();
-      ctx.shadowBlur = 0;
 
-      ctx.fillStyle = selected ? '#fff' : 'rgba(255,255,255,0.7)';
-      ctx.font = 'bold 16px sans-serif';
+      ctx.fillStyle = selected ? C_SURFACE : C_INK;
+      ctx.font = font(600, 16);
       ctx.fillText(opt.label, W() / 2, by + 26);
 
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.font = '12px sans-serif';
+      ctx.fillStyle = selected ? 'rgba(255,255,255,0.85)' : C_MUTED;
+      ctx.font = font(400, 12);
       ctx.fillText(opt.desc, W() / 2, by + 44);
     });
 
     // Controls info
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font = '11px sans-serif';
+    ctx.fillStyle = C_MUTED;
+    ctx.font = font(400, 11);
     ctx.fillText('Lokal: P1 WASD + mus  |  P2 Pilar + . f\u00f6r att skjuta', W() / 2, H() - 30);
   }
 
   function drawLobby() {
+    ctx.fillStyle = C_BG;
+    ctx.fillRect(0, 0, W(), H());
     ctx.textAlign = 'center';
 
     // Title
-    ctx.shadowColor = NEON_PURPLE;
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = NEON_PURPLE;
-    ctx.font = 'bold 32px sans-serif';
-    ctx.fillText('LOBBY', W() / 2, H() / 2 - 140);
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = C_INK;
+    ctx.font = font(700, 32);
+    ctx.fillText('Lobby', W() / 2, H() / 2 - 140);
 
     // Status
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '16px sans-serif';
+    ctx.fillStyle = C_MUTED;
+    ctx.font = font(400, 16);
     ctx.fillText(lobbyStatus, W() / 2, H() / 2 - 90);
 
     const btnW = 220, btnH = 50;
@@ -1277,104 +1278,86 @@
     if (!isOnline && menuSelection === 1) {
       // Create room button
       const by = H() / 2 - 10;
-      ctx.fillStyle = hexToRgba(NEON_GREEN, 0.15);
-      ctx.strokeStyle = NEON_GREEN;
-      ctx.lineWidth = 2;
+      ctx.fillStyle = C_ACCENT;
       ctx.beginPath();
       ctx.roundRect(centerX - btnW / 2, by, btnW, btnH, 8);
       ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.fillText('Skapa Rum', centerX, by + 30);
+      ctx.fillStyle = C_SURFACE;
+      ctx.font = font(600, 16);
+      ctx.fillText('Skapa rum', centerX, by + 30);
 
       // Divider
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.font = '13px sans-serif';
+      ctx.fillStyle = C_MUTED;
+      ctx.font = font(400, 13);
       ctx.fillText('eller ange rumskod:', centerX, by + btnH + 20);
 
       // Input field
       const iy = by + btnH + 30;
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.strokeStyle = inputActive ? NEON_BLUE : 'rgba(255,255,255,0.2)';
+      ctx.fillStyle = C_SURFACE;
+      ctx.strokeStyle = inputActive ? C_ACCENT : C_LINE;
       ctx.lineWidth = inputActive ? 2 : 1;
       ctx.beginPath();
       ctx.roundRect(centerX - btnW / 2, iy, btnW, btnH, 8);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = roomInput ? '#fff' : 'rgba(255,255,255,0.3)';
-      ctx.font = 'bold 20px monospace';
-      ctx.fillText(roomInput || 'KLICKA H\u00C4R', centerX, iy + 32);
+      ctx.fillStyle = roomInput ? C_INK : C_MUTED;
+      ctx.font = roomInput ? '700 20px monospace' : font(400, 16);
+      ctx.fillText(roomInput || 'Klicka h\u00e4r', centerX, iy + 31);
 
       // Join button
       const jy = iy + btnH + 10;
-      ctx.fillStyle = roomInput ? hexToRgba(NEON_BLUE, 0.15) : 'rgba(255,255,255,0.03)';
-      ctx.strokeStyle = roomInput ? NEON_BLUE : 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = roomInput ? 2 : 1;
+      ctx.fillStyle = roomInput ? C_ACCENT : C_SURFACE2;
       ctx.beginPath();
       ctx.roundRect(centerX - btnW / 2, jy, btnW, btnH, 8);
       ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = roomInput ? '#fff' : 'rgba(255,255,255,0.3)';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.fillText('G\u00e5 Med', centerX, jy + 30);
+      ctx.fillStyle = roomInput ? C_SURFACE : C_MUTED;
+      ctx.font = font(600, 16);
+      ctx.fillText('G\u00e5 med', centerX, jy + 30);
     }
 
     if (isOnline) {
       // Show room code
       if (roomCode && !roomCode.startsWith('RANDOM')) {
-        ctx.shadowColor = NEON_GREEN;
-        ctx.shadowBlur = 15;
-        ctx.fillStyle = NEON_GREEN;
-        ctx.font = 'bold 36px monospace';
+        ctx.fillStyle = C_ACCENT;
+        ctx.font = '700 36px monospace';
         ctx.fillText(roomCode, centerX, H() / 2 - 30);
-        ctx.shadowBlur = 0;
 
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.font = '13px sans-serif';
+        ctx.fillStyle = C_MUTED;
+        ctx.font = font(400, 13);
         ctx.fillText('Dela koden med din v\u00e4n', centerX, H() / 2);
       }
 
       // Player count
-      ctx.fillStyle = '#fff';
-      ctx.font = '18px sans-serif';
+      ctx.fillStyle = C_INK;
+      ctx.font = font(600, 18);
       ctx.fillText(lobbyPlayers + ' spelare anslutna', centerX, H() / 2 + 50);
 
       // Player dots
       for (let i = 0; i < lobbyPlayers; i++) {
         ctx.fillStyle = PLAYER_COLORS[i];
-        ctx.shadowColor = PLAYER_COLORS[i];
-        ctx.shadowBlur = 8;
         ctx.beginPath();
         const dotX = centerX - (lobbyPlayers - 1) * 20 + i * 40;
         ctx.arc(dotX, H() / 2 + 80, 10, 0, Math.PI * 2);
         ctx.fill();
-        ctx.shadowBlur = 0;
       }
 
       // Start button (host only)
       if (isHost && lobbyPlayers >= 2) {
         const by = H() / 2 + 120;
-        ctx.fillStyle = hexToRgba(NEON_GREEN, 0.2);
-        ctx.strokeStyle = NEON_GREEN;
-        ctx.lineWidth = 2;
-        ctx.shadowColor = NEON_GREEN;
-        ctx.shadowBlur = 10;
+        ctx.fillStyle = C_ACCENT;
         ctx.beginPath();
         ctx.roundRect(centerX - btnW / 2, by, btnW, btnH, 8);
         ctx.fill();
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 16px sans-serif';
-        ctx.fillText('Starta Spel', centerX, by + 30);
+        ctx.fillStyle = C_SURFACE;
+        ctx.font = font(600, 16);
+        ctx.fillText('Starta spel', centerX, by + 30);
       }
     }
 
     // Back hint
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font = '12px sans-serif';
+    ctx.fillStyle = C_MUTED;
+    ctx.font = font(400, 12);
     ctx.fillText('Tryck Escape f\u00f6r att g\u00e5 tillbaka', centerX, H() - 30);
   }
 

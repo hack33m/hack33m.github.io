@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neon Memory</title>
+  <title>Memory</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -59,13 +59,28 @@
   window.addEventListener('resize', resize);
 
   // --- Constants ---
-  const BG = '#0a0a1a';
-  const NEON_COLORS = [
-    '#ff00ff', '#00ffff', '#ff3366', '#33ff66',
-    '#ffcc00', '#6633ff', '#ff6600', '#00ff99',
-    '#ff0066', '#3399ff', '#ff9933', '#66ff33',
-    '#cc33ff', '#33ffcc', '#ff3300'
+  const BG = '#f5f5f4';
+  const SURFACE = '#ffffff';
+  const LINE = '#d6d3d1';
+  const INK = '#1c1917';
+  const MUTED = '#78716c';
+  const ACCENT = '#2563eb';
+  const GREEN = '#16a34a';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  // Card colours from the shared palette (cycled); each pair also has a unique symbol
+  const CARD_COLORS = [
+    '#2563eb', '#dc2626', '#16a34a', '#ca8a04',
+    '#ea580c', '#7c3aed', '#0d9488', '#db2777',
+    '#2563eb', '#dc2626', '#16a34a', '#ca8a04',
+    '#ea580c', '#7c3aed', '#0d9488'
   ];
+  // Light tint of a #rrggbb colour (mixed with white)
+  function tint(hex, amt) {
+    const n = parseInt(hex.slice(1), 16);
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    const m = c => Math.round(c + (255 - c) * amt);
+    return `rgb(${m(r)},${m(g)},${m(b)})`;
+  }
   const SYMBOLS = [
     '⚡', '🔥', '💎', '🌟', '🎯', '🚀', '👾', '🎮',
     '💜', '🧊', '🪐', '🌈', '🎵', '🔮', '🍀'
@@ -118,7 +133,7 @@
     let deck = [];
     for (let i = 0; i < numPairs; i++) {
       const sym = SYMBOLS[chosen[i]];
-      const col = NEON_COLORS[chosen[i]];
+      const col = CARD_COLORS[chosen[i]];
       deck.push({ pairId: i, symbol: sym, color: col });
       deck.push({ pairId: i, symbol: sym, color: col });
     }
@@ -150,7 +165,7 @@
       flipAnim: 0,   // 0 = face down, 1 = face up
       flipDir: 0,     // +1 flipping up, -1 flipping down
       flipping: false,
-      matchAnim: 0    // for glow pulse on match
+      matchAnim: 0    // fades matched cards slightly
     }));
 
     flipped = [];
@@ -175,7 +190,7 @@
         vy: Math.sin(angle) * speed,
         life: 1,
         decay: 0.015 + Math.random() * 0.02,
-        size: 2 + Math.random() * 4,
+        size: 2 + Math.random() * 2,
         color
       });
     }
@@ -196,14 +211,11 @@
     for (const p of particles) {
       ctx.globalAlpha = p.life;
       ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
   }
 
   // --- Card layout ---
@@ -250,7 +262,7 @@
           card.flipping = false;
         }
       }
-      // Match glow pulse
+      // Match fade
       if (matched.includes(card.id)) {
         card.matchAnim = Math.min(card.matchAnim + dt * 2, 1);
       }
@@ -297,59 +309,48 @@
     ctx.save();
 
     if (showFace) {
-      // Face up - colored card
-      const glowAmount = isMatched ? 15 + Math.sin(Date.now() * 0.005) * 8 : 10;
-      ctx.shadowColor = card.color;
-      ctx.shadowBlur = glowAmount;
-      ctx.fillStyle = '#1a1a3a';
+      // Face up: light tint of the pair colour with a flat coloured border
+      if (isMatched) ctx.globalAlpha = 1 - card.matchAnim * 0.35;
+      ctx.fillStyle = tint(card.color, 0.88);
       ctx.beginPath();
       ctx.roundRect(drawX, y, sw, h, r);
       ctx.fill();
 
-      // Border glow
       ctx.strokeStyle = card.color;
       ctx.lineWidth = 2;
-      ctx.shadowBlur = glowAmount;
       ctx.beginPath();
       ctx.roundRect(drawX, y, sw, h, r);
       ctx.stroke();
 
       // Symbol
       if (scaleX > 0.3) {
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = card.color;
         const fontSize = Math.min(sw * 0.55, h * 0.45);
         ctx.font = `${fontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = INK;
         ctx.fillText(card.symbol, cx, cy);
       }
     } else {
-      // Face down - dark card with pattern
-      ctx.shadowColor = '#6633ff';
-      ctx.shadowBlur = 5;
-      ctx.fillStyle = '#15153a';
+      // Face down: plain card
+      ctx.fillStyle = SURFACE;
       ctx.beginPath();
       ctx.roundRect(drawX, y, sw, h, r);
       ctx.fill();
 
-      ctx.strokeStyle = '#4422aa';
+      ctx.strokeStyle = LINE;
       ctx.lineWidth = 1.5;
-      ctx.shadowBlur = 3;
       ctx.beginPath();
       ctx.roundRect(drawX, y, sw, h, r);
       ctx.stroke();
 
-      // Draw neon "?" pattern on back
+      // "?" on the back
       if (scaleX > 0.3) {
-        ctx.shadowColor = '#6633ff';
-        ctx.shadowBlur = 8;
         const fontSize = Math.min(sw * 0.4, h * 0.35);
-        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.font = `600 ${fontSize}px ${FONT}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#6633ff';
+        ctx.fillStyle = MUTED;
         ctx.fillText('?', cx, cy);
       }
     }
@@ -360,8 +361,8 @@
   function drawHUD() {
     const fontSize = Math.min(W * 0.04, 22);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${fontSize}px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = INK;
+    ctx.font = `600 ${fontSize}px ${FONT}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
 
@@ -369,21 +370,15 @@
     const mins = Math.floor(timer / 60);
     const secs = Math.floor(timer % 60);
     const timeStr = `Tid: ${mins}:${secs.toString().padStart(2, '0')}`;
-    ctx.shadowColor = '#00ffff';
-    ctx.shadowBlur = 6;
     ctx.fillText(timeStr, 20, 30);
 
     // Moves
-    ctx.shadowColor = '#ff00ff';
     ctx.fillText(`Drag: ${moves}`, W * 0.35, 30);
 
     // Pairs found
-    ctx.shadowColor = '#33ff66';
     const pairsFound = matched.length / 2;
     const totalPairs = cards.length / 2;
     ctx.fillText(`Par: ${pairsFound}/${totalPairs}`, W * 0.65, 30);
-
-    ctx.shadowBlur = 0;
   }
 
   function formatTime(t) {
@@ -406,52 +401,25 @@
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, H);
 
-    // Floating neon dots in background
-    const t = Date.now() * 0.001;
-    for (let i = 0; i < 20; i++) {
-      const bx = W * 0.5 + Math.sin(t * 0.3 + i * 1.7) * W * 0.4;
-      const by = H * 0.5 + Math.cos(t * 0.2 + i * 2.1) * H * 0.4;
-      ctx.globalAlpha = 0.15 + Math.sin(t + i) * 0.1;
-      ctx.fillStyle = NEON_COLORS[i % NEON_COLORS.length];
-      ctx.shadowColor = NEON_COLORS[i % NEON_COLORS.length];
-      ctx.shadowBlur = 20;
-      ctx.beginPath();
-      ctx.arc(bx, by, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-
     // Title
     const titleSize = Math.min(W * 0.1, 64);
-    ctx.font = `bold ${titleSize}px 'Segoe UI', sans-serif`;
+    ctx.font = `700 ${titleSize}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-
-    // Title glow
-    ctx.shadowColor = '#ff00ff';
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = '#ff00ff';
-    ctx.fillText('NEON MEMORY', W / 2, H * 0.18);
-    ctx.shadowBlur = 15;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('NEON MEMORY', W / 2, H * 0.18);
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = INK;
+    ctx.fillText('Memory', W / 2, H * 0.18);
 
     // Subtitle
     const subSize = Math.min(W * 0.035, 20);
-    ctx.font = `${subSize}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#8888cc';
+    ctx.font = `400 ${subSize}px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText('Hitta alla matchande par!', W / 2, H * 0.26);
 
     // Difficulty selection
     const diffLabelSize = Math.min(W * 0.035, 18);
-    ctx.font = `bold ${diffLabelSize}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#00ffff';
-    ctx.shadowColor = '#00ffff';
-    ctx.shadowBlur = 8;
+    ctx.font = `600 ${diffLabelSize}px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText('Välj svårighetsgrad:', W / 2, H * 0.36);
-    ctx.shadowBlur = 0;
 
     const btnW = Math.min(W * 0.55, 280);
     const btnH = Math.min(H * 0.07, 48);
@@ -464,22 +432,17 @@
       const selected = i === menuSelectedDiff;
       const hovered = i === menuHoverBtn;
 
-      ctx.fillStyle = selected ? '#2a1a4a' : (hovered ? '#1a1a3a' : '#111130');
-      ctx.strokeStyle = selected ? '#ff00ff' : (hovered ? '#8844cc' : '#333366');
-      ctx.lineWidth = selected ? 2.5 : 1.5;
-      if (selected) {
-        ctx.shadowColor = '#ff00ff';
-        ctx.shadowBlur = 12;
-      }
+      ctx.fillStyle = selected ? tint(ACCENT, 0.9) : (hovered ? BG : SURFACE);
+      ctx.strokeStyle = selected ? ACCENT : LINE;
+      ctx.lineWidth = selected ? 2 : 1;
       ctx.beginPath();
       ctx.roundRect(bx, by, btnW, btnH, 10);
       ctx.fill();
       ctx.stroke();
-      ctx.shadowBlur = 0;
 
-      ctx.fillStyle = selected ? '#ffffff' : '#aaaacc';
+      ctx.fillStyle = selected ? ACCENT : INK;
       const btnFontSize = Math.min(W * 0.035, 18);
-      ctx.font = `${selected ? 'bold ' : ''}${btnFontSize}px 'Segoe UI', sans-serif`;
+      ctx.font = `${selected ? 600 : 400} ${btnFontSize}px ${FONT}`;
       ctx.fillText(DIFFICULTIES[i].label, W / 2, by + btnH / 2);
     }
 
@@ -490,27 +453,21 @@
     const playBtnX = W / 2 - playBtnW / 2;
     const playHover = menuHoverBtn === 10;
 
-    ctx.fillStyle = playHover ? '#33ff66' : '#22cc55';
-    ctx.shadowColor = '#33ff66';
-    ctx.shadowBlur = playHover ? 20 : 10;
+    ctx.fillStyle = playHover ? '#1d4ed8' : ACCENT;
     ctx.beginPath();
-    ctx.roundRect(playBtnX, playBtnY, playBtnW, playBtnH, 12);
+    ctx.roundRect(playBtnX, playBtnY, playBtnW, playBtnH, 10);
     ctx.fill();
-    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = '#0a0a1a';
+    ctx.fillStyle = SURFACE;
     const playFontSize = Math.min(W * 0.05, 26);
-    ctx.font = `bold ${playFontSize}px 'Segoe UI', sans-serif`;
-    ctx.fillText('SPELA', W / 2, playBtnY + playBtnH / 2);
+    ctx.font = `600 ${playFontSize}px ${FONT}`;
+    ctx.fillText('Spela', W / 2, playBtnY + playBtnH / 2);
 
     // Highscore
     if (highscore > 0) {
-      ctx.font = `${subSize}px 'Segoe UI', sans-serif`;
-      ctx.fillStyle = '#ffcc00';
-      ctx.shadowColor = '#ffcc00';
-      ctx.shadowBlur = 6;
+      ctx.font = `400 ${subSize}px ${FONT}`;
+      ctx.fillStyle = MUTED;
       ctx.fillText(`Bästa poäng: ${highscore}`, W / 2, H * 0.92);
-      ctx.shadowBlur = 0;
     }
 
     // Store menu button rects for click detection
@@ -533,79 +490,80 @@
 
   // --- Game Over screen ---
   function drawGameOver() {
-    // Dim overlay
-    ctx.fillStyle = 'rgba(10,10,26,0.85)';
+    // Light overlay
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, W, H);
 
-    const titleSize = Math.min(W * 0.09, 52);
-    ctx.font = `bold ${titleSize}px 'Segoe UI', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = '#33ff66';
-    ctx.shadowBlur = 25;
-    ctx.fillStyle = '#33ff66';
-    ctx.fillText('KLART!', W / 2, H * 0.22);
-    ctx.shadowBlur = 0;
-
-    const infoSize = Math.min(W * 0.04, 22);
-    ctx.font = `${infoSize}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(`Tid: ${formatTime(timer)}`, W / 2, H * 0.35);
-    ctx.fillText(`Drag: ${moves}`, W / 2, H * 0.42);
-
-    const scoreSize = Math.min(W * 0.06, 36);
-    ctx.font = `bold ${scoreSize}px 'Segoe UI', sans-serif`;
-    ctx.shadowColor = '#ffcc00';
-    ctx.shadowBlur = 15;
-    ctx.fillStyle = '#ffcc00';
-    ctx.fillText(`Poäng: ${score}`, W / 2, H * 0.52);
-    ctx.shadowBlur = 0;
-
-    if (score >= highscore && highscore > 0) {
-      ctx.font = `bold ${infoSize}px 'Segoe UI', sans-serif`;
-      ctx.fillStyle = '#ff00ff';
-      ctx.shadowColor = '#ff00ff';
-      ctx.shadowBlur = 10;
-      ctx.fillText('NYTT REKORD!', W / 2, H * 0.60);
-      ctx.shadowBlur = 0;
-    } else if (highscore > 0) {
-      ctx.font = `${infoSize}px 'Segoe UI', sans-serif`;
-      ctx.fillStyle = '#8888cc';
-      ctx.fillText(`Bästa: ${highscore}`, W / 2, H * 0.60);
-    }
-
-    // Play again button
+    // Button geometry (same as getGameOverLayout)
     const btnW = Math.min(W * 0.5, 240);
     const btnH = Math.min(H * 0.08, 52);
     const btnX = W / 2 - btnW / 2;
     const btnY = H * 0.70;
-    const hov = menuHoverBtn === 20;
-
-    ctx.fillStyle = hov ? '#00ffff' : '#0088cc';
-    ctx.shadowColor = '#00ffff';
-    ctx.shadowBlur = hov ? 18 : 8;
-    ctx.beginPath();
-    ctx.roundRect(btnX, btnY, btnW, btnH, 12);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = '#0a0a1a';
-    ctx.font = `bold ${Math.min(W * 0.04, 22)}px 'Segoe UI', sans-serif`;
-    ctx.fillText('SPELA IGEN', W / 2, btnY + btnH / 2);
-
-    // Menu button
     const menuBtnY = btnY + btnH + 15;
-    const mhov = menuHoverBtn === 21;
-    ctx.fillStyle = mhov ? '#ff00ff' : '#8822aa';
-    ctx.shadowColor = '#ff00ff';
-    ctx.shadowBlur = mhov ? 18 : 8;
-    ctx.beginPath();
-    ctx.roundRect(btnX, menuBtnY, btnW, btnH, 12);
-    ctx.fill();
-    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('MENY', W / 2, menuBtnY + btnH / 2);
+    // Panel
+    const panelW = Math.min(W - 32, 360);
+    const panelTop = H * 0.12;
+    const panelBottom = Math.min(H - 8, menuBtnY + btnH + 20);
+    ctx.fillStyle = SURFACE;
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(W / 2 - panelW / 2, panelTop, panelW, panelBottom - panelTop, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    const titleSize = Math.min(W * 0.09, 52);
+    ctx.font = `700 ${titleSize}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = GREEN;
+    ctx.fillText('Klart!', W / 2, H * 0.22);
+
+    const infoSize = Math.min(W * 0.04, 22);
+    ctx.font = `400 ${infoSize}px ${FONT}`;
+    ctx.fillStyle = INK;
+    ctx.fillText(`Tid: ${formatTime(timer)}`, W / 2, H * 0.35);
+    ctx.fillText(`Drag: ${moves}`, W / 2, H * 0.42);
+
+    const scoreSize = Math.min(W * 0.06, 36);
+    ctx.font = `700 ${scoreSize}px ${FONT}`;
+    ctx.fillStyle = ACCENT;
+    ctx.fillText(`Poäng: ${score}`, W / 2, H * 0.52);
+
+    if (score >= highscore && highscore > 0) {
+      ctx.font = `600 ${infoSize}px ${FONT}`;
+      ctx.fillStyle = GREEN;
+      ctx.fillText('Nytt rekord!', W / 2, H * 0.60);
+    } else if (highscore > 0) {
+      ctx.font = `400 ${infoSize}px ${FONT}`;
+      ctx.fillStyle = MUTED;
+      ctx.fillText(`Bästa: ${highscore}`, W / 2, H * 0.60);
+    }
+
+    // Play again button (primary)
+    const hov = menuHoverBtn === 20;
+    ctx.fillStyle = hov ? '#1d4ed8' : ACCENT;
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, 10);
+    ctx.fill();
+
+    ctx.fillStyle = SURFACE;
+    ctx.font = `600 ${Math.min(W * 0.04, 22)}px ${FONT}`;
+    ctx.fillText('Spela igen', W / 2, btnY + btnH / 2);
+
+    // Menu button (secondary)
+    const mhov = menuHoverBtn === 21;
+    ctx.fillStyle = mhov ? BG : SURFACE;
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(btnX, menuBtnY, btnW, btnH, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = INK;
+    ctx.fillText('Meny', W / 2, menuBtnY + btnH / 2);
 
     drawParticles();
   }
@@ -680,8 +638,8 @@
               matched.push(c1.id, c2.id);
               const r1 = getCardRect(flipped[0]);
               const r2 = getCardRect(flipped[1]);
-              spawnParticles(r1.x + r1.w / 2, r1.y + r1.h / 2, c1.color, 25);
-              spawnParticles(r2.x + r2.w / 2, r2.y + r2.h / 2, c2.color, 25);
+              spawnParticles(r1.x + r1.w / 2, r1.y + r1.h / 2, c1.color, 10);
+              spawnParticles(r2.x + r2.w / 2, r2.y + r2.h / 2, c2.color, 10);
               flipped = [];
 
               // Check win

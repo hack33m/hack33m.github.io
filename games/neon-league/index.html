@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Neon League</title>
+  <title>Rocket League</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -18,7 +18,7 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      color: #fff;
+      color: #1c1917;
     }
     canvas { display: block; }
   </style>
@@ -45,16 +45,23 @@
   const H = () => window.innerHeight;
 
   // ========== COLORS ==========
-  const NEON_BLUE = '#00d4ff';
-  const NEON_ORANGE = '#ff6a00';
-  const NEON_GREEN = '#39ff14';
-  const NEON_PINK = '#ff2d95';
-  const NEON_PURPLE = '#a855f7';
-  const NEON_YELLOW = '#ffe600';
-  const NEON_WHITE = '#ffffff';
+  const SURFACE = '#ffffff';
+  const SURFACE2 = '#e7e5e4';
+  const LINE = '#d6d3d1';
+  const INK = '#1c1917';
+  const MUTED = '#78716c';
+  const BLUE = '#2563eb';
+  const RED = '#dc2626';
+  const GREEN = '#16a34a';
+  const YELLOW = '#ca8a04';
+  const ORANGE = '#ea580c';
+  const PURPLE = '#7c3aed';
+  const TEAL = '#0d9488';
+  const PINK = '#db2777';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
-  const TEAM_COLORS = [NEON_BLUE, NEON_ORANGE];
-  const TEAM_NAMES = ['BL\u00c5', 'ORANGE'];
+  const TEAM_COLORS = [BLUE, ORANGE];
+  const TEAM_NAMES = ['Bl\u00e5', 'Orange'];
 
   // ========== GAME CONSTANTS ==========
   const FIELD_W = 1000;
@@ -537,7 +544,7 @@
             particles.push({
               x: pad.x, y: pad.y,
               vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
-              life: 20, maxLife: 20, color: NEON_YELLOW, size: 3
+              life: 20, maxLife: 20, color: YELLOW, size: 3
             });
           }
         }
@@ -551,7 +558,7 @@
           x: bx + (Math.random() - 0.5) * 6, y: by + (Math.random() - 0.5) * 6,
           vx: -Math.cos(car.angle) * 2 + (Math.random() - 0.5) * 2,
           vy: -Math.sin(car.angle) * 2 + (Math.random() - 0.5) * 2,
-          life: 15, maxLife: 15, color: NEON_ORANGE, size: 4
+          life: 15, maxLife: 15, color: ORANGE, size: 3
         });
       }
     });
@@ -579,7 +586,7 @@
             particles.push({
               x: mx, y: my,
               vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
-              life: 12, maxLife: 12, color: NEON_WHITE, size: 2
+              life: 12, maxLife: 12, color: MUTED, size: 2
             });
           }
         }
@@ -668,7 +675,7 @@
           particles.push({
             x: ball.x, y: ball.y,
             vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
-            life: 15, maxLife: 15, color: car.boosting ? NEON_ORANGE : NEON_GREEN, size: 3
+            life: 15, maxLife: 15, color: car.boosting ? ORANGE : MUTED, size: 3
           });
         }
       }
@@ -700,11 +707,11 @@
     goalFlashColor = TEAM_COLORS[team];
 
     // Goal explosion
-    for (let k = 0; k < 30; k++) {
+    for (let k = 0; k < 16; k++) {
       particles.push({
         x: ball.x, y: ball.y,
         vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14,
-        life: 40, maxLife: 40, color: TEAM_COLORS[team], size: 5
+        life: 40, maxLife: 40, color: TEAM_COLORS[team], size: 4
       });
     }
   }
@@ -768,21 +775,11 @@
 
   function drawField() {
     // Field background
-    ctx.fillStyle = '#0d1117';
+    ctx.fillStyle = SURFACE;
     ctx.fillRect(0, 0, FIELD_W, FIELD_H);
 
-    // Grid lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= FIELD_W; x += 50) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, FIELD_H); ctx.stroke();
-    }
-    for (let y = 0; y <= FIELD_H; y += 50) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(FIELD_W, y); ctx.stroke();
-    }
-
     // Center circle
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.strokeStyle = LINE;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(FIELD_W / 2, FIELD_H / 2, 70, 0, Math.PI * 2);
@@ -795,7 +792,7 @@
     ctx.stroke();
 
     // Field border
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.strokeStyle = LINE;
     ctx.lineWidth = 3;
     ctx.strokeRect(0, 0, FIELD_W, FIELD_H);
 
@@ -804,41 +801,36 @@
     const goalBot = FIELD_H / 2 + GOAL_H / 2;
 
     // Left goal (blue team defends)
-    ctx.fillStyle = hexToRgba(NEON_BLUE, 0.1);
+    ctx.fillStyle = hexToRgba(BLUE, 0.1);
     ctx.fillRect(-GOAL_W, goalTop, GOAL_W, GOAL_H);
-    ctx.strokeStyle = NEON_BLUE;
+    ctx.strokeStyle = BLUE;
     ctx.lineWidth = 3;
-    ctx.shadowColor = NEON_BLUE;
-    ctx.shadowBlur = 10;
+    ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.moveTo(0, goalTop);
     ctx.lineTo(-GOAL_W, goalTop);
     ctx.lineTo(-GOAL_W, goalBot);
     ctx.lineTo(0, goalBot);
     ctx.stroke();
-    ctx.shadowBlur = 0;
 
     // Goal posts
-    ctx.fillStyle = NEON_BLUE;
+    ctx.fillStyle = BLUE;
     ctx.beginPath(); ctx.arc(0, goalTop, 5, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(0, goalBot, 5, 0, Math.PI * 2); ctx.fill();
 
     // Right goal (orange team defends)
-    ctx.fillStyle = hexToRgba(NEON_ORANGE, 0.1);
+    ctx.fillStyle = hexToRgba(ORANGE, 0.1);
     ctx.fillRect(FIELD_W, goalTop, GOAL_W, GOAL_H);
-    ctx.strokeStyle = NEON_ORANGE;
+    ctx.strokeStyle = ORANGE;
     ctx.lineWidth = 3;
-    ctx.shadowColor = NEON_ORANGE;
-    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.moveTo(FIELD_W, goalTop);
     ctx.lineTo(FIELD_W + GOAL_W, goalTop);
     ctx.lineTo(FIELD_W + GOAL_W, goalBot);
     ctx.lineTo(FIELD_W, goalBot);
     ctx.stroke();
-    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = NEON_ORANGE;
+    ctx.fillStyle = ORANGE;
     ctx.beginPath(); ctx.arc(FIELD_W, goalTop, 5, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(FIELD_W, goalBot, 5, 0, Math.PI * 2); ctx.fill();
   }
@@ -846,12 +838,9 @@
   function drawBoostPads() {
     boostPads.forEach(pad => {
       if (!pad.active) return;
-      const pulse = 0.7 + Math.sin(frameCount * 0.08 + pad.x) * 0.3;
       ctx.save();
       ctx.translate(pad.x, pad.y);
-      ctx.shadowColor = NEON_YELLOW;
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = hexToRgba(NEON_YELLOW, 0.5 * pulse);
+      ctx.fillStyle = hexToRgba(YELLOW, 0.25);
       ctx.beginPath();
       // Diamond shape
       ctx.moveTo(0, -10);
@@ -860,10 +849,10 @@
       ctx.lineTo(-8, 0);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = hexToRgba(NEON_YELLOW, 0.8);
+      ctx.strokeStyle = YELLOW;
       ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
       ctx.stroke();
-      ctx.shadowBlur = 0;
       ctx.restore();
     });
   }
@@ -872,31 +861,23 @@
     const bspd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
     const intensity = Math.min(1, bspd / 8);
 
-    // Ball trail
+    // Faint motion ghost behind a fast ball
     if (bspd > 2) {
-      ctx.fillStyle = hexToRgba(NEON_GREEN, 0.15 * intensity);
+      ctx.fillStyle = hexToRgba(INK, 0.1 * intensity);
       ctx.beginPath();
       ctx.arc(ball.x - ball.vx * 0.8, ball.y - ball.vy * 0.8, BALL_R * 0.8, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Ball glow
-    ctx.shadowColor = NEON_GREEN;
-    ctx.shadowBlur = 12 + intensity * 10;
-
     // Ball body
-    ctx.fillStyle = NEON_GREEN;
+    ctx.fillStyle = INK;
     ctx.beginPath();
     ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Inner highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.beginPath();
-    ctx.arc(ball.x - 3, ball.y - 3, BALL_R * 0.4, 0, Math.PI * 2);
-    ctx.fill();
   }
+
+  // Palette colours that the "rainbow" skin steps through (flat steps, no hue cycling)
+  const RAINBOW_STEPS = [BLUE, TEAL, GREEN, YELLOW, ORANGE, RED, PINK, PURPLE];
 
   function drawCars() {
     cars.forEach((car, i) => {
@@ -907,52 +888,38 @@
       let color = TEAM_COLORS[car.team];
       let secColor = '#ffffff';
       if (car._rainbow) {
-        const hue = (frameCount * 3 + i * 120) % 360;
-        color = `hsl(${hue}, 100%, 60%)`;
-        secColor = `hsl(${(hue + 60) % 360}, 100%, 80%)`;
+        color = RAINBOW_STEPS[(Math.floor(frameCount / 30) + i) % RAINBOW_STEPS.length];
+        secColor = '#ffffff';
       } else if (car._skin) {
         color = car._skin.primary;
         secColor = car._skin.secondary;
       }
 
-      // Car shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath();
-      ctx.roundRect(-CAR_W / 2 + 2, -CAR_H / 2 + 2, CAR_W, CAR_H, 4);
-      ctx.fill();
-
       // Car body
-      ctx.shadowColor = color;
-      ctx.shadowBlur = car.boosting ? 18 : 8;
       ctx.fillStyle = color;
-      ctx.globalAlpha = 0.9;
       ctx.beginPath();
-      ctx.roundRect(-CAR_W / 2, -CAR_H / 2, CAR_W, CAR_H, 4);
+      ctx.roundRect(-CAR_W / 2, -CAR_H / 2, CAR_W, CAR_H, 6);
       ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
 
       // Windshield
       ctx.fillStyle = secColor;
-      ctx.globalAlpha = 0.4;
+      ctx.globalAlpha = 0.6;
       ctx.beginPath();
       ctx.roundRect(CAR_W * 0.1, -CAR_H * 0.3, CAR_W * 0.2, CAR_H * 0.6, 2);
       ctx.fill();
       ctx.globalAlpha = 1;
 
       // Nose
-      ctx.fillStyle = '#fff';
-      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = color;
       ctx.beginPath();
       ctx.moveTo(CAR_W / 2, -CAR_H / 4);
       ctx.lineTo(CAR_W / 2 + 3, 0);
       ctx.lineTo(CAR_W / 2, CAR_H / 4);
       ctx.closePath();
       ctx.fill();
-      ctx.globalAlpha = 1;
 
       // Wheels
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillStyle = INK;
       ctx.fillRect(-CAR_W * 0.35, -CAR_H / 2 - 2, 8, 4);
       ctx.fillRect(-CAR_W * 0.35, CAR_H / 2 - 2, 8, 4);
       ctx.fillRect(CAR_W * 0.15, -CAR_H / 2 - 2, 8, 4);
@@ -961,14 +928,14 @@
       // Boost flame
       if (car.boosting) {
         const flameLen = 10 + Math.random() * 8;
-        ctx.fillStyle = hexToRgba(NEON_ORANGE, 0.8);
+        ctx.fillStyle = ORANGE;
         ctx.beginPath();
         ctx.moveTo(-CAR_W / 2, -5);
         ctx.lineTo(-CAR_W / 2 - flameLen, 0);
         ctx.lineTo(-CAR_W / 2, 5);
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = hexToRgba(NEON_YELLOW, 0.6);
+        ctx.fillStyle = YELLOW;
         ctx.beginPath();
         ctx.moveTo(-CAR_W / 2, -3);
         ctx.lineTo(-CAR_W / 2 - flameLen * 0.6, 0);
@@ -981,11 +948,9 @@
 
       // Player label
       ctx.fillStyle = color;
-      ctx.globalAlpha = 0.6;
-      ctx.font = 'bold 10px sans-serif';
+      ctx.font = '600 10px ' + FONT;
       ctx.textAlign = 'center';
       ctx.fillText('P' + (i + 1), car.x, car.y - CAR_H / 2 - 8);
-      ctx.globalAlpha = 1;
     });
   }
 
@@ -1006,30 +971,24 @@
     ctx.textAlign = 'center';
     const scoreY = offY / 2 + 8;
 
-    ctx.shadowColor = NEON_BLUE;
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = NEON_BLUE;
-    ctx.font = 'bold 32px sans-serif';
+    ctx.fillStyle = BLUE;
+    ctx.font = '700 32px ' + FONT;
     ctx.fillText(score[0], W() / 2 - 40, scoreY + 10);
-    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '20px sans-serif';
+    ctx.fillStyle = MUTED;
+    ctx.font = '400 20px ' + FONT;
     ctx.fillText('-', W() / 2, scoreY + 8);
 
-    ctx.shadowColor = NEON_ORANGE;
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = NEON_ORANGE;
-    ctx.font = 'bold 32px sans-serif';
+    ctx.fillStyle = ORANGE;
+    ctx.font = '700 32px ' + FONT;
     ctx.fillText(score[1], W() / 2 + 40, scoreY + 10);
-    ctx.shadowBlur = 0;
 
     // Timer
     const secs = Math.ceil(gameTimer / 60);
     const mins = Math.floor(secs / 60);
     const s = secs % 60;
-    ctx.fillStyle = gameTimer < 1800 ? NEON_PINK : 'rgba(255,255,255,0.5)';
-    ctx.font = '14px sans-serif';
+    ctx.fillStyle = gameTimer < 1800 ? RED : MUTED;
+    ctx.font = '600 14px ' + FONT;
     ctx.fillText(mins + ':' + String(s).padStart(2, '0'), W() / 2, scoreY + 30);
 
     // Boost bars
@@ -1048,17 +1007,17 @@
         by = H() - offY / 2 - 4 - teamIdx * 18;
       }
 
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillStyle = SURFACE2;
       ctx.fillRect(bx, by, bw, bh);
       const frac = car.boost / BOOST_MAX;
-      ctx.fillStyle = frac > 0.3 ? NEON_YELLOW : NEON_PINK;
+      ctx.fillStyle = frac > 0.3 ? YELLOW : RED;
       ctx.fillRect(bx, by, bw * frac, bh);
-      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.strokeStyle = LINE;
       ctx.lineWidth = 1;
       ctx.strokeRect(bx, by, bw, bh);
 
-      ctx.fillStyle = hexToRgba(TEAM_COLORS[car.team], 0.6);
-      ctx.font = '10px sans-serif';
+      ctx.fillStyle = TEAM_COLORS[car.team];
+      ctx.font = '600 10px ' + FONT;
       ctx.textAlign = car.team === 0 ? 'left' : 'right';
       ctx.fillText('P' + (i + 1), car.team === 0 ? bx : bx + bw, by - 3);
     });
@@ -1066,8 +1025,8 @@
     // Controls hint
     if (!isOnline && state === STATE.PLAYING && frameCount < 300) {
       const alpha = Math.max(0, 1 - frameCount / 300);
-      ctx.fillStyle = hexToRgba('#ffffff', alpha * 0.3);
-      ctx.font = '11px sans-serif';
+      ctx.fillStyle = hexToRgba(MUTED, alpha);
+      ctx.font = '400 11px ' + FONT;
       ctx.textAlign = 'center';
       let hint = 'P1: WASD+Shift  |  P2: Pilar+.';
       if (cars.length >= 3) hint += '  |  P3: IJKL+H';
@@ -1078,75 +1037,75 @@
 
   function drawCountdown() {
     const sec = Math.ceil(countdownTimer / 60);
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillStyle = 'rgba(245,245,244,0.6)';
     ctx.fillRect(0, 0, W(), H());
-    ctx.shadowColor = NEON_GREEN;
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 80px sans-serif';
+    ctx.fillStyle = INK;
+    ctx.font = '700 80px ' + FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(sec, W() / 2, H() / 2);
-    ctx.shadowBlur = 0;
     ctx.textBaseline = 'alphabetic';
   }
 
   function drawGoalText() {
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillStyle = 'rgba(245,245,244,0.6)';
     ctx.fillRect(0, 0, W(), H());
-    ctx.shadowColor = TEAM_COLORS[lastScorer];
-    ctx.shadowBlur = 30;
     ctx.fillStyle = TEAM_COLORS[lastScorer];
-    ctx.font = 'bold 56px sans-serif';
+    ctx.font = '700 56px ' + FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('M\u00c5L!', W() / 2, H() / 2);
-    ctx.shadowBlur = 0;
+    ctx.fillText('Mål!', W() / 2, H() / 2);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '20px sans-serif';
+    ctx.fillStyle = MUTED;
+    ctx.font = '400 20px ' + FONT;
     ctx.fillText(TEAM_NAMES[lastScorer] + ' lag', W() / 2, H() / 2 + 40);
     ctx.textBaseline = 'alphabetic';
   }
 
   function drawGameOver() {
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, W(), H());
+
+    // Panel
+    const pw = Math.min(W() - 32, 420);
+    const pTop = H() / 2 - 100;
+    const pH = 195;
+    ctx.fillStyle = SURFACE;
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(W() / 2 - pw / 2, pTop, pw, pH, 10);
+    ctx.fill(); ctx.stroke();
+
     ctx.textAlign = 'center';
 
     let winText, winColor;
-    if (score[0] > score[1]) { winText = 'BL\u00c5 VINNER!'; winColor = NEON_BLUE; }
-    else if (score[1] > score[0]) { winText = 'ORANGE VINNER!'; winColor = NEON_ORANGE; }
-    else { winText = 'OAVGJORT!'; winColor = NEON_PURPLE; }
+    if (score[0] > score[1]) { winText = 'Blå vinner!'; winColor = BLUE; }
+    else if (score[1] > score[0]) { winText = 'Orange vinner!'; winColor = ORANGE; }
+    else { winText = 'Oavgjort!'; winColor = PURPLE; }
 
-    ctx.shadowColor = winColor;
-    ctx.shadowBlur = 25;
     ctx.fillStyle = winColor;
-    ctx.font = 'bold 42px sans-serif';
+    ctx.font = '700 42px ' + FONT;
     ctx.fillText(winText, W() / 2, H() / 2 - 40);
-    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 60px sans-serif';
+    ctx.fillStyle = INK;
+    ctx.font = '700 60px ' + FONT;
     ctx.fillText(score[0] + ' - ' + score[1], W() / 2, H() / 2 + 25);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '14px sans-serif';
-    ctx.fillText('Tryck Enter eller klicka f\u00f6r att forts\u00e4tta', W() / 2, H() / 2 + 70);
+    ctx.fillStyle = MUTED;
+    ctx.font = '400 14px ' + FONT;
+    ctx.fillText('Tryck Enter eller klicka för att fortsätta', W() / 2, H() / 2 + 70);
   }
 
   function drawMenu() {
     ctx.textAlign = 'center';
-    ctx.shadowColor = NEON_GREEN;
-    ctx.shadowBlur = 25;
-    ctx.fillStyle = NEON_GREEN;
-    ctx.font = 'bold 48px sans-serif';
-    ctx.fillText('NEON LEAGUE', W() / 2, H() / 2 - 120);
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = INK;
+    ctx.font = '700 48px ' + FONT;
+    ctx.fillText('Rocket League', W() / 2, H() / 2 - 120);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '14px sans-serif';
-    ctx.fillText('Bilfotboll \u2022 Boost \u2022 M\u00e5l!', W() / 2, H() / 2 - 80);
+    ctx.fillStyle = MUTED;
+    ctx.font = '400 14px ' + FONT;
+    ctx.fillText('Bilfotboll • Boost • Mål!', W() / 2, H() / 2 - 80);
 
     const bw = Math.min(320, W() * 0.8);
     const bh = 60;
@@ -1155,25 +1114,23 @@
       const bx = W() / 2 - bw / 2;
       const by = startY + i * (bh + 16);
       const sel = i === menuSelection;
-      ctx.fillStyle = sel ? hexToRgba(NEON_GREEN, 0.2) : 'rgba(255,255,255,0.05)';
-      ctx.strokeStyle = sel ? NEON_GREEN : 'rgba(255,255,255,0.15)';
+      ctx.fillStyle = sel ? hexToRgba(BLUE, 0.08) : SURFACE;
+      ctx.strokeStyle = sel ? BLUE : LINE;
       ctx.lineWidth = sel ? 2 : 1;
-      if (sel) { ctx.shadowColor = NEON_GREEN; ctx.shadowBlur = 10; }
       ctx.beginPath();
       ctx.roundRect(bx, by, bw, bh, 10);
       ctx.fill(); ctx.stroke();
-      ctx.shadowBlur = 0;
 
-      ctx.fillStyle = sel ? '#fff' : 'rgba(255,255,255,0.7)';
-      ctx.font = 'bold 16px sans-serif';
+      ctx.fillStyle = sel ? BLUE : INK;
+      ctx.font = '600 16px ' + FONT;
       ctx.fillText(typeof opt.label === 'function' ? opt.label() : opt.label, W() / 2, by + 26);
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.font = '12px sans-serif';
+      ctx.fillStyle = MUTED;
+      ctx.font = '400 12px ' + FONT;
       ctx.fillText(opt.desc, W() / 2, by + 44);
     });
 
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font = '11px sans-serif';
+    ctx.fillStyle = MUTED;
+    ctx.font = '400 11px ' + FONT;
     let ctrlHint = 'P1: WASD+Shift  |  P2: Pilar+.';
     if (localPlayerCount >= 3) ctrlHint += '  |  P3: IJKL+H';
     if (localPlayerCount >= 4) ctrlHint += '  |  P4: 8456+0';
@@ -1182,90 +1139,81 @@
 
   function drawLobby() {
     ctx.textAlign = 'center';
-    ctx.shadowColor = NEON_GREEN;
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = NEON_GREEN;
-    ctx.font = 'bold 32px sans-serif';
-    ctx.fillText('LOBBY', W() / 2, H() / 2 - 140);
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = INK;
+    ctx.font = '700 32px ' + FONT;
+    ctx.fillText('Lobby', W() / 2, H() / 2 - 140);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '16px sans-serif';
+    ctx.fillStyle = MUTED;
+    ctx.font = '400 16px ' + FONT;
     ctx.fillText(lobbyStatus, W() / 2, H() / 2 - 90);
 
     const btnW = 220, btnH = 50, cx = W() / 2;
 
     if (!isOnline && menuSelection === 1) {
       const by = H() / 2 - 10;
-      ctx.fillStyle = hexToRgba(NEON_GREEN, 0.15);
-      ctx.strokeStyle = NEON_GREEN; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.roundRect(cx - btnW / 2, by, btnW, btnH, 8); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif';
-      ctx.fillText('Skapa Rum', cx, by + 30);
+      ctx.fillStyle = BLUE;
+      ctx.beginPath(); ctx.roundRect(cx - btnW / 2, by, btnW, btnH, 8); ctx.fill();
+      ctx.fillStyle = SURFACE; ctx.font = '600 16px ' + FONT;
+      ctx.fillText('Skapa rum', cx, by + 30);
 
-      ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '13px sans-serif';
+      ctx.fillStyle = MUTED; ctx.font = '400 13px ' + FONT;
       ctx.fillText('eller ange rumskod:', cx, by + btnH + 20);
 
       const iy = by + btnH + 30;
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.strokeStyle = inputActive ? NEON_GREEN : 'rgba(255,255,255,0.2)';
+      ctx.fillStyle = SURFACE;
+      ctx.strokeStyle = inputActive ? BLUE : LINE;
       ctx.lineWidth = inputActive ? 2 : 1;
       ctx.beginPath(); ctx.roundRect(cx - btnW / 2, iy, btnW, btnH, 8); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = roomInput ? '#fff' : 'rgba(255,255,255,0.3)';
-      ctx.font = 'bold 20px monospace';
-      ctx.fillText(roomInput || 'KLICKA H\u00c4R', cx, iy + 32);
+      ctx.fillStyle = roomInput ? INK : MUTED;
+      ctx.font = (roomInput ? '700 20px monospace' : '400 16px ' + FONT);
+      ctx.fillText(roomInput || 'Klicka här', cx, iy + 32);
 
       const jy = iy + btnH + 10;
-      ctx.fillStyle = roomInput ? hexToRgba(NEON_GREEN, 0.15) : 'rgba(255,255,255,0.03)';
-      ctx.strokeStyle = roomInput ? NEON_GREEN : 'rgba(255,255,255,0.1)';
+      ctx.fillStyle = roomInput ? SURFACE : SURFACE2;
+      ctx.strokeStyle = LINE;
+      ctx.lineWidth = 1;
       ctx.beginPath(); ctx.roundRect(cx - btnW / 2, jy, btnW, btnH, 8); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = roomInput ? '#fff' : 'rgba(255,255,255,0.3)';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.fillText('G\u00e5 Med', cx, jy + 30);
+      ctx.fillStyle = roomInput ? INK : MUTED;
+      ctx.font = '600 16px ' + FONT;
+      ctx.fillText('Gå med', cx, jy + 30);
     }
 
     if (isOnline) {
       if (roomCode && !roomCode.startsWith('RND')) {
-        ctx.shadowColor = NEON_GREEN; ctx.shadowBlur = 15;
-        ctx.fillStyle = NEON_GREEN; ctx.font = 'bold 36px monospace';
+        ctx.fillStyle = BLUE; ctx.font = '700 36px monospace';
         ctx.fillText(roomCode, cx, H() / 2 - 30);
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '13px sans-serif';
-        ctx.fillText('Dela koden med din v\u00e4n', cx, H() / 2);
+        ctx.fillStyle = MUTED; ctx.font = '400 13px ' + FONT;
+        ctx.fillText('Dela koden med din vän', cx, H() / 2);
       }
 
-      ctx.fillStyle = '#fff'; ctx.font = '18px sans-serif';
+      ctx.fillStyle = INK; ctx.font = '400 18px ' + FONT;
       ctx.fillText(lobbyPlayers + ' spelare anslutna', cx, H() / 2 + 50);
 
       const teams = getTeamAssignments(lobbyPlayers);
       for (let i = 0; i < lobbyPlayers; i++) {
         const tc = TEAM_COLORS[teams[i]] || TEAM_COLORS[i % 2];
         ctx.fillStyle = tc;
-        ctx.shadowColor = tc; ctx.shadowBlur = 8;
         ctx.beginPath();
         ctx.arc(cx - (lobbyPlayers - 1) * 20 + i * 40, H() / 2 + 80, 10, 0, Math.PI * 2);
-        ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fill();
       }
       if (lobbyPlayers >= 3) {
-        ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '13px sans-serif';
+        ctx.fillStyle = MUTED; ctx.font = '400 13px ' + FONT;
         const modeText = lobbyPlayers === 3 ? '1v2' : '2v2';
         ctx.fillText(modeText, cx, H() / 2 + 110);
       }
 
       if (isHost && lobbyPlayers >= 2) {
         const by = H() / 2 + 120;
-        ctx.fillStyle = hexToRgba(NEON_GREEN, 0.2);
-        ctx.strokeStyle = NEON_GREEN; ctx.lineWidth = 2;
-        ctx.shadowColor = NEON_GREEN; ctx.shadowBlur = 10;
-        ctx.beginPath(); ctx.roundRect(cx - btnW / 2, by, btnW, btnH, 8); ctx.fill(); ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif';
-        ctx.fillText('Starta Spel', cx, by + 30);
+        ctx.fillStyle = BLUE;
+        ctx.beginPath(); ctx.roundRect(cx - btnW / 2, by, btnW, btnH, 8); ctx.fill();
+        ctx.fillStyle = SURFACE; ctx.font = '600 16px ' + FONT;
+        ctx.fillText('Starta spel', cx, by + 30);
       }
     }
 
-    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '12px sans-serif';
-    ctx.fillText('Tryck Escape f\u00f6r att g\u00e5 tillbaka', cx, H() - 30);
+    ctx.fillStyle = MUTED; ctx.font = '400 12px ' + FONT;
+    ctx.fillText('Tryck Escape för att gå tillbaka', cx, H() - 30);
   }
 
   function backToMenu() {
@@ -1289,16 +1237,17 @@
 
   // ========== SKIN SYSTEM ==========
   const SKIN_COLORS = {
-    'default': { primary: '#00d4ff', secondary: '#ffffff', glow: '#00d4ff', boost: '#ff6a00' },
-    'crimson': { primary: '#ff2d55', secondary: '#ffaacc', glow: '#ff2d55', boost: '#ff2d55' },
-    'emerald': { primary: '#39ff14', secondary: '#ccffcc', glow: '#39ff14', boost: '#39ff14' },
-    'sunset': { primary: '#ff6a00', secondary: '#ffdd44', glow: '#ff6a00', boost: '#ffdd44' },
-    'phantom': { primary: '#a855f7', secondary: '#e0ccff', glow: '#a855f7', boost: '#a855f7' },
-    'arctic': { primary: '#88eeff', secondary: '#ffffff', glow: '#88eeff', boost: '#88eeff' },
-    'golden': { primary: '#fbbf24', secondary: '#fff8e0', glow: '#fbbf24', boost: '#fbbf24' },
-    'inferno': { primary: '#ff4400', secondary: '#ff8800', glow: '#ff4400', boost: '#ff2200' },
-    'void': { primary: '#1a0033', secondary: '#6600cc', glow: '#6600cc', boost: '#6600cc' },
-    'rainbow': { primary: 'rainbow', secondary: '#ffffff', glow: '#a855f7', boost: '#a855f7' }
+    // Every skin id is kept; colours are toned down to the shared flat palette
+    'default': { primary: '#2563eb', secondary: '#ffffff', glow: '#2563eb', boost: '#ea580c' },
+    'crimson': { primary: '#dc2626', secondary: '#fecaca', glow: '#dc2626', boost: '#dc2626' },
+    'emerald': { primary: '#16a34a', secondary: '#bbf7d0', glow: '#16a34a', boost: '#16a34a' },
+    'sunset': { primary: '#ea580c', secondary: '#fde68a', glow: '#ea580c', boost: '#ca8a04' },
+    'phantom': { primary: '#7c3aed', secondary: '#ddd6fe', glow: '#7c3aed', boost: '#7c3aed' },
+    'arctic': { primary: '#0d9488', secondary: '#ffffff', glow: '#0d9488', boost: '#0d9488' },
+    'golden': { primary: '#ca8a04', secondary: '#fef3c7', glow: '#ca8a04', boost: '#ca8a04' },
+    'inferno': { primary: '#dc2626', secondary: '#ea580c', glow: '#dc2626', boost: '#ea580c' },
+    'void': { primary: '#1c1917', secondary: '#7c3aed', glow: '#7c3aed', boost: '#7c3aed' },
+    'rainbow': { primary: 'rainbow', secondary: '#ffffff', glow: '#7c3aed', boost: '#7c3aed' }
   };
   let mySkinId = null;
 

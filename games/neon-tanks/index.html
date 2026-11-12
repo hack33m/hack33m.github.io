@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Neon Tanks</title>
+  <title>Tanks</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -17,7 +17,7 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      color: #fff;
+      color: #1c1917;
     }
     canvas { display: block; }
   </style>
@@ -65,15 +65,21 @@
   const H = () => window.innerHeight;
 
   // ========== COLORS ==========
-  const CYAN = '#00d4ff';
-  const PINK = '#ff2d95';
-  const PURPLE = '#a855f7';
-  const GREEN = '#39ff14';
-  const ORANGE = '#ff6a00';
-  const BG = '#0a0a1a';
+  const BG = '#f5f5f4';
+  const SURFACE = '#ffffff';
+  const SURFACE2 = '#e7e5e4';
+  const LINE = '#d6d3d1';
+  const INK = '#1c1917';
+  const MUTED = '#78716c';
+  const ACCENT = '#2563eb';
+  const RED = '#dc2626';
+  const GREEN = '#16a34a';
+  const YELLOW = '#ca8a04';
+  const ORANGE = '#ea580c';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
-  const PLAYER_COLORS = [CYAN, PINK];
-  const PLAYER_NAMES = ['SPELARE 1', 'SPELARE 2'];
+  const PLAYER_COLORS = [ACCENT, RED];
+  const PLAYER_NAMES = ['Spelare 1', 'Spelare 2'];
 
   // ========== GAME STATE ==========
   let state = 'menu'; // menu, playing, gameover
@@ -233,7 +239,7 @@
     createCrater(x, EXPLOSION_RADIUS);
 
     // Particles
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 16; i++) {
       const ang = Math.random() * Math.PI * 2;
       const spd = 1 + Math.random() * 5;
       particles.push({
@@ -242,7 +248,7 @@
         vy: Math.sin(ang) * spd - 2,
         life: 40 + Math.random() * 30,
         maxLife: 70,
-        color: [CYAN, PINK, ORANGE, GREEN, PURPLE][Math.floor(Math.random() * 5)],
+        color: [ORANGE, RED, YELLOW, MUTED][Math.floor(Math.random() * 4)],
         size: 2 + Math.random() * 3
       });
     }
@@ -362,12 +368,8 @@
 
   // ========== DRAW ==========
   function drawTerrain() {
-    // Fill terrain body
-    const grad = ctx.createLinearGradient(0, H() * 0.3, 0, H());
-    grad.addColorStop(0, '#1a0a2e');
-    grad.addColorStop(0.5, '#0d1b2a');
-    grad.addColorStop(1, '#0a0a1a');
-    ctx.fillStyle = grad;
+    // Flat ground fill
+    ctx.fillStyle = SURFACE2;
     ctx.beginPath();
     ctx.moveTo(0, H());
     for (let x = 0; x < terrainW; x += 2) {
@@ -377,35 +379,16 @@
     ctx.closePath();
     ctx.fill();
 
-    // Grid lines on terrain
-    ctx.strokeStyle = 'rgba(0, 212, 255, 0.08)';
-    ctx.lineWidth = 0.5;
-    const gridSize = 40;
-    for (let gx = 0; gx < terrainW; gx += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(gx, 0);
-      ctx.lineTo(gx, H());
-      ctx.stroke();
-    }
-    for (let gy = 0; gy < H(); gy += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(terrainW, gy);
-      ctx.stroke();
-    }
-
-    // Terrain outline with glow
-    ctx.shadowColor = GREEN;
-    ctx.shadowBlur = 8;
-    ctx.strokeStyle = GREEN;
+    // Ground outline
+    ctx.strokeStyle = INK;
     ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.moveTo(0, terrain[0] || H());
     for (let x = 1; x < terrainW; x += 2) {
       ctx.lineTo(x, terrain[x] || H());
     }
     ctx.stroke();
-    ctx.shadowBlur = 0;
   }
 
   function drawTank(tank) {
@@ -415,24 +398,19 @@
     const col = tank.color;
 
     // Tank body
-    ctx.shadowColor = col;
-    ctx.shadowBlur = 12;
     ctx.fillStyle = col;
     ctx.beginPath();
-    ctx.roundRect(x - TANK_W / 2, y - TANK_H, TANK_W, TANK_H, 4);
+    ctx.roundRect(x - TANK_W / 2, y - TANK_H, TANK_W, TANK_H, 6);
     ctx.fill();
-    ctx.shadowBlur = 0;
 
     // Darker stripe
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.fillRect(x - TANK_W / 2 + 4, y - TANK_H + 4, TANK_W - 8, 4);
 
     // Cannon
     ctx.save();
     ctx.translate(x, y - TANK_H);
     ctx.rotate(tank.angle);
-    ctx.shadowColor = col;
-    ctx.shadowBlur = 8;
     ctx.strokeStyle = col;
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
@@ -440,7 +418,6 @@
     ctx.moveTo(0, 0);
     ctx.lineTo(CANNON_LEN, 0);
     ctx.stroke();
-    ctx.shadowBlur = 0;
     ctx.restore();
 
     // HP bar
@@ -448,18 +425,18 @@
     const barH = 6;
     const barX = x - barW / 2;
     const barY = y - TANK_H - 20;
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillStyle = SURFACE2;
     ctx.fillRect(barX, barY, barW, barH);
     const hpFrac = tank.hp / MAX_HP;
-    const hpCol = hpFrac > 0.5 ? GREEN : hpFrac > 0.25 ? ORANGE : PINK;
+    const hpCol = hpFrac > 0.5 ? GREEN : hpFrac > 0.25 ? ORANGE : RED;
     ctx.fillStyle = hpCol;
     ctx.fillRect(barX, barY, barW * hpFrac, barH);
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.strokeStyle = LINE;
     ctx.lineWidth = 1;
     ctx.strokeRect(barX, barY, barW, barH);
 
     // Player name
-    ctx.font = 'bold 11px "Segoe UI", sans-serif';
+    ctx.font = '700 11px ' + FONT;
     ctx.fillStyle = col;
     ctx.textAlign = 'center';
     ctx.fillText(tank.name, x, barY - 6);
@@ -467,13 +444,10 @@
 
   function drawProjectile() {
     if (!projectile) return;
-    ctx.shadowColor = '#fff';
-    ctx.shadowBlur = 15;
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = INK;
     ctx.beginPath();
     ctx.arc(projectile.x, projectile.y, 4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
   }
 
   function drawParticles() {
@@ -492,13 +466,10 @@
     for (const e of explosions) {
       ctx.globalAlpha = e.alpha;
       ctx.strokeStyle = ORANGE;
-      ctx.lineWidth = 3;
-      ctx.shadowColor = ORANGE;
-      ctx.shadowBlur = 20;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.shadowBlur = 0;
     }
     ctx.globalAlpha = 1;
   }
@@ -506,18 +477,18 @@
   function drawWind() {
     const cx = W() / 2;
     const cy = 40;
-    ctx.font = 'bold 13px "Segoe UI", sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '700 13px ' + FONT;
+    ctx.fillStyle = MUTED;
     ctx.textAlign = 'center';
-    ctx.fillText('VIND', cx, cy - 12);
+    ctx.fillText('Vind', cx, cy - 12);
 
     // Wind arrow
     const arrowLen = Math.abs(wind) * 60;
     const dir = wind > 0 ? 1 : -1;
-    ctx.strokeStyle = Math.abs(wind) > 0.5 ? ORANGE : CYAN;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = ctx.strokeStyle;
-    ctx.shadowBlur = 6;
+    ctx.strokeStyle = Math.abs(wind) > 0.5 ? ORANGE : INK;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.moveTo(cx - arrowLen * dir / 2, cy);
     ctx.lineTo(cx + arrowLen * dir / 2, cy);
@@ -526,7 +497,6 @@
     ctx.moveTo(cx + arrowLen * dir / 2, cy);
     ctx.lineTo(cx + arrowLen * dir / 2 - 8 * dir, cy + 6);
     ctx.stroke();
-    ctx.shadowBlur = 0;
   }
 
   function drawHUD() {
@@ -539,13 +509,10 @@
     if (turnMessageTimer > 0) {
       const alpha = Math.min(1, turnMessageTimer / 30);
       ctx.globalAlpha = alpha;
-      ctx.font = 'bold 28px "Segoe UI", sans-serif';
+      ctx.font = '700 28px ' + FONT;
       ctx.fillStyle = tank.color;
       ctx.textAlign = 'center';
-      ctx.shadowColor = tank.color;
-      ctx.shadowBlur = 15;
       ctx.fillText(turnMessage, W() / 2, H() / 3);
-      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
     }
 
@@ -554,7 +521,7 @@
       const angleDeg = Math.round(-tank.angle * 180 / Math.PI);
       const pow = Math.round(tank.power);
 
-      ctx.font = 'bold 14px "Segoe UI", sans-serif';
+      ctx.font = '700 14px ' + FONT;
       ctx.textAlign = 'left';
       ctx.fillStyle = tank.color;
       const infoX = 20;
@@ -564,7 +531,7 @@
 
       // Power bar
       ctx.fillText('Kraft: ' + pow + '%', infoX, infoY + 22);
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.fillStyle = SURFACE2;
       ctx.fillRect(infoX + 90, infoY + 12, 100, 10);
       ctx.fillStyle = tank.color;
       ctx.fillRect(infoX + 90, infoY + 12, pow, 10);
@@ -572,8 +539,8 @@
 
     // AI thinking
     if (aiThinking) {
-      ctx.font = 'bold 18px "Segoe UI", sans-serif';
-      ctx.fillStyle = PINK;
+      ctx.font = '700 18px ' + FONT;
+      ctx.fillStyle = MUTED;
       ctx.textAlign = 'center';
       ctx.fillText('AI tänker...', W() / 2, H() / 2);
     }
@@ -597,16 +564,16 @@
     touchBtns = buttons;
 
     for (const btn of buttons) {
-      ctx.fillStyle = touchControls[btn.key] ? col : 'rgba(255,255,255,0.1)';
+      ctx.fillStyle = touchControls[btn.key] ? col : SURFACE;
       ctx.beginPath();
       ctx.roundRect(btn.x, btn.y, btnW, btnH, 8);
       ctx.fill();
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = touchControls[btn.key] ? col : LINE;
+      ctx.lineWidth = 1;
       ctx.stroke();
 
-      ctx.font = 'bold 22px sans-serif';
-      ctx.fillStyle = touchControls[btn.key] ? '#000' : col;
+      ctx.font = '700 22px sans-serif';
+      ctx.fillStyle = touchControls[btn.key] ? SURFACE : col;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(btn.label, btn.x + btnW / 2, btn.y + btnH / 2);
@@ -614,22 +581,19 @@
 
     // Fire button
     const fireW = 90, fireH = 50;
-    const fireX = 20;
+    const fiT-Rex = 20;
     const fireY = H() - fireH - 100;
-    fireBtnRect = { x: fireX, y: fireY, w: fireW, h: fireH };
+    fireBtnRect = { x: fiT-Rex, y: fireY, w: fireW, h: fireH };
 
-    ctx.fillStyle = ORANGE;
-    ctx.shadowColor = ORANGE;
-    ctx.shadowBlur = 10;
+    ctx.fillStyle = INK;
     ctx.beginPath();
-    ctx.roundRect(fireX, fireY, fireW, fireH, 10);
+    ctx.roundRect(fiT-Rex, fireY, fireW, fireH, 10);
     ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.font = 'bold 18px "Segoe UI", sans-serif';
-    ctx.fillStyle = '#000';
+    ctx.font = '700 18px ' + FONT;
+    ctx.fillStyle = SURFACE;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('SKJUT!', fireX + fireW / 2, fireY + fireH / 2);
+    ctx.fillText('Skjut!', fiT-Rex + fireW / 2, fireY + fireH / 2);
     ctx.textBaseline = 'alphabetic';
   }
 
@@ -641,40 +605,24 @@
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W(), H());
 
-    // Decorative particles in background
-    const t = Date.now() * 0.001;
-    for (let i = 0; i < 20; i++) {
-      const px = W() / 2 + Math.sin(t + i * 0.7) * W() * 0.35;
-      const py = H() / 2 + Math.cos(t * 0.7 + i * 1.1) * H() * 0.3;
-      ctx.globalAlpha = 0.15;
-      ctx.fillStyle = [CYAN, PINK, PURPLE, GREEN, ORANGE][i % 5];
-      ctx.beginPath();
-      ctx.arc(px, py, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
     // Title
-    ctx.font = 'bold 52px "Segoe UI", sans-serif';
+    ctx.font = '700 52px ' + FONT;
     ctx.textAlign = 'center';
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 25;
-    ctx.fillStyle = CYAN;
-    ctx.fillText('NEON TANKS', W() / 2, H() * 0.25);
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = INK;
+    ctx.fillText('Tanks', W() / 2, H() * 0.25);
 
     // Subtitle
-    ctx.font = '18px "Segoe UI", sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText('Artilleri-strid med neonljus', W() / 2, H() * 0.25 + 40);
+    ctx.font = '400 18px ' + FONT;
+    ctx.fillStyle = MUTED;
+    ctx.fillText('Artilleri-strid bland kullarna', W() / 2, H() * 0.25 + 40);
 
     // Mode buttons
     const btnW = 240, btnH = 55, gap = 18;
     const startY = H() * 0.45;
 
     const modes = [
-      { id: '1p', label: '1 SPELARE vs AI' },
-      { id: '2p', label: '2 SPELARE LOKALT' },
+      { id: '1p', label: '1 spelare vs AI' },
+      { id: '2p', label: '2 spelare lokalt' },
     ];
 
     menuBtns = [];
@@ -685,24 +633,19 @@
       const selected = menuSelection === modes[i].id;
       menuBtns.push({ x: bx, y: by, w: btnW, h: btnH, id: modes[i].id });
 
-      ctx.fillStyle = selected ? (i === 0 ? PURPLE : PINK) : 'rgba(255,255,255,0.06)';
+      ctx.fillStyle = selected ? '#dbeafe' : SURFACE;
       ctx.beginPath();
-      ctx.roundRect(bx, by, btnW, btnH, 12);
+      ctx.roundRect(bx, by, btnW, btnH, 10);
       ctx.fill();
 
-      if (selected) {
-        ctx.shadowColor = i === 0 ? PURPLE : PINK;
-        ctx.shadowBlur = 12;
-      }
-      ctx.strokeStyle = selected ? '#fff' : 'rgba(255,255,255,0.2)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = selected ? ACCENT : LINE;
+      ctx.lineWidth = selected ? 2 : 1;
       ctx.beginPath();
-      ctx.roundRect(bx, by, btnW, btnH, 12);
+      ctx.roundRect(bx, by, btnW, btnH, 10);
       ctx.stroke();
-      ctx.shadowBlur = 0;
 
-      ctx.font = 'bold 20px "Segoe UI", sans-serif';
-      ctx.fillStyle = '#fff';
+      ctx.font = (selected ? '600' : '400') + ' 20px ' + FONT;
+      ctx.fillStyle = selected ? ACCENT : INK;
       ctx.textAlign = 'center';
       ctx.fillText(modes[i].label, W() / 2, by + btnH / 2 + 7);
     }
@@ -713,22 +656,19 @@
     const pbx = W() / 2 - playW / 2;
     playBtnRect = { x: pbx, y: playY, w: playW, h: playH };
 
-    ctx.fillStyle = GREEN;
-    ctx.shadowColor = GREEN;
-    ctx.shadowBlur = 18;
+    ctx.fillStyle = ACCENT;
     ctx.beginPath();
-    ctx.roundRect(pbx, playY, playW, playH, 14);
+    ctx.roundRect(pbx, playY, playW, playH, 10);
     ctx.fill();
-    ctx.shadowBlur = 0;
 
-    ctx.font = 'bold 24px "Segoe UI", sans-serif';
-    ctx.fillStyle = '#0a0a1a';
+    ctx.font = '600 24px ' + FONT;
+    ctx.fillStyle = SURFACE;
     ctx.textAlign = 'center';
-    ctx.fillText('SPELA', W() / 2, playY + playH / 2 + 8);
+    ctx.fillText('Spela', W() / 2, playY + playH / 2 + 8);
 
     // Controls hint
-    ctx.font = '13px "Segoe UI", sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.font = '400 13px ' + FONT;
+    ctx.fillStyle = MUTED;
     ctx.fillText('Piltangenter = vinkel/kraft | Mellanslag = skjut', W() / 2, H() - 40);
   }
 
@@ -737,93 +677,79 @@
 
   // ========== GAME OVER ==========
   function drawGameOver() {
-    // Dim background
-    ctx.fillStyle = 'rgba(10, 10, 26, 0.85)';
+    // Light overlay
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, W(), H());
 
-    const winCol = winner >= 0 ? PLAYER_COLORS[winner] : '#fff';
+    const winCol = winner >= 0 ? PLAYER_COLORS[winner] : INK;
     const winName = winner >= 0 ? tanks[winner].name : '???';
 
-    ctx.font = 'bold 44px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.shadowColor = winCol;
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = winCol;
-    ctx.fillText(winName + ' VINNER!', W() / 2, H() * 0.35);
-    ctx.shadowBlur = 0;
-
-    ctx.font = '20px "Segoe UI", sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillText('Grattis till segern!', W() / 2, H() * 0.35 + 45);
-
-    // Replay button
+    // Button geometry
     const rw = 200, rh = 55;
     const rx = W() / 2 - rw / 2;
     const ry = H() * 0.55;
-    replayBtnRect = { x: rx, y: ry, w: rw, h: rh };
-
-    ctx.fillStyle = GREEN;
-    ctx.shadowColor = GREEN;
-    ctx.shadowBlur = 15;
-    ctx.beginPath();
-    ctx.roundRect(rx, ry, rw, rh, 12);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    ctx.font = 'bold 22px "Segoe UI", sans-serif';
-    ctx.fillStyle = '#0a0a1a';
-    ctx.fillText('SPELA IGEN', W() / 2, ry + rh / 2 + 8);
-
-    // Menu button
     const mx = W() / 2 - rw / 2;
     const my = ry + rh + 20;
-    menuBtnRect = { x: mx, y: my, w: rw, h: rh };
 
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    // Panel
+    const panelW = Math.min(W() - 32, 380);
+    const panelTop = H() * 0.35 - 64;
+    const panelBottom = Math.min(H() - 8, my + rh + 24);
+    ctx.fillStyle = SURFACE;
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(mx, my, rw, rh, 12);
+    ctx.roundRect(W() / 2 - panelW / 2, panelTop, panelW, panelBottom - panelTop, 10);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(mx, my, rw, rh, 12);
     ctx.stroke();
 
-    ctx.font = 'bold 20px "Segoe UI", sans-serif';
-    ctx.fillStyle = '#fff';
-    ctx.fillText('MENY', W() / 2, my + rh / 2 + 7);
+    // Winner text: 44px, shrunk only if it would not fit inside the panel
+    let winSize = 44;
+    ctx.font = '700 ' + winSize + 'px ' + FONT;
+    while (winSize > 20 && ctx.measureText(winName + ' vinner!').width > panelW - 24) {
+      winSize -= 2;
+      ctx.font = '700 ' + winSize + 'px ' + FONT;
+    }
+    ctx.textAlign = 'center';
+    ctx.fillStyle = winCol;
+    ctx.fillText(winName + ' vinner!', W() / 2, H() * 0.35);
+
+    ctx.font = '400 20px ' + FONT;
+    ctx.fillStyle = MUTED;
+    ctx.fillText('Grattis till segern!', W() / 2, H() * 0.35 + 45);
+
+    // Replay button (primary)
+    replayBtnRect = { x: rx, y: ry, w: rw, h: rh };
+
+    ctx.fillStyle = ACCENT;
+    ctx.beginPath();
+    ctx.roundRect(rx, ry, rw, rh, 10);
+    ctx.fill();
+
+    ctx.font = '600 22px ' + FONT;
+    ctx.fillStyle = SURFACE;
+    ctx.fillText('Spela igen', W() / 2, ry + rh / 2 + 8);
+
+    // Menu button (secondary)
+    menuBtnRect = { x: mx, y: my, w: rw, h: rh };
+
+    ctx.fillStyle = SURFACE;
+    ctx.beginPath();
+    ctx.roundRect(mx, my, rw, rh, 10);
+    ctx.fill();
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(mx, my, rw, rh, 10);
+    ctx.stroke();
+
+    ctx.font = '600 20px ' + FONT;
+    ctx.fillStyle = INK;
+    ctx.fillText('Meny', W() / 2, my + rh / 2 + 7);
   }
 
   let replayBtnRect = null;
   let menuBtnRect = null;
-
-  // ========== STARFIELD BACKGROUND ==========
-  let stars = [];
-  function initStars() {
-    stars = [];
-    for (let i = 0; i < 80; i++) {
-      stars.push({
-        x: Math.random(),
-        y: Math.random() * 0.6,
-        size: 0.5 + Math.random() * 1.5,
-        twinkle: Math.random() * Math.PI * 2
-      });
-    }
-  }
-  initStars();
-
-  function drawStars() {
-    const t = Date.now() * 0.002;
-    for (const s of stars) {
-      const alpha = 0.3 + 0.3 * Math.sin(t + s.twinkle);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(s.x * W(), s.y * H(), s.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
 
   // ========== MAIN DRAW ==========
   function draw() {
@@ -837,7 +763,6 @@
     }
 
     // Game background
-    drawStars();
     drawTerrain();
 
     // Draw tanks
@@ -865,7 +790,7 @@
         if (mode === '1p') {
           PLAYER_NAMES[1] = 'AI';
         } else {
-          PLAYER_NAMES[1] = 'SPELARE 2';
+          PLAYER_NAMES[1] = 'Spelare 2';
         }
         startGame();
       }
@@ -902,7 +827,7 @@
         if (mode === '1p') {
           PLAYER_NAMES[1] = 'AI';
         } else {
-          PLAYER_NAMES[1] = 'SPELARE 2';
+          PLAYER_NAMES[1] = 'Spelare 2';
         }
         startGame();
       }

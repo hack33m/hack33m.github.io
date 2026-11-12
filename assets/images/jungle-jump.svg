@@ -1,16 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#052e16"/>
-      <stop offset="100%" style="stop-color:#14532d"/>
-    </linearGradient>
-  </defs>
-  <rect fill="url(#bg)" width="400" height="300"/>
-  <ellipse cx="80" cy="250" rx="60" ry="20" fill="#166534" opacity="0.6"/>
-  <ellipse cx="320" cy="250" rx="60" ry="20" fill="#166534" opacity="0.6"/>
-  <text x="120" y="120" font-size="48">🌴</text>
-  <text x="250" y="100" font-size="56">🌳</text>
-  <text x="200" y="170" text-anchor="middle" font-size="64">🐒</text>
-  <text x="200" y="230" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="28" fill="#fff">Jungle Jump</text>
-  <text x="200" y="265" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#4ade80">ÄVENTYR</text>
+  <rect width="400" height="300" fill="#e6f4ea"/>
+  <line x1="40" y1="216" x2="360" y2="216" stroke="#16a34a" stroke-width="3"/>
+  <!-- Palm tree -->
+  <path d="M112,216 Q100,150 124,92" fill="none" stroke="#7c4a2d" stroke-width="12" stroke-linecap="round"/>
+  <ellipse cx="154" cy="88" rx="30" ry="9" fill="#16a34a" transform="rotate(25 124 88)"/>
+  <ellipse cx="154" cy="88" rx="30" ry="9" fill="#16a34a" transform="rotate(-25 124 88)"/>
+  <ellipse cx="154" cy="88" rx="30" ry="9" fill="#16a34a" transform="rotate(155 124 88)"/>
+  <ellipse cx="154" cy="88" rx="30" ry="9" fill="#16a34a" transform="rotate(205 124 88)"/>
+  <circle cx="118" cy="98" r="5" fill="#7c4a2d"/>
+  <circle cx="130" cy="100" r="5" fill="#7c4a2d"/>
+  <!-- Vine -->
+  <path d="M310,0 Q300,52 262,96" fill="none" stroke="#16a34a" stroke-width="3"/>
+  <!-- Monkey -->
+  <circle cx="236" cy="114" r="9" fill="#7c4a2d" stroke="#1c1917" stroke-width="2"/>
+  <circle cx="288" cy="114" r="9" fill="#7c4a2d" stroke="#1c1917" stroke-width="2"/>
+  <circle cx="262" cy="120" r="27" fill="#7c4a2d" stroke="#1c1917" stroke-width="2"/>
+  <ellipse cx="262" cy="128" rx="17" ry="14" fill="#f3d9bf"/>
+  <circle cx="255" cy="118" r="3" fill="#1c1917"/>
+  <circle cx="269" cy="118" r="3" fill="#1c1917"/>
+  <path d="M255,132 Q262,138 269,132" fill="none" stroke="#1c1917" stroke-width="2" stroke-linecap="round"/>
 </svg>

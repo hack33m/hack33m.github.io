@@ -1,24 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <rect width="200" height="200" rx="20" fill="#0a0a1a"/>
-  <!-- Field -->
-  <rect x="30" y="50" width="140" height="100" rx="4" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
-  <!-- Center line -->
-  <line x1="100" y1="50" x2="100" y2="150" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
-  <circle cx="100" cy="100" r="20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
-  <!-- Left goal -->
-  <rect x="22" y="80" width="8" height="40" rx="2" fill="none" stroke="#00d4ff" stroke-width="2" opacity="0.7"/>
-  <!-- Right goal -->
-  <rect x="170" y="80" width="8" height="40" rx="2" fill="none" stroke="#ff6a00" stroke-width="2" opacity="0.7"/>
-  <!-- Blue car -->
-  <g transform="translate(65,90) rotate(20)">
-    <rect x="-14" y="-7" width="28" height="14" rx="3" fill="#00d4ff" opacity="0.9"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#e6f4ea"/>
+  <!-- Goal -->
+  <g stroke="#d6d3d1" stroke-width="1.5">
+    <line x1="360" y1="110" x2="360" y2="200"/>
+    <line x1="376" y1="110" x2="376" y2="200"/>
+    <line x1="346" y1="132" x2="396" y2="132"/>
+    <line x1="346" y1="154" x2="396" y2="154"/>
+    <line x1="346" y1="176" x2="396" y2="176"/>
   </g>
-  <!-- Orange car -->
-  <g transform="translate(135,105) rotate(200)">
-    <rect x="-14" y="-7" width="28" height="14" rx="3" fill="#ff6a00" opacity="0.9"/>
-  </g>
+  <path d="M398,110 H346 V200" fill="none" stroke="#1c1917" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Ground -->
+  <line x1="0" y1="200" x2="400" y2="200" stroke="#16a34a" stroke-width="3"/>
+  <!-- Boost -->
+  <polygon points="90,158 56,152 68,167 56,182 90,176" fill="#ea580c"/>
+  <!-- Car -->
+  <polygon points="116,150 132,124 176,124 192,150" fill="#ffffff" stroke="#1c1917" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="88" y="148" width="124" height="36" rx="10" fill="#2563eb" stroke="#1c1917" stroke-width="2"/>
+  <circle cx="120" cy="185" r="15" fill="#1c1917"/>
+  <circle cx="120" cy="185" r="5" fill="#e7e5e4"/>
+  <circle cx="182" cy="185" r="15" fill="#1c1917"/>
+  <circle cx="182" cy="185" r="5" fill="#e7e5e4"/>
   <!-- Ball -->
-  <circle cx="100" cy="98" r="8" fill="#39ff14" opacity="0.9"/>
-  <!-- Boost flames -->
-  <polygon points="48,86 42,90 48,94" fill="#ff6a00" opacity="0.6"/>
+  <circle cx="282" cy="168" r="30" fill="#ffffff" stroke="#1c1917" stroke-width="2"/>
+  <polygon points="282.0,157.8 291.7,164.8 288.0,176.3 276.0,176.3 272.3,164.8" fill="#1c1917"/>
 </svg>

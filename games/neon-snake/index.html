@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neon Snake</title>
+  <title>Snake</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
+      color: #1c1917;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -58,16 +59,23 @@
   const W = () => window.innerWidth;
   const H = () => window.innerHeight;
 
-  // Neon colors
-  const NEON_CYAN = '#00d4ff';
-  const NEON_PINK = '#ff2d95';
-  const NEON_PURPLE = '#a855f7';
-  const NEON_GREEN = '#39ff14';
-  const NEON_ORANGE = '#ff6a00';
-  const NEON_YELLOW = '#ffe600';
-  const NEON_RED = '#ff3344';
+  // Flat minimalist palette
+  const BG = '#f5f5f4';
+  const SURFACE = '#ffffff';
+  const SURFACE2 = '#e7e5e4';
+  const LINE = '#d6d3d1';
+  const INK = '#1c1917';
+  const MUTED = '#78716c';
+  const ACCENT = '#2563eb';
+  const RED = '#dc2626';
+  const GREEN = '#16a34a';
+  const YELLOW = '#ca8a04';
+  const ORANGE = '#ea580c';
+  const PURPLE = '#7c3aed';
+  const PINK = '#db2777';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
-  const FOOD_COLORS = [NEON_PINK, NEON_GREEN, NEON_ORANGE, NEON_YELLOW, NEON_RED, NEON_PURPLE];
+  const FOOD_COLORS = [PINK, GREEN, ORANGE, YELLOW, RED, PURPLE];
 
   // Grid
   const CELL = 20;
@@ -246,7 +254,7 @@
       if (shieldActive) {
         shieldActive = false;
         shieldTimer = 0;
-        spawnParticles(head.x, head.y, NEON_CYAN, 10);
+        spawnParticles(head.x, head.y, ACCENT, 10);
       } else {
         die();
         return;
@@ -278,7 +286,7 @@
     // Eat powerup
     if (powerup && head.x === powerup.x && head.y === powerup.y) {
       activatePowerup(powerup.type);
-      spawnParticles(powerup.x, powerup.y, NEON_YELLOW, 15);
+      spawnParticles(powerup.x, powerup.y, YELLOW, 15);
       screenShake = 8;
       powerup = null;
       powerupTimer = 200 + Math.random() * 200;
@@ -337,7 +345,7 @@
     } else if (type === PU_SHRINK) {
       if (snake.length > 4) {
         const removed = snake.splice(-3);
-        for (const s of removed) spawnParticles(s.x, s.y, NEON_PURPLE, 5);
+        for (const s of removed) spawnParticles(s.x, s.y, PURPLE, 5);
       }
     } else if (type === PU_BONUS) {
       score += 50;
@@ -346,7 +354,7 @@
 
   function die() {
     state = 'gameover';
-    for (const s of snake) spawnParticles(s.x, s.y, NEON_CYAN, 3);
+    for (const s of snake) spawnParticles(s.x, s.y, INK, 3);
     screenShake = 15;
     if (score > highScore) {
       highScore = score;
@@ -359,65 +367,51 @@
 
   // Drawing
   function drawGrid() {
-    // Border
-    ctx.save();
-    ctx.shadowColor = NEON_PURPLE;
-    ctx.shadowBlur = 8;
-    ctx.strokeStyle = NEON_PURPLE;
-    ctx.lineWidth = 2;
+    // Board
     ctx.beginPath();
-    ctx.roundRect(offsetX - 2, offsetY - 2, cols * CELL + 4, rows * CELL + 4, 4);
+    ctx.roundRect(offsetX - 2, offsetY - 2, cols * CELL + 4, rows * CELL + 4, 8);
+    ctx.fillStyle = SURFACE;
+    ctx.fill();
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.restore();
 
     // Grid dots
-    ctx.fillStyle = 'rgba(168, 85, 247, 0.08)';
+    ctx.fillStyle = SURFACE2;
     for (let x = 0; x <= cols; x++) {
       for (let y = 0; y <= rows; y++) {
-        ctx.fillRect(offsetX + x * CELL - 0.5, offsetY + y * CELL - 0.5, 1, 1);
+        ctx.fillRect(offsetX + x * CELL - 1, offsetY + y * CELL - 1, 2, 2);
       }
     }
   }
 
+  // Body shade: ink at the head, easing towards muted at the tail (flat fill per segment)
+  function segmentColor(t) {
+    const k = t * 0.75;
+    const r = Math.round(28 + (120 - 28) * k);
+    const g = Math.round(25 + (113 - 25) * k);
+    const b = Math.round(23 + (108 - 23) * k);
+    return `rgb(${r},${g},${b})`;
+  }
+
   function drawSnake() {
-    const time = Date.now() / 1000;
     for (let i = snake.length - 1; i >= 0; i--) {
       const s = snake[i];
       const px = offsetX + s.x * CELL;
       const py = offsetY + s.y * CELL;
       const t = i / snake.length;
 
-      // Color gradient from head to tail
-      const r = Math.floor(0 + t * 40);
-      const g = Math.floor(212 - t * 100);
-      const b = Math.floor(255 - t * 50);
-      const color = `rgb(${r},${g},${b})`;
-
       ctx.save();
-      if (i === 0) {
-        ctx.shadowColor = NEON_CYAN;
-        ctx.shadowBlur = 15;
-      } else {
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 6;
-      }
-
-      // Shield glow
-      if (shieldActive && i === 0) {
-        ctx.shadowColor = NEON_YELLOW;
-        ctx.shadowBlur = 20;
-      }
-
-      ctx.fillStyle = color;
+      ctx.fillStyle = i === 0 ? INK : segmentColor(t);
       const pad = i === 0 ? 1 : 2;
       ctx.beginPath();
-      ctx.roundRect(px + pad, py + pad, CELL - pad * 2, CELL - pad * 2, 4);
+      ctx.roundRect(px + pad, py + pad, CELL - pad * 2, CELL - pad * 2, 6);
       ctx.fill();
 
       // Head details
       if (i === 0) {
         // Eyes
-        ctx.fillStyle = '#0a0a1a';
+        ctx.fillStyle = SURFACE;
         const ex1 = px + CELL / 2 + dir.x * 4 - 3 + dir.y * 3;
         const ey1 = py + CELL / 2 + dir.y * 4 - 3 + dir.x * 3;
         const ex2 = px + CELL / 2 + dir.x * 4 - 3 - dir.y * 3;
@@ -425,15 +419,13 @@
         ctx.fillRect(ex1, ey1, 3, 3);
         ctx.fillRect(ex2, ey2, 3, 3);
 
-        // Shield indicator
+        // Shield indicator (steady ring)
         if (shieldActive) {
-          ctx.strokeStyle = NEON_YELLOW;
+          ctx.strokeStyle = ACCENT;
           ctx.lineWidth = 2;
-          ctx.globalAlpha = 0.5 + Math.sin(time * 8) * 0.3;
           ctx.beginPath();
           ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 + 3, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.globalAlpha = 1;
         }
       }
 
@@ -443,25 +435,13 @@
 
   function drawFood() {
     if (!food) return;
-    const time = Date.now() / 1000;
     const px = offsetX + food.x * CELL;
     const py = offsetY + food.y * CELL;
-    const pulse = Math.sin(time * 4) * 2;
 
-    ctx.save();
-    ctx.shadowColor = food.color;
-    ctx.shadowBlur = 12 + pulse * 2;
     ctx.fillStyle = food.color;
     ctx.beginPath();
-    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 3 + pulse, 0, Math.PI * 2);
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 3, 0, Math.PI * 2);
     ctx.fill();
-
-    // Inner glow
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.beginPath();
-    ctx.arc(px + CELL / 2 - 2, py + CELL / 2 - 2, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
   }
 
   function drawPowerup() {
@@ -469,31 +449,28 @@
     const time = Date.now() / 1000;
     const px = offsetX + powerup.x * CELL;
     const py = offsetY + powerup.y * CELL;
-    const pulse = Math.sin(time * 5) * 2;
 
-    let color = NEON_YELLOW;
+    let color = YELLOW;
     let icon = '?';
-    if (powerup.type === PU_SPEED) { color = NEON_ORANGE; icon = '⚡'; }
-    if (powerup.type === PU_SHIELD) { color = NEON_CYAN; icon = '🛡'; }
-    if (powerup.type === PU_SHRINK) { color = NEON_PURPLE; icon = '✂'; }
-    if (powerup.type === PU_BONUS) { color = NEON_YELLOW; icon = '💎'; }
+    if (powerup.type === PU_SPEED) { color = ORANGE; icon = '⚡'; }
+    if (powerup.type === PU_SHIELD) { color = ACCENT; icon = '🛡'; }
+    if (powerup.type === PU_SHRINK) { color = PURPLE; icon = '✂'; }
+    if (powerup.type === PU_BONUS) { color = YELLOW; icon = '💎'; }
 
     ctx.save();
     // Flashing when about to expire
     if (powerup.life < 50) {
       ctx.globalAlpha = 0.5 + Math.sin(time * 15) * 0.5;
     }
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 10 + pulse * 2;
+    ctx.beginPath();
+    ctx.roundRect(px + 1, py + 1, CELL - 2, CELL - 2, 6);
+    ctx.fillStyle = SURFACE;
+    ctx.fill();
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(px + 1, py + 1, CELL - 2, CELL - 2, 5);
     ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fill();
 
-    ctx.font = '12px Segoe UI';
+    ctx.font = `400 12px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.fillStyle = color;
     ctx.fillText(icon, px + CELL / 2, py + CELL / 2 + 4);
@@ -513,45 +490,39 @@
 
   function drawHUD() {
     ctx.textAlign = 'left';
-    ctx.font = 'bold 22px Segoe UI, sans-serif';
-    ctx.fillStyle = '#fff';
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 6;
+    ctx.font = `700 22px ${FONT}`;
+    ctx.fillStyle = ACCENT;
     ctx.fillText(`${score}`, offsetX, offsetY - 12);
-    ctx.shadowBlur = 0;
 
     ctx.textAlign = 'right';
-    ctx.font = '14px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillText(`HI ${highScore}`, offsetX + cols * CELL, offsetY - 12);
+    ctx.font = `400 14px ${FONT}`;
+    ctx.fillStyle = MUTED;
+    ctx.fillText(`Rekord ${highScore}`, offsetX + cols * CELL, offsetY - 12);
 
     // Combo display
     if (combo > 1 && comboTimer > 0) {
       ctx.textAlign = 'center';
-      ctx.font = 'bold 16px Segoe UI, sans-serif';
-      ctx.fillStyle = NEON_YELLOW;
-      ctx.shadowColor = NEON_YELLOW;
-      ctx.shadowBlur = 8;
+      ctx.font = `700 16px ${FONT}`;
+      ctx.fillStyle = YELLOW;
       ctx.globalAlpha = comboTimer / 60;
-      ctx.fillText(`x${combo} COMBO!`, W() / 2, offsetY - 12);
+      ctx.fillText(`x${combo} combo!`, W() / 2, offsetY - 12);
       ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
     }
 
     // Active powerup indicators
     let indicators = [];
-    if (speedBoost) indicators.push({ icon: '⚡', color: NEON_ORANGE, timer: speedBoostTimer, max: 80 });
-    if (shieldActive) indicators.push({ icon: '🛡', color: NEON_CYAN, timer: shieldTimer, max: 100 });
+    if (speedBoost) indicators.push({ icon: '⚡', color: ORANGE, timer: speedBoostTimer, max: 80 });
+    if (shieldActive) indicators.push({ icon: '🛡', color: ACCENT, timer: shieldTimer, max: 100 });
 
     indicators.forEach((ind, i) => {
       const ix = offsetX + i * 80;
       const iy = offsetY + rows * CELL + 15;
-      ctx.font = '14px Segoe UI';
+      ctx.font = `400 14px ${FONT}`;
       ctx.textAlign = 'left';
       ctx.fillStyle = ind.color;
       ctx.fillText(ind.icon, ix, iy + 12);
       // Timer bar
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillStyle = SURFACE2;
       ctx.fillRect(ix + 22, iy + 4, 50, 6);
       ctx.fillStyle = ind.color;
       ctx.fillRect(ix + 22, iy + 4, 50 * (ind.timer / ind.max), 6);
@@ -559,12 +530,20 @@
   }
 
   function drawBg() {
-    const grad = ctx.createLinearGradient(0, 0, 0, H());
-    grad.addColorStop(0, '#0a0a1a');
-    grad.addColorStop(0.5, '#0f1832');
-    grad.addColorStop(1, '#1a0a2e');
-    ctx.fillStyle = grad;
+    ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W(), H());
+  }
+
+  // Flat primary button (the whole canvas is the hit area, as before)
+  function drawButton(bx, by, btnW, btnH, label) {
+    ctx.beginPath();
+    ctx.roundRect(bx, by, btnW, btnH, 10);
+    ctx.fillStyle = ACCENT;
+    ctx.fill();
+    ctx.fillStyle = SURFACE;
+    ctx.font = `600 20px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.fillText(label, bx + btnW / 2, by + 33);
   }
 
   function drawMenu() {
@@ -585,126 +564,99 @@
       const px = offsetX + s.x * CELL;
       const py = offsetY + s.y * CELL;
       const t = i / demoSnake.length;
-      ctx.fillStyle = `rgba(0, ${212 - t * 100}, ${255 - t * 50}, ${0.6 - t * 0.3})`;
-      ctx.shadowColor = NEON_CYAN;
-      ctx.shadowBlur = 8;
+      ctx.fillStyle = segmentColor(t);
       ctx.beginPath();
-      ctx.roundRect(px + 2, py + 2, CELL - 4, CELL - 4, 4);
+      ctx.roundRect(px + 2, py + 2, CELL - 4, CELL - 4, 6);
       ctx.fill();
-      ctx.shadowBlur = 0;
     }
 
     // Overlay
-    ctx.fillStyle = 'rgba(10, 10, 26, 0.6)';
+    ctx.fillStyle = 'rgba(245,245,244,0.85)';
     ctx.fillRect(0, 0, W(), H());
 
     ctx.textAlign = 'center';
 
-    ctx.save();
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 25;
-    ctx.font = `bold ${Math.min(56, W() * 0.12)}px Segoe UI, sans-serif`;
-    ctx.fillStyle = NEON_CYAN;
-    ctx.fillText('NEON SNAKE', W() / 2, H() * 0.30);
-    ctx.restore();
+    ctx.font = `700 ${Math.min(56, W() * 0.12)}px ${FONT}`;
+    ctx.fillStyle = INK;
+    ctx.fillText('Snake', W() / 2, H() * 0.30);
 
-    ctx.font = '18px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = `400 18px ${FONT}`;
+    ctx.fillStyle = INK;
     ctx.fillText('Ät, väx och undvik dig själv!', W() / 2, H() * 0.38);
 
-    ctx.font = '15px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = `400 15px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText('Piltangenter / WASD / Swipe', W() / 2, H() * 0.44);
 
     if (highScore > 0) {
-      ctx.font = 'bold 18px Segoe UI, sans-serif';
-      ctx.fillStyle = NEON_PURPLE;
+      ctx.font = `600 18px ${FONT}`;
+      ctx.fillStyle = ACCENT;
       ctx.fillText(`Rekord: ${highScore}`, W() / 2, H() * 0.52);
     }
 
     // Powerup legend
-    ctx.font = '13px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = `400 13px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText('⚡ Speed   🛡 Sköld   ✂ Krympa   💎 Bonus', W() / 2, H() * 0.60);
 
     // Play button
     const btnW = 200, btnH = 50;
     const bx = W() / 2 - btnW / 2, by = H() * 0.68;
-    ctx.save();
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 15;
-    ctx.strokeStyle = NEON_CYAN;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(bx, by, btnW, btnH, 12);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.1)';
-    ctx.fill();
-    ctx.restore();
+    drawButton(bx, by, btnW, btnH, 'Spela');
 
-    ctx.fillStyle = NEON_CYAN;
-    ctx.font = 'bold 20px Segoe UI, sans-serif';
-    ctx.fillText('SPELA', W() / 2, by + 33);
-
-    ctx.font = '13px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = `400 13px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText('Tryck var som helst', W() / 2, H() * 0.85);
   }
 
   function drawGameOver() {
-    ctx.fillStyle = 'rgba(10, 10, 26, 0.8)';
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, W(), H());
+
+    // White panel
+    const btnW = 200, btnH = 50;
+    const bx = W() / 2 - btnW / 2, by = H() * 0.67;
+    const panelW = Math.min(W() - 32, 340);
+    const panelTop = H() * 0.30 - 56;
+    const panelH = by + btnH + 24 - panelTop;
+    ctx.beginPath();
+    ctx.roundRect(W() / 2 - panelW / 2, panelTop, panelW, panelH, 10);
+    ctx.fillStyle = SURFACE;
+    ctx.fill();
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     ctx.textAlign = 'center';
 
-    ctx.save();
-    ctx.shadowColor = NEON_PINK;
-    ctx.shadowBlur = 20;
-    ctx.font = `bold ${Math.min(48, W() * 0.1)}px Segoe UI, sans-serif`;
-    ctx.fillStyle = NEON_PINK;
-    ctx.fillText('GAME OVER', W() / 2, H() * 0.30);
-    ctx.restore();
+    ctx.font = `700 ${Math.min(44, W() * 0.1)}px ${FONT}`;
+    ctx.fillStyle = RED;
+    ctx.fillText('Game over', W() / 2, H() * 0.30);
 
-    ctx.font = 'bold 36px Segoe UI, sans-serif';
-    ctx.fillStyle = '#fff';
+    ctx.font = `700 36px ${FONT}`;
+    ctx.fillStyle = INK;
     ctx.fillText(`${score}`, W() / 2, H() * 0.43);
 
-    ctx.font = '16px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = `400 16px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText('Poäng', W() / 2, H() * 0.47);
 
-    ctx.font = '15px Segoe UI, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = `400 15px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText(`Längd: ${snake.length}  |  Mat: ${foodEaten}`, W() / 2, H() * 0.53);
 
     if (score >= highScore && score > 0) {
-      ctx.font = 'bold 20px Segoe UI, sans-serif';
-      ctx.fillStyle = NEON_GREEN;
-      ctx.fillText('NYTT REKORD!', W() / 2, H() * 0.60);
+      ctx.font = `700 20px ${FONT}`;
+      ctx.fillStyle = GREEN;
+      ctx.fillText('Nytt rekord!', W() / 2, H() * 0.60);
     } else {
-      ctx.font = '16px Segoe UI, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = `400 16px ${FONT}`;
+      ctx.fillStyle = MUTED;
       ctx.fillText(`Rekord: ${highScore}`, W() / 2, H() * 0.60);
     }
 
     // Retry button
-    const btnW = 200, btnH = 50;
-    const bx = W() / 2 - btnW / 2, by = H() * 0.67;
-    ctx.save();
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 15;
-    ctx.strokeStyle = NEON_CYAN;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(bx, by, btnW, btnH, 12);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.1)';
-    ctx.fill();
-    ctx.restore();
-
-    ctx.fillStyle = NEON_CYAN;
-    ctx.font = 'bold 20px Segoe UI, sans-serif';
-    ctx.fillText('FÖRSÖK IGEN', W() / 2, by + 33);
+    drawButton(bx, by, btnW, btnH, 'Försök igen');
   }
 
   function draw() {

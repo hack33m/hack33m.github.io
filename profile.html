@@ -5,17 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Min Profil - Elias Spelportal</title>
   <link rel="stylesheet" href="css/style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="profile-page">
   <header class="header">
     <div class="header-inner">
       <a href="index.html" class="back-button">← Tillbaka</a>
       <div class="logo" id="logo">
-        <span class="logo-icon">🎮</span>
-        <span class="logo-text">Elias Spel</span>
+                <span class="logo-text">Elias Spel</span>
       </div>
       <div class="header-auth" id="header-auth"></div>
     </div>
@@ -31,10 +27,6 @@
       <p class="profile-joined" id="profile-joined">Medlem sedan ...</p>
       <div class="profile-stats">
         <div class="stat-box">
-          <span class="stat-number coins-color" id="stat-coins">0</span>
-          <span class="stat-label">Coins</span>
-        </div>
-        <div class="stat-box">
           <span class="stat-number" id="stat-favorites">0</span>
           <span class="stat-label">Favoriter</span>
         </div>
@@ -47,27 +39,27 @@
 
     <!-- Edit Avatar -->
     <section class="profile-section">
-      <h2 class="section-title">🎨 Byt avatar</h2>
+      <h2 class="section-title">Byt avatar</h2>
       <div class="avatar-picker large" id="profile-avatar-picker"></div>
     </section>
 
     <!-- Favorites -->
     <section class="profile-section" id="favorites-section">
-      <h2 class="section-title">❤️ Mina favoriter</h2>
+      <h2 class="section-title">Mina favoriter</h2>
       <div class="games-grid small" id="favorites-grid"></div>
       <p class="profile-empty" id="favorites-empty" style="display:none;">Du har inga favoriter ännu. Klicka på ♡ på ett spel för att lägga till!</p>
     </section>
 
     <!-- Recently Played -->
     <section class="profile-section" id="profile-recent-section">
-      <h2 class="section-title">⏱️ Senast spelade</h2>
+      <h2 class="section-title">Senast spelade</h2>
       <div class="games-grid small" id="profile-recent-grid"></div>
       <p class="profile-empty" id="recent-empty" style="display:none;">Du har inte spelat något ännu.</p>
     </section>
 
     <!-- Danger Zone -->
     <section class="profile-section">
-      <h2 class="section-title">⚙️ Konto</h2>
+      <h2 class="section-title">Konto</h2>
       <div class="profile-actions">
         <button class="btn-outline" id="logout-btn">Logga ut</button>
         <button class="btn-danger-outline" id="delete-account-btn">Ta bort konto</button>

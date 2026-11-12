@@ -46,8 +46,8 @@ const NeonSounds = (() => {
 
   // --- Sound Effects ---
 
-  // Bounce/jump - kort uppåt-sweep
-  function jump() {
+  // Bounce/Jump - kort uppåt-sweep
+  function Jump() {
     play(ac => {
       const t = ac.currentTime;
       const o = ac.createOscillator();
@@ -342,7 +342,7 @@ const NeonSounds = (() => {
   }
 
   return {
-    jump, bounce, collect, coin, click, powerup, shoot, hit, kill,
+    Jump, bounce, collect, coin, click, powerup, shoot, hit, kill,
     death, crash, breakSound, boost, merge, bigMerge, slide, drift,
     fanfare, win, combo, upgrade,
     setVolume: (v) => { volume = v; },

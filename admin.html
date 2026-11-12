@@ -4,23 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel - Elias Spelportal</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --bg-primary: #0f0f1a; --bg-secondary: #1a1a2e; --bg-card: #16213e;
-      --accent-green: #00d4aa; --accent-blue: #4a9eff; --accent-red: #f87171;
-      --accent-orange: #fb923c; --accent-yellow: #fbbf24; --accent-purple: #a855f7;
-      --text-primary: #fff; --text-secondary: #94a3b8; --text-muted: #64748b;
-      --border-color: #1e293b; --radius: 12px;
+      --bg-primary: #f5f5f4; --bg-secondary: #ffffff; --bg-card: #ffffff;
+      --accent-green: #16a34a; --accent-blue: #2563eb; --accent-red: #dc2626;
+      --accent-orange: #ea580c; --accent-yellow: #ca8a04; --accent-purple: #7c3aed;
+      --text-primary: #1c1917; --text-secondary: #57534e; --text-muted: #78716c;
+      --border-color: #e7e5e4; --radius: 10px;
     }
-    body { font-family: 'Nunito', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
 
-    .admin-header { display: flex; align-items: center; gap: 16px; padding: 16px 24px; background: rgba(15,15,26,0.95); border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
-    .admin-header h1 { font-size: 22px; font-weight: 800; }
-    .owner-title { background: linear-gradient(135deg, #4a9eff, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .admin-header { display: flex; align-items: center; gap: 16px; padding: 16px 24px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
+    .admin-header h1 { font-size: 22px; font-weight: 700; }
+    .owner-title { color: var(--text-primary); }
     .admin-title { color: var(--accent-orange); }
     .back-link { padding: 8px 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 50px; color: var(--text-secondary); font-size: 14px; font-weight: 600; text-decoration: none; transition: 0.2s; }
     .back-link:hover { background: var(--bg-card); color: var(--text-primary); }
@@ -38,7 +35,6 @@
     .stats-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
     .stat-pill { padding: 6px 14px; background: var(--bg-secondary); border-radius: 50px; font-size: 13px; font-weight: 700; color: var(--text-secondary); }
     .stat-pill strong { color: var(--accent-blue); }
-    .stat-pill .coins { color: var(--accent-yellow); }
 
     .search-bar { width: 100%; padding: 10px 16px; background: var(--bg-secondary); border: 2px solid var(--border-color); border-radius: 50px; color: var(--text-primary); font-size: 15px; font-family: inherit; outline: none; margin-bottom: 20px; }
     .search-bar:focus { border-color: var(--accent-blue); }
@@ -48,33 +44,28 @@
     .item-name { font-weight: 700; font-size: 15px; }
     .styled-name { font-weight: 700; }
     .badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 10px; border-radius: 6px; }
-    .badge-forslag { background: rgba(74,158,255,0.15); color: var(--accent-blue); }
-    .badge-forbattring { background: rgba(0,212,170,0.15); color: var(--accent-green); }
-    .badge-bugg { background: rgba(248,113,113,0.15); color: var(--accent-red); }
-    .badge-owner { background: linear-gradient(135deg, #4a9eff, #6366f1); color: #fff; font-weight: 800; }
-    .badge-admin { background: rgba(251,146,60,0.15); color: var(--accent-orange); }
-    .badge-banned { background: rgba(248,113,113,0.2); color: var(--accent-red); }
-    .badge-active { background: rgba(0,212,170,0.15); color: var(--accent-green); }
+    .badge-forslag { background: rgba(37,99,235,0.15); color: var(--accent-blue); }
+    .badge-forbattring { background: rgba(22,163,74,0.15); color: var(--accent-green); }
+    .badge-bugg { background: rgba(220,38,38,0.15); color: var(--accent-red); }
+    .badge-owner { background: var(--text-primary); color: var(--bg-primary); font-weight: 600; }
+    .badge-admin { background: rgba(234,88,12,0.15); color: var(--accent-orange); }
+    .badge-banned { background: rgba(220,38,38,0.2); color: var(--accent-red); }
+    .badge-active { background: rgba(22,163,74,0.15); color: var(--accent-green); }
     .item-date { margin-left: auto; font-size: 12px; color: var(--text-muted); }
     .item-message { font-size: 14px; color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap; }
     .item-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
 
     .btn-sm { padding: 5px 14px; font-size: 12px; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; transition: 0.2s; }
-    .btn-delete { background: rgba(248,113,113,0.1); color: var(--accent-red); }
-    .btn-delete:hover { background: rgba(248,113,113,0.25); }
-    .btn-ban { background: rgba(248,113,113,0.1); color: var(--accent-red); }
-    .btn-ban:hover { background: rgba(248,113,113,0.25); }
-    .btn-unban { background: rgba(0,212,170,0.1); color: var(--accent-green); }
-    .btn-unban:hover { background: rgba(0,212,170,0.25); }
-    .btn-promote { background: rgba(251,146,60,0.1); color: var(--accent-orange); }
-    .btn-promote:hover { background: rgba(251,146,60,0.25); }
-    .btn-demote { background: rgba(168,85,247,0.1); color: var(--accent-purple); }
-    .btn-demote:hover { background: rgba(168,85,247,0.25); }
-    .btn-coins { background: rgba(251,191,36,0.1); color: var(--accent-yellow); }
-    .btn-coins:hover { background: rgba(251,191,36,0.25); }
-
-    .coins-input { width: 80px; padding: 4px 8px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px; font-family: inherit; text-align: center; outline: none; }
-    .coins-input:focus { border-color: var(--accent-yellow); }
+    .btn-delete { background: rgba(220,38,38,0.1); color: var(--accent-red); }
+    .btn-delete:hover { background: rgba(220,38,38,0.25); }
+    .btn-ban { background: rgba(220,38,38,0.1); color: var(--accent-red); }
+    .btn-ban:hover { background: rgba(220,38,38,0.25); }
+    .btn-unban { background: rgba(22,163,74,0.1); color: var(--accent-green); }
+    .btn-unban:hover { background: rgba(22,163,74,0.25); }
+    .btn-promote { background: rgba(234,88,12,0.1); color: var(--accent-orange); }
+    .btn-promote:hover { background: rgba(234,88,12,0.25); }
+    .btn-demote { background: rgba(124,58,237,0.1); color: var(--accent-purple); }
+    .btn-demote:hover { background: rgba(124,58,237,0.25); }
 
     .ban-duration-select { padding: 5px 10px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 12px; font-family: inherit; cursor: pointer; outline: none; }
     .ban-duration-select:focus { border-color: var(--accent-red); }
@@ -112,7 +103,7 @@
   function renderAvatar(avatar, size) {
     if (avatar === 'corny') {
       const s = size || 32;
-      return `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:contain;background:#1a1a2e;vertical-align:middle;">`;
+      return `<img src="${CORNY_IMAGE_URL}" alt="Corny" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:contain;background:#e7e5e4;vertical-align:middle;">`;
     }
     return avatar || '😀';
   }
@@ -121,12 +112,12 @@
     if (!row) return null;
     return {
       uid: row.id, username: row.username, avatar: row.avatar || '😀',
-      role: row.role || 'user', coins: row.coins || 0, banned: row.banned || false,
+      role: row.role || 'user', banned: row.banned || false,
       bannedUntil: row.banned_until, favorites: row.favorites || [],
       nameColor: row.name_color, nameEffect: row.name_effect, title: row.title,
       unlockedEmojis: row.unlocked_emojis || [], unlockedSkins: row.unlocked_skins || [],
-      unlockedBirdSkins: row.unlocked_bird_skins || [], arrowSkin: row.arrow_skin,
-      birdSkin: row.bird_skin, joined: row.joined_at,
+      unlockedFlappy BirdSkins: row.unlocked_Flappy Bird_skins || [], arrowSkin: row.arrow_skin,
+      Flappy BirdSkin: row.Flappy Bird_skin, joined: row.joined_at,
     };
   }
 
@@ -137,7 +128,6 @@
     if (c === 'rainbow') style += 'background:linear-gradient(90deg,#f87171,#fbbf24,#4ade80,#60a5fa,#c084fc,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;';
     else if (c) style += 'color:' + c + ';';
     if (user.nameEffect === 'bold') style += 'font-weight:900;';
-    if (user.nameEffect === 'glow') style += 'text-shadow:0 0 8px ' + (c||'#4a9eff') + ',0 0 16px ' + (c||'#4a9eff') + ';';
     return '<span class="styled-name" style="' + style + '">' + esc(user.username) + '</span>';
   }
 
@@ -158,7 +148,7 @@
   }
 
   function showDenied(app) {
-    app.innerHTML = '<div class="access-denied"><h2>🔒 Åtkomst nekad</h2><p>Du måste vara admin för att se denna sida.</p><a href="index.html">← Tillbaka</a></div>';
+    app.innerHTML = '<div class="access-denied"><h2>Åtkomst nekad</h2><p>Du måste vara admin för att se denna sida.</p><a href="index.html">← Tillbaka</a></div>';
   }
 
   function renderAdmin(app) {
@@ -167,7 +157,7 @@
     app.innerHTML = `
       <header class="admin-header">
         <a href="index.html" class="back-link">← Tillbaka</a>
-        <h1><span class="${titleClass}">🛡️ ${roleLabel} Panel</span></h1>
+        <h1><span class="${titleClass}">${roleLabel} Panel</span></h1>
         <span class="admin-user">${renderAvatar(currentUser.avatar, 24)} ${esc(currentUser.username)}</span>
       </header>
       <div class="tabs">
@@ -244,7 +234,6 @@
       <span class="stat-pill">Konton: <strong>${users.length}</strong></span>
       <span class="stat-pill">Bannade: <strong>${users.filter(u=>u.banned).length}</strong></span>
       <span class="stat-pill">Admins: <strong>${users.filter(u=>u.role==='admin').length}</strong></span>
-      <span class="stat-pill">Totala coins: <strong class="coins">${users.reduce((s,u)=>s+(u.coins||0),0)}</strong> 🪙</span>
     </div>
     <input type="text" class="search-bar" id="account-search" placeholder="🔍 Sök användarnamn..." value="${esc(filter||'')}">`;
 
@@ -261,7 +250,6 @@
         else if (isAdminUser) roleBadge = ' <span class="badge badge-admin">Admin</span>';
 
         const favCount = (u.favorites || []).length;
-        const coins = u.coins || 0;
         const title = u.title || '—';
         let actions = '';
 
@@ -293,11 +281,6 @@
           else actions += `<button class="btn-sm btn-promote" data-uid="${u.uid}" data-action="give-corny">Ge Corny 🍫</button>`;
         }
 
-        const canEditCoins = curIsOwner() || (!isOwnerUser && !isAdminUser);
-        const coinsEdit = canEditCoins
-          ? `<input type="number" class="coins-input" data-uid="${u.uid}" value="0" min="-99999" max="99999">
-             <button class="btn-sm btn-coins" data-uid="${u.uid}" data-action="add-coins">+/- Coins</button>` : '';
-
         h += `<div class="item-card">
           <div class="item-top">
             <span class="user-avatar">${renderAvatar(u.avatar, 28)}</span>
@@ -306,11 +289,10 @@
             <span class="item-date">Gick med ${fmtDate(u.joined)}</span>
           </div>
           <div class="user-stats">
-            <span>🪙 <strong>${coins}</strong> coins</span>
             <span>❤️ <strong>${favCount}</strong> favoriter</span>
             <span>🏅 ${title}</span>
           </div>
-          <div class="item-actions">${actions}${coinsEdit}</div>
+          <div class="item-actions">${actions}</div>
         </div>`;
       });
     }
@@ -365,41 +347,31 @@
           const cornySkinIds = ['corny-choklad','corny-mork','corny-vit','corny-kokos','corny-banan','corny-jordnot','corny-jordgubb','corny-brownie','corny-karamell'];
           const emojis = [...(user.unlockedEmojis || [])];
           const skins = [...(user.unlockedSkins || [])];
-          const birdSkins = [...(user.unlockedBirdSkins || [])];
+          const Flappy BirdSkins = [...(user.unlockedFlappy BirdSkins || [])];
           if (!emojis.includes('corny')) emojis.push('corny');
           cornySkinIds.forEach(id => { if (!skins.includes(id)) skins.push(id); });
-          cornySkinIds.forEach(id => { if (!birdSkins.includes(id)) birdSkins.push(id); });
-          await supabaseClient.from('profiles').update({ unlocked_emojis: emojis, unlocked_skins: skins, unlocked_bird_skins: birdSkins }).eq('id', uid);
+          cornySkinIds.forEach(id => { if (!Flappy BirdSkins.includes(id)) Flappy BirdSkins.push(id); });
+          await supabaseClient.from('profiles').update({ unlocked_emojis: emojis, unlocked_skins: skins, unlocked_Flappy Bird_skins: Flappy BirdSkins }).eq('id', uid);
           user.unlockedEmojis = emojis;
           user.unlockedSkins = skins;
-          user.unlockedBirdSkins = birdSkins;
+          user.unlockedFlappy BirdSkins = Flappy BirdSkins;
         }
         else if (action === 'remove-corny') {
           const cornySkinIds = ['corny-choklad','corny-mork','corny-vit','corny-kokos','corny-banan','corny-jordnot','corny-jordgubb','corny-brownie','corny-karamell'];
           const emojis = (user.unlockedEmojis || []).filter(e => e !== 'corny');
           const skins = (user.unlockedSkins || []).filter(s => !cornySkinIds.includes(s));
-          const birdSkins = (user.unlockedBirdSkins || []).filter(s => !cornySkinIds.includes(s));
-          const updates = { unlocked_emojis: emojis, unlocked_skins: skins, unlocked_bird_skins: birdSkins };
+          const Flappy BirdSkins = (user.unlockedFlappy BirdSkins || []).filter(s => !cornySkinIds.includes(s));
+          const updates = { unlocked_emojis: emojis, unlocked_skins: skins, unlocked_Flappy Bird_skins: Flappy BirdSkins };
           if (user.avatar === 'corny') updates.avatar = '😀';
           if (user.arrowSkin && user.arrowSkin.startsWith('corny-')) updates.arrow_skin = null;
-          if (user.birdSkin && user.birdSkin.startsWith('corny-')) updates.bird_skin = null;
+          if (user.Flappy BirdSkin && user.Flappy BirdSkin.startsWith('corny-')) updates.Flappy Bird_skin = null;
           await supabaseClient.from('profiles').update(updates).eq('id', uid);
           user.unlockedEmojis = emojis;
           user.unlockedSkins = skins;
-          user.unlockedBirdSkins = birdSkins;
+          user.unlockedFlappy BirdSkins = Flappy BirdSkins;
           if (user.avatar === 'corny') user.avatar = '😀';
           if (user.arrowSkin && user.arrowSkin.startsWith('corny-')) user.arrowSkin = null;
-          if (user.birdSkin && user.birdSkin.startsWith('corny-')) user.birdSkin = null;
-        }
-        else if (action === 'add-coins') {
-          const input = panel.querySelector(`input.coins-input[data-uid="${uid}"]`);
-          const amount = parseInt(input.value) || 0;
-          if (amount === 0) return;
-          const newCoins = Math.max(0, (user.coins || 0) + amount);
-          const { error } = await supabaseClient.from('profiles').update({ coins: newCoins }).eq('id', uid);
-          if (error) { alert('Kunde inte uppdatera coins: ' + error.message); return; }
-          user.coins = newCoins;
-          input.value = 0;
+          if (user.Flappy BirdSkin && user.Flappy BirdSkin.startsWith('corny-')) user.Flappy BirdSkin = null;
         }
 
         renderAccountsPanel(document.getElementById('account-search').value);
@@ -472,8 +444,8 @@
         <span style="font-size:14px;font-weight:700;min-width:180px;${isToday?'color:var(--accent-green);':''}">${label}</span>
         <input type="text" class="wordle-word-input" data-date="${date}" data-len="${len}" value="${esc(existingWord)}" placeholder="${len} bokstäver..."
           maxlength="${len}" style="width:${60+len*18}px;padding:6px 12px;background:var(--bg-primary);border:2px solid var(--border-color);border-radius:8px;color:var(--text-primary);font-size:16px;font-family:inherit;text-transform:uppercase;text-align:center;outline:none;letter-spacing:2px;">
-        <button class="btn-sm wordle-save-btn" data-date="${date}" style="background:rgba(0,212,170,0.1);color:var(--accent-green);">Spara</button>
-        ${existingWord ? '<button class="btn-sm wordle-clear-btn" data-date="'+date+'" style="background:rgba(248,113,113,0.1);color:var(--accent-red);">Ta bort</button>' : ''}
+        <button class="btn-sm wordle-save-btn" data-date="${date}" style="background:rgba(22,163,74,0.1);color:var(--accent-green);">Spara</button>
+        ${existingWord ? '<button class="btn-sm wordle-clear-btn" data-date="'+date+'" style="background:rgba(220,38,38,0.1);color:var(--accent-red);">Ta bort</button>' : ''}
       `;
       container.appendChild(row);
     });

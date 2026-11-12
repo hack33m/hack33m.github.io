@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Neon Wordle</title>
+  <title>Wordle</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
+      color: #1c1917;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -234,25 +235,46 @@
 
   // === Colors ===
   const COL = {
-    bg: '#0a0a1a',
-    tileBorder: '#3a3a5c',
-    tileEmpty: '#1a1a2e',
-    tileFilled: '#2a2a4e',
-    correct: '#00ff88',
-    correctDark: '#00aa55',
-    present: '#ffaa00',
-    presentDark: '#cc8800',
-    absent: '#3a3a5c',
-    absentDark: '#2a2a3e',
-    text: '#ffffff',
-    textDim: '#8888aa',
-    neonPink: '#ff00ff',
-    neonBlue: '#00ccff',
-    neonGreen: '#00ff88',
-    neonOrange: '#ffaa00',
-    keyBg: '#2a2a4e',
-    keyText: '#ffffff',
+    bg: '#f5f5f4',
+    surface: '#ffffff',
+    surface2: '#e7e5e4',
+    line: '#d6d3d1',
+    ink: '#1c1917',
+    muted: '#78716c',
+    accent: '#2563eb',
+    red: '#dc2626',
+    green: '#16a34a',
+    yellow: '#ca8a04',
+    // Letter states: flat fills, white text on top
+    correct: '#16a34a',
+    present: '#ca8a04',
+    absent: '#78716c',
+    tileEmpty: '#ffffff',
+    tileBorder: '#d6d3d1',
+    tileFilledBorder: '#78716c',
+    keyBg: '#e7e5e4',
+    keyText: '#1c1917',
+    onColor: '#ffffff',
   };
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+  // Flat button: primary = accent fill + white text, secondary = white + 1px line border + ink text
+  function drawButton(x, y, w, h, label, primary, fontPx) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 10);
+    ctx.fillStyle = primary ? COL.accent : COL.surface;
+    ctx.fill();
+    if (!primary) {
+      ctx.strokeStyle = COL.line;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    ctx.fillStyle = primary ? COL.onColor : COL.ink;
+    ctx.font = `600 ${fontPx}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + w / 2, y + h / 2);
+  }
 
   // === Pick Word ===
   function pickDailyWord() {
@@ -423,7 +445,7 @@
 
   // === Celebration Particles ===
   function spawnCelebration() {
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 40; i++) {
       particles.push({
         x: W() / 2 + (Math.random() - 0.5) * 200,
         y: H() / 2,
@@ -431,8 +453,8 @@
         vy: -Math.random() * 10 - 2,
         life: 1,
         decay: 0.005 + Math.random() * 0.01,
-        size: 3 + Math.random() * 5,
-        color: [COL.neonGreen, COL.neonPink, COL.neonBlue, COL.neonOrange][Math.floor(Math.random() * 4)]
+        size: 3 + Math.random() * 4,
+        color: [COL.green, COL.accent, COL.yellow, COL.red][Math.floor(Math.random() * 4)]
       });
     }
   }
@@ -464,14 +486,16 @@
 
     let bgColor = COL.tileEmpty;
     let borderColor = COL.tileBorder;
+    let textColor = COL.ink;
     if (letter && !showColor && flipProgress < 0.5) {
-      bgColor = COL.tileFilled;
-      borderColor = '#5a5a8c';
+      borderColor = COL.tileFilledBorder;
     }
     if (showColor || flipProgress >= 1) {
-      if (colorType === 'correct') { bgColor = COL.correctDark; borderColor = COL.correct; }
-      else if (colorType === 'present') { bgColor = COL.presentDark; borderColor = COL.present; }
-      else { bgColor = COL.absentDark; borderColor = COL.absent; }
+      if (colorType === 'correct') bgColor = COL.correct;
+      else if (colorType === 'present') bgColor = COL.present;
+      else bgColor = COL.absent;
+      borderColor = null;
+      textColor = COL.onColor;
     }
 
     ctx.save();
@@ -482,25 +506,15 @@
     ctx.roundRect(-size / 2, -size / 2, size, size, 6);
     ctx.fillStyle = bgColor;
     ctx.fill();
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Neon glow for colored tiles
-    if (showColor || flipProgress >= 1) {
-      if (colorType === 'correct' || colorType === 'present') {
-        ctx.shadowColor = borderColor;
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.roundRect(-size / 2, -size / 2, size, size, 6);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-      }
+    if (borderColor) {
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
 
     if (letter && scaleY > 0.1) {
-      ctx.fillStyle = COL.text;
-      ctx.font = `bold ${size * 0.55}px 'Segoe UI', sans-serif`;
+      ctx.fillStyle = textColor;
+      ctx.font = `700 ${size * 0.55}px ${FONT}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(letter, 0, 2);
@@ -557,37 +571,24 @@
       for (const key of row) {
         const kw = (key === 'ENTER' || key === '⌫') ? kbKeyW * 1.5 : kbKeyW;
         let bgColor = COL.keyBg;
-        let borderColor = '#4a4a6e';
-        let glowColor = null;
+        let textColor = COL.keyText;
 
         const kc = keyColors[key];
-        if (kc === 'correct') { bgColor = COL.correctDark; borderColor = COL.correct; glowColor = COL.correct; }
-        else if (kc === 'present') { bgColor = COL.presentDark; borderColor = COL.present; glowColor = COL.present; }
-        else if (kc === 'absent') { bgColor = COL.absentDark; borderColor = COL.absent; }
+        if (kc === 'correct') { bgColor = COL.correct; textColor = COL.onColor; }
+        else if (kc === 'present') { bgColor = COL.present; textColor = COL.onColor; }
+        else if (kc === 'absent') { bgColor = COL.absent; textColor = COL.onColor; }
 
         ctx.beginPath();
-        ctx.roundRect(x, y, kw, kbKeyH, 5);
+        ctx.roundRect(x, y, kw, kbKeyH, 6);
         ctx.fillStyle = bgColor;
         ctx.fill();
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
 
-        if (glowColor) {
-          ctx.shadowColor = glowColor;
-          ctx.shadowBlur = 8;
-          ctx.beginPath();
-          ctx.roundRect(x, y, kw, kbKeyH, 5);
-          ctx.stroke();
-          ctx.shadowBlur = 0;
-        }
-
-        ctx.fillStyle = COL.text;
+        ctx.fillStyle = textColor;
         const fontSize = (key === 'ENTER' || key === '⌫') ? kbKeyH * 0.32 : kbKeyH * 0.4;
-        ctx.font = `bold ${fontSize}px 'Segoe UI', sans-serif`;
+        ctx.font = `600 ${fontSize}px ${FONT}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const label = key === 'ENTER' ? 'SKICKA' : key;
+        const label = key === 'ENTER' ? 'Skicka' : key;
         ctx.fillText(label, x + kw / 2, y + kbKeyH / 2 + 1);
 
         // Store hit area for touch
@@ -615,9 +616,10 @@
     const alpha = Math.min(1, messageTimer / 300);
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#1a1a3a';
-    ctx.strokeStyle = COL.neonBlue;
-    ctx.lineWidth = 2;
+    ctx.font = `600 18px ${FONT}`;
+    ctx.fillStyle = COL.surface;
+    ctx.strokeStyle = COL.line;
+    ctx.lineWidth = 1;
     const tw = ctx.measureText(message).width;
     const pw = tw + 40;
     const ph = 44;
@@ -627,8 +629,8 @@
     ctx.roundRect(px, py, pw, ph, 8);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = COL.text;
-    ctx.font = 'bold 18px "Segoe UI", sans-serif';
+    ctx.fillStyle = COL.ink;
+    ctx.font = `600 18px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(message, W() / 2, py + ph / 2);
@@ -640,8 +642,6 @@
       ctx.save();
       ctx.globalAlpha = p.life;
       ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 10;
       ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
       ctx.restore();
     }
@@ -664,20 +664,15 @@
     menuPulse += 0.03;
 
     // Title
-    const glow = Math.sin(menuPulse) * 0.3 + 0.7;
-    ctx.save();
-    ctx.shadowColor = COL.neonGreen;
-    ctx.shadowBlur = 30 * glow;
-    ctx.fillStyle = COL.neonGreen;
-    ctx.font = `bold ${Math.min(w * 0.12, 72)}px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = COL.ink;
+    ctx.font = `700 ${Math.min(w * 0.12, 64)}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('NEON WORDLE', w / 2, h * 0.22);
-    ctx.restore();
+    ctx.fillText('Wordle', w / 2, h * 0.22);
 
     // Subtitle
-    ctx.fillStyle = COL.textDim;
-    ctx.font = `${Math.min(w * 0.04, 20)}px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = COL.muted;
+    ctx.font = `400 ${Math.min(w * 0.04, 20)}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.fillText('Gissa det svenska ordet', w / 2, h * 0.30);
 
@@ -689,57 +684,28 @@
     const btnY = h * 0.38;
 
     // Section label
-    ctx.fillStyle = COL.textDim;
-    ctx.font = `14px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = COL.muted;
+    ctx.font = `600 14px ${FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillText('DAGENS ORD', w / 2, btnY - 12);
+    ctx.fillText('Dagens ord', w / 2, btnY - 12);
 
-    const dailyLabels = ['4 BOKST.', '5 BOKST.', '6 BOKST.'];
+    const dailyLabels = ['4 bokst.', '5 bokst.', '6 bokst.'];
     const dailyLens = [4, 5, 6];
     drawMenu._dailyBtns = [];
     for (let i = 0; i < 3; i++) {
       const dx = btnX + i * (dailyBtnW + 8);
-      ctx.save();
-      ctx.shadowColor = COL.neonGreen;
-      ctx.shadowBlur = 15;
-      ctx.beginPath();
-      ctx.roundRect(dx, btnY, dailyBtnW, btnH, 12);
-      ctx.fillStyle = '#0a2a1a';
-      ctx.fill();
-      ctx.strokeStyle = COL.neonGreen;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.restore();
-      ctx.fillStyle = COL.neonGreen;
-      ctx.font = `bold ${Math.min(dailyBtnW * 0.22, 18)}px 'Segoe UI', sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(dailyLabels[i], dx + dailyBtnW / 2, btnY + btnH / 2);
+      drawButton(dx, btnY, dailyBtnW, btnH, dailyLabels[i], true, Math.min(dailyBtnW * 0.22, 17));
       drawMenu._dailyBtns.push({ x: dx, y: btnY, w: dailyBtnW, h: btnH, len: dailyLens[i] });
     }
 
     // Random play button
     const btn2Y = btnY + btnH + 24;
-    ctx.save();
-    ctx.shadowColor = COL.neonBlue;
-    ctx.shadowBlur = 15;
-    ctx.beginPath();
-    ctx.roundRect(btnX, btn2Y, btnW, btnH, 12);
-    ctx.fillStyle = '#0a1a2a';
-    ctx.fill();
-    ctx.strokeStyle = COL.neonBlue;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.restore();
-    ctx.fillStyle = COL.neonBlue;
-    ctx.font = `bold 22px 'Segoe UI', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('SLUMPMÄSSIGT ORD', w / 2, btn2Y + btnH / 2);
+    drawButton(btnX, btn2Y, btnW, btnH, 'Slumpmässigt ord', false, 20);
 
     // Stats
     const statsY = btn2Y + btnH + 50;
-    ctx.fillStyle = COL.textDim;
-    ctx.font = `16px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = COL.muted;
+    ctx.font = `400 16px ${FONT}`;
     ctx.textAlign = 'center';
     const winRate = stats.played > 0 ? Math.round(stats.wins / stats.played * 100) : 0;
     ctx.fillText(`Spelade: ${stats.played}  |  Vinst: ${winRate}%  |  Svit: ${stats.streak}`, w / 2, statsY);
@@ -751,82 +717,62 @@
   // === End Screen Overlay ===
   function drawEndOverlay() {
     const w = W(), h = H();
-    ctx.save();
-    ctx.globalAlpha = 0.6;
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, w, h);
-    ctx.restore();
 
     const isWin = state === 'won';
-    const title = isWin ? 'GRATTIS!' : 'TYVÄRR!';
-    const color = isWin ? COL.neonGreen : COL.neonPink;
+    const title = isWin ? 'Grattis!' : 'Tyvärr!';
+    const color = isWin ? COL.green : COL.red;
 
-    ctx.save();
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 25;
+    // Button geometry (also used for the panel size)
+    const btnW = Math.min(w * 0.6, 260);
+    const btnH = 52;
+    const btnX = (w - btnW) / 2;
+    const btnY = h * 0.52;
+    const btn2Y = btnY + btnH + 16;
+
+    // White panel
+    const panelW = Math.min(w - 32, 360);
+    const panelX = (w - panelW) / 2;
+    const panelY = h * 0.3 - 48;
+    const panelH = btn2Y + btnH + 24 - panelY;
+    ctx.beginPath();
+    ctx.roundRect(panelX, panelY, panelW, panelH, 10);
+    ctx.fillStyle = COL.surface;
+    ctx.fill();
+    ctx.strokeStyle = COL.line;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
     ctx.fillStyle = color;
-    ctx.font = `bold ${Math.min(w * 0.1, 56)}px 'Segoe UI', sans-serif`;
+    ctx.font = `700 ${Math.min(w * 0.1, 44)}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(title, w / 2, h * 0.3);
-    ctx.restore();
 
     if (!isWin) {
-      ctx.fillStyle = COL.text;
-      ctx.font = `24px 'Segoe UI', sans-serif`;
+      ctx.fillStyle = COL.ink;
+      ctx.font = `400 22px ${FONT}`;
       ctx.textAlign = 'center';
       ctx.fillText('Rätt ord: ' + targetWord, w / 2, h * 0.38);
     } else {
-      ctx.fillStyle = COL.textDim;
-      ctx.font = `20px 'Segoe UI', sans-serif`;
+      ctx.fillStyle = COL.muted;
+      ctx.font = `400 20px ${FONT}`;
       ctx.textAlign = 'center';
       ctx.fillText(`Löst på ${guesses.length} av ${MAX_GUESSES} försök`, w / 2, h * 0.38);
     }
 
     // Stats
     const winRate = stats.played > 0 ? Math.round(stats.wins / stats.played * 100) : 0;
-    ctx.fillStyle = COL.textDim;
-    ctx.font = `16px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = COL.muted;
+    ctx.font = `400 ${Math.min(16, (panelW - 24) / 22)}px ${FONT}`;
     ctx.fillText(`Spelade: ${stats.played}  |  Vinst: ${winRate}%  |  Svit: ${stats.streak}`, w / 2, h * 0.44);
 
     // Play again button
-    const btnW = Math.min(w * 0.6, 260);
-    const btnH = 52;
-    const btnX = (w - btnW) / 2;
-    const btnY = h * 0.52;
-    ctx.save();
-    ctx.shadowColor = COL.neonBlue;
-    ctx.shadowBlur = 15;
-    ctx.beginPath();
-    ctx.roundRect(btnX, btnY, btnW, btnH, 12);
-    ctx.fillStyle = '#0a1a2a';
-    ctx.fill();
-    ctx.strokeStyle = COL.neonBlue;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.restore();
-    ctx.fillStyle = COL.neonBlue;
-    ctx.font = `bold 20px 'Segoe UI', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('SPELA IGEN', w / 2, btnY + btnH / 2);
+    drawButton(btnX, btnY, btnW, btnH, 'Spela igen', true, 20);
 
     // Menu button
-    const btn2Y = btnY + btnH + 16;
-    ctx.save();
-    ctx.shadowColor = COL.neonPink;
-    ctx.shadowBlur = 12;
-    ctx.beginPath();
-    ctx.roundRect(btnX, btn2Y, btnW, btnH, 12);
-    ctx.fillStyle = '#1a0a1a';
-    ctx.fill();
-    ctx.strokeStyle = COL.neonPink;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.restore();
-    ctx.fillStyle = COL.neonPink;
-    ctx.font = `bold 20px 'Segoe UI', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('MENY', w / 2, btn2Y + btnH / 2);
+    drawButton(btnX, btn2Y, btnW, btnH, 'Meny', false, 20);
 
     drawEndOverlay._btn1 = { x: btnX, y: btnY, w: btnW, h: btnH };
     drawEndOverlay._btn2 = { x: btnX, y: btn2Y, w: btnW, h: btnH };

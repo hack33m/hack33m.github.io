@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>2048 Neon</title>
+  <title>2048</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -58,28 +58,37 @@
   const W = () => window.innerWidth;
   const H = () => window.innerHeight;
 
-  // Neon colors per tile value
+  // Palette (flat minimalist)
+  const BG = '#f5f5f4';
+  const SURFACE = '#ffffff';
+  const SURFACE2 = '#e7e5e4';
+  const LINE = '#d6d3d1';
+  const INK = '#1c1917';
+  const MUTED = '#78716c';
+  const ACCENT = '#2563eb';
+  const RED = '#dc2626';
+  const GREEN = '#16a34a';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+  // Calm tile ramp: white, accent tints, accent, orange, red, then extra palette colours
   const TILE_COLORS = {
-    2:    { bg: '#003844', fg: '#00e5ff', glow: '#00e5ff' },
-    4:    { bg: '#0a1a4a', fg: '#4488ff', glow: '#4488ff' },
-    8:    { bg: '#3a1a00', fg: '#ff8c00', glow: '#ff8c00' },
-    16:   { bg: '#3a0a2a', fg: '#ff2d95', glow: '#ff2d95' },
-    32:   { bg: '#3a0000', fg: '#ff3344', glow: '#ff3344' },
-    64:   { bg: '#2a0a3a', fg: '#a855f7', glow: '#a855f7' },
-    128:  { bg: '#0a2a0a', fg: '#39ff14', glow: '#39ff14' },
-    256:  { bg: '#2a2a00', fg: '#ffe600', glow: '#ffe600' },
-    512:  { bg: '#3a2200', fg: '#ffaa00', glow: '#ffaa00' },
-    1024: { bg: '#3a0a3a', fg: '#ff66cc', glow: '#ff66cc' },
-    2048: { bg: '#2a1a00', fg: '#ffd700', glow: '#ffd700' },
+    2:    { bg: '#ffffff', fg: INK },
+    4:    { bg: '#dee8fc', fg: INK },
+    8:    { bg: '#b3c8f8', fg: INK },
+    16:   { bg: '#7ca1f3', fg: INK },
+    32:   { bg: '#2563eb', fg: '#ffffff' },
+    64:   { bg: '#f29b6d', fg: INK },
+    128:  { bg: '#ea580c', fg: '#ffffff' },
+    256:  { bg: '#dc2626', fg: '#ffffff' },
+    512:  { bg: '#7c3aed', fg: '#ffffff' },
+    1024: { bg: '#db2777', fg: '#ffffff' },
+    2048: { bg: '#ca8a04', fg: '#ffffff' },
   };
 
   function getTileColor(val) {
     if (TILE_COLORS[val]) return TILE_COLORS[val];
-    return { bg: '#1a1a3a', fg: '#ffffff', glow: '#ffffff' };
+    return { bg: INK, fg: '#ffffff' };
   }
-
-  const NEON_CYAN = '#00e5ff';
-  const NEON_PINK = '#ff2d95';
 
   // Game state
   let state = 'menu'; // menu, playing, gameover, won
@@ -352,16 +361,12 @@
   }
 
   // Drawing
-  function drawRoundedRect(x, y, w, h, r, fill, stroke, glowColor, glowSize) {
+  function drawRoundedRect(x, y, w, h, r, fill, stroke) {
     ctx.save();
-    if (glowColor && glowSize) {
-      ctx.shadowColor = glowColor;
-      ctx.shadowBlur = glowSize;
-    }
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, r);
     if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
     ctx.restore();
   }
 
@@ -376,34 +381,11 @@
     ctx.scale(s, s);
     ctx.translate(-cx, -cy);
 
-    // Glow
-    ctx.shadowColor = tc.glow;
-    ctx.shadowBlur = value >= 128 ? 20 : 12;
-
     // Background
     ctx.beginPath();
     ctx.roundRect(x, y, size, size, 8);
     ctx.fillStyle = tc.bg;
     ctx.fill();
-
-    // Border
-    ctx.strokeStyle = tc.fg;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.shadowBlur = 0;
-
-    // Special glow for 2048
-    if (value === 2048) {
-      const t = performance.now() / 1000;
-      const hue = (t * 60) % 360;
-      ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
-      ctx.shadowBlur = 25;
-      ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
 
     // Text
     const text = String(value);
@@ -411,37 +393,32 @@
     if (value >= 1000) fontSize = size * 0.28;
     else if (value >= 100) fontSize = size * 0.33;
 
-    ctx.font = `bold ${fontSize}px 'Segoe UI', sans-serif`;
+    ctx.font = `700 ${fontSize}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = tc.fg;
-    ctx.shadowColor = tc.glow;
-    ctx.shadowBlur = 10;
     ctx.fillText(text, x + size/2, y + size/2);
-    ctx.shadowBlur = 0;
 
     ctx.restore();
   }
 
-  function drawButton(text, x, y, w, h, color, hovered) {
+  // primary = accent fill + white text; otherwise white fill + line border + ink text
+  function drawButton(text, x, y, w, h, primary) {
     ctx.save();
-    ctx.shadowColor = color;
-    ctx.shadowBlur = hovered ? 25 : 15;
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, 10);
-    ctx.fillStyle = hovered ? color + '33' : '#0a0a1a';
+    ctx.fillStyle = primary ? ACCENT : SURFACE;
     ctx.fill();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+    if (!primary) {
+      ctx.strokeStyle = LINE;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
 
-    ctx.font = `bold ${h * 0.4}px 'Segoe UI', sans-serif`;
+    ctx.font = `600 ${h * 0.36}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = color;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 8;
+    ctx.fillStyle = primary ? '#ffffff' : INK;
     ctx.fillText(text, x + w/2, y + h/2);
     ctx.restore();
   }
@@ -453,29 +430,11 @@
     // Title "2048"
     const titleSize = Math.min(w * 0.25, 120);
     ctx.save();
-
-    // Animated glow
-    const glowPhase = Math.sin(menuTime * 2) * 0.3 + 0.7;
-    const hue = (menuTime * 30) % 360;
-
-    ctx.font = `bold ${titleSize}px 'Segoe UI', sans-serif`;
+    ctx.font = `700 ${titleSize}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-
-    // Shadow layers
-    ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
-    ctx.shadowBlur = 40 * glowPhase;
-    ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
+    ctx.fillStyle = INK;
     ctx.fillText('2048', w/2, h * 0.32);
-
-    ctx.shadowBlur = 20;
-    ctx.fillText('2048', w/2, h * 0.32);
-    ctx.shadowBlur = 0;
-
-    // Subtitle
-    ctx.font = `${Math.min(w * 0.04, 20)}px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#557799';
-    ctx.fillText('NEON EDITION', w/2, h * 0.32 + titleSize * 0.55);
 
     ctx.restore();
 
@@ -485,19 +444,19 @@
     const bx = w/2 - bw/2;
     const by = h * 0.55;
     btnPlay = { x: bx, y: by, w: bw, h: bh };
-    drawButton('SPELA', bx, by, bw, bh, NEON_CYAN, false);
+    drawButton('Spela', bx, by, bw, bh, true);
 
     // Best score
     if (bestScore > 0) {
-      ctx.font = `16px 'Segoe UI', sans-serif`;
+      ctx.font = `400 16px ${FONT}`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#556677';
-      ctx.fillText(`B\u00e4sta po\u00e4ng: ${bestScore}`, w/2, h * 0.72);
+      ctx.fillStyle = MUTED;
+      ctx.fillText(`Bästa poäng: ${bestScore}`, w/2, h * 0.72);
     }
 
     // Controls hint
-    ctx.font = `14px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#334455';
+    ctx.font = `400 14px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.textAlign = 'center';
     ctx.fillText('Piltangenter / WASD / Svep', w/2, h * 0.82);
   }
@@ -511,85 +470,44 @@
 
     // Score box
     ctx.save();
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.roundRect(gx, scoreY, gridSize * 0.35, 45, 8);
-    ctx.fillStyle = '#0d0d2a';
-    ctx.fill();
-    ctx.strokeStyle = NEON_CYAN + '66';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    ctx.font = `10px 'Segoe UI', sans-serif`;
+    drawRoundedRect(gx, scoreY, gridSize * 0.35, 45, 8, SURFACE, LINE);
+    ctx.font = `400 11px ${FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#668899';
-    ctx.fillText('PO\u00c4NG', gx + gridSize * 0.175, scoreY + 15);
-    ctx.font = `bold 18px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = NEON_CYAN;
+    ctx.fillStyle = MUTED;
+    ctx.fillText('Poäng', gx + gridSize * 0.175, scoreY + 15);
+    ctx.font = `700 18px ${FONT}`;
+    ctx.fillStyle = ACCENT;
     ctx.fillText(score, gx + gridSize * 0.175, scoreY + 35);
     ctx.restore();
 
     // Best score box
     ctx.save();
-    ctx.shadowColor = NEON_PINK;
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.roundRect(gx + gridSize * 0.37, scoreY, gridSize * 0.35, 45, 8);
-    ctx.fillStyle = '#0d0d2a';
-    ctx.fill();
-    ctx.strokeStyle = NEON_PINK + '66';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    ctx.font = `10px 'Segoe UI', sans-serif`;
+    drawRoundedRect(gx + gridSize * 0.37, scoreY, gridSize * 0.35, 45, 8, SURFACE, LINE);
+    ctx.font = `400 11px ${FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#886688';
-    ctx.fillText('B\u00c4STA', gx + gridSize * 0.545, scoreY + 15);
-    ctx.font = `bold 18px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = NEON_PINK;
+    ctx.fillStyle = MUTED;
+    ctx.fillText('Bästa', gx + gridSize * 0.545, scoreY + 15);
+    ctx.font = `700 18px ${FONT}`;
+    ctx.fillStyle = INK;
     ctx.fillText(bestScore, gx + gridSize * 0.545, scoreY + 35);
     ctx.restore();
 
-    // New game button
+    // New game button (secondary)
     const nbw = gridSize * 0.25;
     const nbx = gx + gridSize - nbw;
     btnNewGame = { x: nbx, y: scoreY, w: nbw, h: 45 };
     ctx.save();
-    ctx.shadowColor = '#a855f7';
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.roundRect(nbx, scoreY, nbw, 45, 8);
-    ctx.fillStyle = '#0d0d2a';
-    ctx.fill();
-    ctx.strokeStyle = '#a855f7' + '88';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    ctx.font = `bold 12px 'Segoe UI', sans-serif`;
+    drawRoundedRect(nbx, scoreY, nbw, 45, 8, SURFACE, LINE);
+    ctx.font = `600 12px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#a855f7';
-    ctx.fillText('NYTT', nbx + nbw/2, scoreY + 17);
-    ctx.fillText('SPEL', nbx + nbw/2, scoreY + 32);
+    ctx.fillStyle = INK;
+    ctx.fillText('Nytt', nbx + nbw/2, scoreY + 16);
+    ctx.fillText('spel', nbx + nbw/2, scoreY + 31);
     ctx.restore();
 
     // Grid background
-    ctx.save();
-    ctx.shadowColor = NEON_CYAN;
-    ctx.shadowBlur = 15;
-    ctx.beginPath();
-    ctx.roundRect(gx, gy, gridSize, gridSize, 12);
-    ctx.fillStyle = '#0d0d2a';
-    ctx.fill();
-    ctx.strokeStyle = NEON_CYAN + '33';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.restore();
+    drawRoundedRect(gx, gy, gridSize, gridSize, 10, LINE, null);
 
     // Empty cells
     for (let r = 0; r < 4; r++) {
@@ -598,7 +516,7 @@
         const cy = gy + padding + r * (cellSize + padding);
         ctx.beginPath();
         ctx.roundRect(cx, cy, cellSize, cellSize, 8);
-        ctx.fillStyle = '#151530';
+        ctx.fillStyle = SURFACE2;
         ctx.fill();
       }
     }
@@ -685,48 +603,61 @@
     const w = W(), h = H();
     const { gridSize, gx, gy } = getGridLayout();
 
-    // Semi-transparent overlay
-    ctx.fillStyle = 'rgba(10, 10, 26, 0.85)';
-    ctx.fillRect(gx, gy, gridSize, gridSize);
-
-    // Title
-    const titleSize = Math.min(gridSize * 0.15, 50);
+    // Light backdrop over the board
     ctx.save();
-    ctx.font = `bold ${titleSize}px 'Segoe UI', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = color;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 20;
-    ctx.fillText(title, gx + gridSize/2, gy + gridSize * 0.35);
-    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.roundRect(gx, gy, gridSize, gridSize, 10);
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
+    ctx.fill();
     ctx.restore();
 
-    // Subtitle
-    if (subtitle) {
-      ctx.font = `${Math.min(gridSize * 0.06, 18)}px 'Segoe UI', sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#889999';
-      ctx.fillText(subtitle, gx + gridSize/2, gy + gridSize * 0.48);
-    }
-
-    // Button
+    // Button geometry (also used to size the panel)
     const bw = Math.min(200, gridSize * 0.5);
     const bh = 48;
     const bx = gx + gridSize/2 - bw/2;
     const by = gy + gridSize * 0.58;
+
+    // White panel
+    const px = gx + gridSize * 0.08;
+    const py = gy + gridSize * 0.2;
+    const pw = gridSize * 0.84;
+    const ph = Math.max(gridSize * 0.62, by + bh + 16 - py);
+    drawRoundedRect(px, py, pw, ph, 10, SURFACE, LINE);
+
+    // Title
+    const titleSize = Math.min(gridSize * 0.12, 40);
+    ctx.save();
+    ctx.font = `700 ${titleSize}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = color;
+    ctx.fillText(title, gx + gridSize/2, gy + gridSize * 0.35);
+    ctx.restore();
+
+    // Subtitle
+    if (subtitle) {
+      ctx.save();
+      ctx.font = `400 ${Math.min(gridSize * 0.06, 18)}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = MUTED;
+      ctx.fillText(subtitle, gx + gridSize/2, gy + gridSize * 0.48);
+      ctx.restore();
+    }
+
+    // Button
     btnRef.x = bx; btnRef.y = by; btnRef.w = bw; btnRef.h = bh;
-    drawButton(btnText, bx, by, bw, bh, color, false);
+    drawButton(btnText, bx, by, bw, bh, true);
   }
 
   function drawGameOver() {
     drawPlaying(performance.now());
-    drawOverlay('GAME OVER', `Po\u00e4ng: ${score}`, 'F\u00d6RS\u00d6K IGEN', btnRetry, NEON_PINK);
+    drawOverlay('Game over', `Po\u00e4ng: ${score}`, 'F\u00f6rs\u00f6k igen', btnRetry, RED);
   }
 
   function drawWon() {
     drawPlaying(performance.now());
-    drawOverlay('DU VANN!', 'Du n\u00e5dde 2048!', 'FORTS\u00c4TT', btnContinue, '#ffd700');
+    drawOverlay('Du vann!', 'Du n\u00e5dde 2048!', 'Forts\u00e4tt', btnContinue, GREEN);
   }
 
   function draw() {
@@ -736,25 +667,8 @@
     ctx.clearRect(0, 0, w, h);
 
     // Background
-    ctx.fillStyle = '#0a0a1a';
+    ctx.fillStyle = BG;
     ctx.fillRect(0, 0, w, h);
-
-    // Subtle grid pattern
-    ctx.strokeStyle = '#111133';
-    ctx.lineWidth = 0.5;
-    const gridSpacing = 40;
-    for (let x = 0; x < w; x += gridSpacing) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
-    for (let y = 0; y < h; y += gridSpacing) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
 
     if (state === 'menu') drawMenu(now);
     else if (state === 'playing') drawPlaying(now);

@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Neon Bird</title>
+  <title>Flappy Bird</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -39,13 +39,39 @@
   const W = () => window.innerWidth;
   const H = () => window.innerHeight;
 
-  // === Colors ===
-  const NEON_BLUE = '#00d4ff';
-  const NEON_PURPLE = '#a855f7';
-  const NEON_PINK = '#ff2d95';
-  const NEON_GREEN = '#39ff14';
-  const NEON_ORANGE = '#ff6a00';
-  const BG_DARK = '#0a0a1a';
+  // === roundRect polyfill (older Safari) ===
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radii) {
+      let r = typeof radii === 'number' ? radii : (Array.isArray(radii) ? radii[0] : 0);
+      r = Math.max(0, Math.min(r, w / 2, h / 2));
+      this.moveTo(x + r, y);
+      this.lineTo(x + w - r, y);
+      this.quadraticCurveTo(x + w, y, x + w, y + r);
+      this.lineTo(x + w, y + h - r);
+      this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      this.lineTo(x + r, y + h);
+      this.quadraticCurveTo(x, y + h, x, y + h - r);
+      this.lineTo(x, y + r);
+      this.quadraticCurveTo(x, y, x + r, y);
+      this.closePath();
+      return this;
+    };
+  }
+
+  // === Colors (flat minimalist palette) ===
+  const ACCENT = '#2563eb';
+  const PURPLE = '#7c3aed';
+  const RED = '#dc2626';
+  const GREEN = '#16a34a';
+  const ORANGE = '#ea580c';
+  const YELLOW = '#ca8a04';
+  const TEAL = '#0d9488';
+  const PINK = '#db2777';
+  const INK = '#1c1917';
+  const MUTED = '#78716c';
+  const LINE = '#d6d3d1';
+  const SURFACE = '#ffffff';
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
   // === Helpers ===
   function hexToRgba(hex, a) {
@@ -64,38 +90,48 @@
     return `rgb(${r},${g},${b})`;
   }
 
-  function drawGlow(x, y, radius, color, alpha) {
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    grad.addColorStop(0, hexToRgba(color, alpha));
-    grad.addColorStop(1, hexToRgba(color, 0));
-    ctx.fillStyle = grad;
+  // Flat white panel with a 1px border, used behind menu and game over text.
+  function drawPanel(cx, top, bottom, maxW) {
+    const pw = Math.min(maxW, W() - 32);
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
     ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.roundRect(cx - pw / 2, top + 1, pw, bottom - top, 10);
     ctx.fill();
+    ctx.fillStyle = SURFACE;
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(cx - pw / 2, top, pw, bottom - top, 10);
+    ctx.fill();
+    ctx.stroke();
   }
 
   // === Skin System ===
+  // Every skin id the portal can send is kept; colours are toned down to the palette.
   const SKIN_DATA = {
-    default: { primary: '#00d4ff', secondary: '#ffffff', trail: '#00d4ff', glow: '#00d4ff' },
-    crimson: { primary: '#ff2d55', secondary: '#ffaacc', trail: '#ff2d55', glow: '#ff2d55' },
-    emerald: { primary: '#39ff14', secondary: '#ccffcc', trail: '#39ff14', glow: '#39ff14' },
-    sunset: { primary: '#ff6a00', secondary: '#ffdd44', trail: '#ff8c00', glow: '#ff6a00' },
-    phantom: { primary: '#a855f7', secondary: '#e0ccff', trail: '#a855f7', glow: '#a855f7' },
-    arctic: { primary: '#88eeff', secondary: '#ffffff', trail: '#aaeeff', glow: '#88eeff' },
-    golden: { primary: '#fbbf24', secondary: '#fff8e0', trail: '#fbbf24', glow: '#fbbf24' },
-    inferno: { primary: '#ff4400', secondary: '#ff8800', trail: '#ff2200', glow: '#ff4400' },
-    void: { primary: '#6600cc', secondary: '#bb88ff', trail: '#3300aa', glow: '#6600cc' },
-    rainbow: { primary: 'rainbow', secondary: '#ffffff', trail: 'rainbow', glow: 'rainbow' },
-    'corny-choklad':  { primary: '#6B3410', secondary: '#D4A574', trail: '#8B4513', glow: '#A0522D' },
-    'corny-mork':     { primary: '#3D1C00', secondary: '#8B6914', trail: '#5C2E00', glow: '#5C2E00' },
-    'corny-vit':      { primary: '#FFF8DC', secondary: '#FFD700', trail: '#FAEBD7', glow: '#FFD700' },
-    'corny-kokos':    { primary: '#F5F5DC', secondary: '#8B7355', trail: '#FFDEAD', glow: '#DEB887' },
-    'corny-banan':    { primary: '#FFD700', secondary: '#8B6914', trail: '#FFA500', glow: '#FFD700' },
-    'corny-jordnot':  { primary: '#C4A265', secondary: '#8B6914', trail: '#B8860B', glow: '#DAA520' },
-    'corny-jordgubb': { primary: '#FF69B4', secondary: '#FFF0F5', trail: '#FF1493', glow: '#FF69B4' },
-    'corny-brownie':  { primary: '#4A2000', secondary: '#A0522D', trail: '#7B3F00', glow: '#8B4513' },
-    'corny-karamell': { primary: '#DAA520', secondary: '#FFE4B5', trail: '#D4A574', glow: '#DAA520' }
+    default: { primary: ACCENT, secondary: '#ffffff', trail: ACCENT },
+    crimson: { primary: RED, secondary: '#fecaca', trail: RED },
+    emerald: { primary: GREEN, secondary: '#bbf7d0', trail: GREEN },
+    sunset: { primary: ORANGE, secondary: '#fde68a', trail: ORANGE },
+    phantom: { primary: PURPLE, secondary: '#ddd6fe', trail: PURPLE },
+    arctic: { primary: '#86c9c3', secondary: '#ffffff', trail: TEAL },
+    golden: { primary: YELLOW, secondary: '#fef3c7', trail: YELLOW },
+    inferno: { primary: RED, secondary: ORANGE, trail: ORANGE },
+    void: { primary: INK, secondary: '#c4b5fd', trail: PURPLE },
+    rainbow: { primary: 'rainbow', secondary: '#ffffff', trail: 'rainbow' },
+    'corny-choklad':  { primary: '#6B3410', secondary: '#D4A574', trail: '#8B4513' },
+    'corny-mork':     { primary: '#3D1C00', secondary: '#8B6914', trail: '#5C2E00' },
+    'corny-vit':      { primary: '#FFF8DC', secondary: YELLOW, trail: '#D6C9A8' },
+    'corny-kokos':    { primary: '#F5F5DC', secondary: '#8B7355', trail: '#C9B48F' },
+    'corny-banan':    { primary: YELLOW, secondary: '#8B6914', trail: ORANGE },
+    'corny-jordnot':  { primary: '#C4A265', secondary: '#8B6914', trail: '#B8860B' },
+    'corny-jordgubb': { primary: PINK, secondary: '#fce7f3', trail: PINK },
+    'corny-brownie':  { primary: '#4A2000', secondary: '#A0522D', trail: '#7B3F00' },
+    'corny-karamell': { primary: '#C8963A', secondary: '#FFE4B5', trail: '#D4A574' }
   };
+
+  // The rainbow skin steps calmly through the palette instead of cycling bright hues.
+  const RAINBOW_STEPS = [ACCENT, PURPLE, PINK, RED, ORANGE, YELLOW, GREEN, TEAL];
 
   // Corny images
   const cornyImages = {};
@@ -119,10 +155,9 @@
   loadCornyImg('corny-brownie', 'corny-brownie.png');
   loadCornyImg('corny-karamell', 'corny-karamell.png');
 
-  let skinPrimary = NEON_BLUE;
+  let skinPrimary = ACCENT;
   let skinSecondary = '#ffffff';
-  let skinTrail = NEON_BLUE;
-  let skinGlow = NEON_BLUE;
+  let skinTrail = ACCENT;
   let _equippedSkinId = 'default';
 
   window.addEventListener('message', (e) => {
@@ -135,16 +170,14 @@
   function loadSkin() {
     const skin = SKIN_DATA[_equippedSkinId] || SKIN_DATA.default;
     if (skin.primary === 'rainbow') {
-      const hue = (Date.now() / 15) % 360;
-      skinPrimary = `hsl(${hue}, 100%, 55%)`;
+      const step = Math.floor(Date.now() / 600) % RAINBOW_STEPS.length;
+      skinPrimary = RAINBOW_STEPS[step];
       skinSecondary = '#ffffff';
-      skinTrail = `hsl(${(hue + 60) % 360}, 100%, 55%)`;
-      skinGlow = `hsl(${hue}, 100%, 55%)`;
+      skinTrail = RAINBOW_STEPS[(step + 1) % RAINBOW_STEPS.length];
     } else {
       skinPrimary = skin.primary;
       skinSecondary = skin.secondary;
       skinTrail = skin.trail;
-      skinGlow = skin.glow;
     }
   }
 
@@ -156,7 +189,7 @@
   const GRAVITY = 0.45;
   const FLAP_FORCE = -7.5;
   const MAX_FALL_SPEED = 10;
-  const BIRD_RADIUS = 16;
+  const Flappy Bird_RADIUS = 16;
 
   const PIPE_WIDTH = 60;
   const PIPE_GAP = 150;
@@ -171,13 +204,13 @@
 
   // === Game Variables ===
   let score = 0;
-  let highScore = parseInt(localStorage.getItem('neonbird-highscore') || '0');
+  let highScore = parseInt(localStorage.getItem('flappyFlappy Bird-highscore') || '0');
   let newRecord = false;
   let pipes = [];
   let coins = [];
   let distance = 0;
 
-  const bird = {
+  const Flappy Bird = {
     x: 0, y: 0, vy: 0, rotation: 0, flapAnim: 0, alive: true, trail: []
   };
 
@@ -186,38 +219,31 @@
   let deathParticles = [];
   let menuPulse = 0;
 
-  // Background layers
-  let bgStars = [];
-  let bgBubbles = [];
-  let bgLeaves = [];
-
   // Zone system
   let currentZone = 0;
   let prevZone = 0;
   let nextZone = 0;
   let zoneBlend = 1;
 
+  // Each theme is a calm, flat background tint with its own pipe colour.
   const ZONES = [
     {
       name: 'Rymden',
-      bgTop: '#0a0a1a', bgBot: '#0a0a2e',
-      starDensity: 1.0, bubbleDensity: 0.1, leafDensity: 0.05,
-      pipeColor: NEON_BLUE, pipeAccent: NEON_PURPLE,
-      groundColor: '#1a1a3a'
+      bgColor: '#eceef4',
+      pipeColor: PURPLE,
+      groundColor: '#d9dce6'
     },
     {
       name: 'Havet',
-      bgTop: '#0a1a2a', bgBot: '#0a2a3a',
-      starDensity: 0.2, bubbleDensity: 1.0, leafDensity: 0.15,
-      pipeColor: NEON_GREEN, pipeAccent: NEON_BLUE,
-      groundColor: '#0a2a2a'
+      bgColor: '#e6f1f0',
+      pipeColor: TEAL,
+      groundColor: '#cde2df'
     },
     {
       name: 'Skogen',
-      bgTop: '#0a1a0a', bgBot: '#1a2a1a',
-      starDensity: 0.15, bubbleDensity: 0.1, leafDensity: 1.0,
-      pipeColor: NEON_GREEN, pipeAccent: NEON_ORANGE,
-      groundColor: '#1a2a1a'
+      bgColor: '#ecf2e8',
+      pipeColor: GREEN,
+      groundColor: '#d5e3cf'
     }
   ];
 
@@ -248,48 +274,14 @@
   function screenReady() { return Date.now() - lastScreenChange > SCREEN_DELAY; }
 
   // === Init ===
-  function initBird() {
-    bird.x = W() * 0.22;
-    bird.y = H() / 2;
-    bird.vy = 0;
-    bird.rotation = 0;
-    bird.flapAnim = 0;
-    bird.alive = true;
-    bird.trail = [];
-  }
-
-  function initBackground() {
-    bgStars = [];
-    for (let i = 0; i < 100; i++) {
-      bgStars.push({
-        x: Math.random() * 2000,
-        y: Math.random() * 1200,
-        size: Math.random() * 2 + 0.5,
-        speed: Math.random() * 0.3 + 0.1,
-        twinkleOffset: Math.random() * Math.PI * 2
-      });
-    }
-    bgBubbles = [];
-    for (let i = 0; i < 40; i++) {
-      bgBubbles.push({
-        x: Math.random() * 2000,
-        y: Math.random() * 1200,
-        size: Math.random() * 6 + 2,
-        speed: Math.random() * 0.5 + 0.2,
-        wobbleOffset: Math.random() * Math.PI * 2
-      });
-    }
-    bgLeaves = [];
-    for (let i = 0; i < 30; i++) {
-      bgLeaves.push({
-        x: Math.random() * 2000,
-        y: Math.random() * 1200,
-        size: Math.random() * 8 + 4,
-        speed: Math.random() * 1 + 0.5,
-        rotation: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 0.03
-      });
-    }
+  function initFlappy Bird() {
+    Flappy Bird.x = W() * 0.22;
+    Flappy Bird.y = H() / 2;
+    Flappy Bird.vy = 0;
+    Flappy Bird.rotation = 0;
+    Flappy Bird.flapAnim = 0;
+    Flappy Bird.alive = true;
+    Flappy Bird.trail = [];
   }
 
   // === Pipe generation ===
@@ -304,8 +296,7 @@
       gapY: gapY,
       gapSize: gapSize,
       scored: false,
-      color: getZoneValue('pipeColor'),
-      accent: getZoneValue('pipeAccent')
+      color: getZoneValue('pipeColor')
     };
 
     if (Math.random() < COIN_CHANCE) {
@@ -322,7 +313,7 @@
 
   // === Collision ===
   function checkCollision() {
-    const bx = bird.x, by = bird.y, br = BIRD_RADIUS * 0.7;
+    const bx = Flappy Bird.x, by = Flappy Bird.y, br = Flappy Bird_RADIUS * 0.7;
 
     if (by + br > H() - GROUND_HEIGHT) return true;
     if (by - br < 0) return true;
@@ -342,16 +333,16 @@
   // === Scoring ===
   function updateScoring() {
     for (const pipe of pipes) {
-      if (!pipe.scored && pipe.x + PIPE_WIDTH < bird.x) {
+      if (!pipe.scored && pipe.x + PIPE_WIDTH < Flappy Bird.x) {
         pipe.scored = true;
         score++;
       }
     }
     for (const coin of coins) {
       if (coin.collected) continue;
-      const dx = bird.x - coin.x;
-      const dy = bird.y - coin.y;
-      if (Math.sqrt(dx * dx + dy * dy) < BIRD_RADIUS + COIN_RADIUS) {
+      const dx = Flappy Bird.x - coin.x;
+      const dy = Flappy Bird.y - coin.y;
+      if (Math.sqrt(dx * dx + dy * dy) < Flappy Bird_RADIUS + COIN_RADIUS) {
         coin.collected = true;
         score += 3;
         flashTimer = 3;
@@ -361,9 +352,9 @@
 
   // === Flap ===
   function flap() {
-    if (state === STATE.PLAYING && bird.alive) {
-      bird.vy = FLAP_FORCE;
-      bird.flapAnim = 1;
+    if (state === STATE.PLAYING && Flappy Bird.alive) {
+      Flappy Bird.vy = FLAP_FORCE;
+      Flappy Bird.flapAnim = 1;
     }
   }
 
@@ -381,14 +372,14 @@
     prevZone = 0;
     nextZone = 0;
     zoneBlend = 1;
-    initBird();
+    initFlappy Bird();
     loadSkin();
     state = STATE.PLAYING;
     lastScreenChange = Date.now();
   }
 
   function die() {
-    bird.alive = false;
+    Flappy Bird.alive = false;
     state = STATE.DEAD;
     shakeTimer = 20;
     flashTimer = 8;
@@ -397,18 +388,18 @@
     if (score > highScore) {
       highScore = score;
       newRecord = true;
-      localStorage.setItem('neonbird-highscore', highScore.toString());
+      localStorage.setItem('flappyFlappy Bird-highscore', highScore.toString());
     }
 
     if (score > 0 && window.parent !== window) {
       window.parent.postMessage({ type: 'game-score', score: score }, '*');
     }
 
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 20; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = Math.random() * 7 + 2;
       deathParticles.push({
-        x: bird.x, y: bird.y,
+        x: Flappy Bird.x, y: Flappy Bird.y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         size: Math.random() * 4 + 2,
@@ -463,68 +454,8 @@
 
   // === Drawing ===
   function drawBackground() {
-    const bgTop = getZoneValue('bgTop');
-    const bgBot = getZoneValue('bgBot');
-    const grad = ctx.createLinearGradient(0, 0, 0, H());
-    grad.addColorStop(0, bgTop);
-    grad.addColorStop(1, bgBot);
-    ctx.fillStyle = grad;
+    ctx.fillStyle = getZoneValue('bgColor');
     ctx.fillRect(0, 0, W(), H());
-
-    const starAlpha = getZoneValue('starDensity');
-    const bubbleAlpha = getZoneValue('bubbleDensity');
-    const leafAlpha = getZoneValue('leafDensity');
-    const t = Date.now() * 0.001;
-
-    // Stars
-    for (const s of bgStars) {
-      const sx = ((s.x - distance * s.speed) % W() + W()) % W();
-      const sy = s.y % H();
-      const twinkle = 0.4 + 0.6 * Math.sin(t * 2 + s.twinkleOffset);
-      ctx.fillStyle = hexToRgba('#ffffff', starAlpha * twinkle * 0.7);
-      ctx.beginPath();
-      ctx.arc(sx, sy, s.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Bubbles
-    for (const b of bgBubbles) {
-      const bx = ((b.x - distance * b.speed) % W() + W()) % W();
-      const wobble = Math.sin(t * 1.5 + b.wobbleOffset) * 8;
-      const by = ((b.y + wobble) % H() + H()) % H();
-      ctx.strokeStyle = hexToRgba(NEON_BLUE, bubbleAlpha * 0.35);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(bx, by, b.size, 0, Math.PI * 2);
-      ctx.stroke();
-      // Highlight
-      ctx.fillStyle = hexToRgba(NEON_BLUE, bubbleAlpha * 0.1);
-      ctx.beginPath();
-      ctx.arc(bx - b.size * 0.3, by - b.size * 0.3, b.size * 0.3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Leaves
-    for (const l of bgLeaves) {
-      const lx = ((l.x - distance * l.speed) % W() + W()) % W();
-      const ly = l.y % H();
-      l.rotation += l.rotSpeed;
-      ctx.save();
-      ctx.translate(lx, ly);
-      ctx.rotate(l.rotation);
-      ctx.fillStyle = hexToRgba(NEON_GREEN, leafAlpha * 0.3);
-      ctx.beginPath();
-      ctx.ellipse(0, 0, l.size, l.size * 0.4, 0, 0, Math.PI * 2);
-      ctx.fill();
-      // Leaf vein
-      ctx.strokeStyle = hexToRgba(NEON_GREEN, leafAlpha * 0.2);
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(-l.size, 0);
-      ctx.lineTo(l.size, 0);
-      ctx.stroke();
-      ctx.restore();
-    }
   }
 
   function drawGround() {
@@ -534,21 +465,17 @@
     ctx.fillStyle = gc;
     ctx.fillRect(0, groundY, W(), GROUND_HEIGHT);
 
-    const pc = getZoneValue('pipeColor');
-    ctx.shadowColor = pc;
-    ctx.shadowBlur = 8;
-    ctx.strokeStyle = hexToRgba(pc, 0.6);
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = hexToRgba(INK, 0.15);
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(0, groundY);
     ctx.lineTo(W(), groundY);
     ctx.stroke();
-    ctx.shadowBlur = 0;
 
-    // Scrolling grid
+    // Faint scrolling ground lines (motion reference)
     const scrollOffset = (distance * 0.8) % 40;
-    ctx.strokeStyle = hexToRgba(pc, 0.08);
-    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = hexToRgba(INK, 0.06);
+    ctx.lineWidth = 1;
     for (let x = -scrollOffset; x < W(); x += 40) {
       ctx.beginPath();
       ctx.moveTo(x, groundY);
@@ -563,52 +490,27 @@
     const lipW = 8;
     const lipH = 12;
 
-    ctx.shadowColor = pipe.color;
-    ctx.shadowBlur = 12;
+    ctx.fillStyle = pipe.color;
 
-    // Top pipe
-    ctx.fillStyle = hexToRgba(pipe.color, 0.12);
-    ctx.strokeStyle = pipe.color;
-    ctx.lineWidth = 2;
+    // Top pipe + lip
     ctx.fillRect(pipe.x, 0, PIPE_WIDTH, gapTop);
-    ctx.strokeRect(pipe.x + 1, 0, PIPE_WIDTH - 2, gapTop);
+    ctx.beginPath();
+    ctx.roundRect(pipe.x - lipW, gapTop - lipH, PIPE_WIDTH + lipW * 2, lipH, 6);
+    ctx.fill();
 
-    // Top lip
-    ctx.fillStyle = hexToRgba(pipe.color, 0.25);
-    ctx.fillRect(pipe.x - lipW, gapTop - lipH, PIPE_WIDTH + lipW * 2, lipH);
-    ctx.strokeRect(pipe.x - lipW, gapTop - lipH, PIPE_WIDTH + lipW * 2, lipH);
-
-    // Bottom pipe
-    ctx.fillStyle = hexToRgba(pipe.color, 0.12);
+    // Bottom pipe + lip
     ctx.fillRect(pipe.x, gapBot, PIPE_WIDTH, H() - GROUND_HEIGHT - gapBot);
-    ctx.strokeRect(pipe.x + 1, gapBot, PIPE_WIDTH - 2, H() - GROUND_HEIGHT - gapBot);
-
-    // Bottom lip
-    ctx.fillStyle = hexToRgba(pipe.color, 0.25);
-    ctx.fillRect(pipe.x - lipW, gapBot, PIPE_WIDTH + lipW * 2, lipH);
-    ctx.strokeRect(pipe.x - lipW, gapBot, PIPE_WIDTH + lipW * 2, lipH);
-
-    ctx.shadowBlur = 0;
-
-    // Center glow line
-    ctx.strokeStyle = hexToRgba(pipe.accent, 0.15);
-    ctx.lineWidth = 1;
-    const cx = pipe.x + PIPE_WIDTH / 2;
-    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, gapTop - lipH); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, gapBot + lipH); ctx.lineTo(cx, H() - GROUND_HEIGHT); ctx.stroke();
+    ctx.beginPath();
+    ctx.roundRect(pipe.x - lipW, gapBot, PIPE_WIDTH + lipW * 2, lipH, 6);
+    ctx.fill();
   }
 
   function drawCoins() {
     for (const coin of coins) {
       if (coin.collected) continue;
       coin.glowPhase += 0.03;
-      const pulse = 0.6 + 0.4 * Math.sin(coin.glowPhase);
 
-      drawGlow(coin.x, coin.y, COIN_RADIUS * 2.5, NEON_ORANGE, 0.15 * pulse);
-
-      ctx.shadowColor = NEON_ORANGE;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = hexToRgba(NEON_ORANGE, pulse);
+      ctx.fillStyle = YELLOW;
       ctx.beginPath();
       ctx.arc(coin.x, coin.y, COIN_RADIUS, 0, Math.PI * 2);
       ctx.fill();
@@ -617,146 +519,31 @@
       ctx.beginPath();
       ctx.arc(coin.x, coin.y, COIN_RADIUS * 0.45, 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0;
     }
   }
 
-  function drawBird() {
-    if (!bird.alive) return;
-    if (_equippedSkinId === 'rainbow') loadSkin();
-
-    // Trail
-    if (bird.trail.length > 1) {
-      for (let i = 1; i < bird.trail.length; i++) {
-        const pct = i / bird.trail.length;
-        ctx.strokeStyle = hexToRgba(skinTrail, pct * 0.35);
-        ctx.lineWidth = pct * BIRD_RADIUS * 0.5;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(bird.trail[i - 1].x, bird.trail[i - 1].y);
-        ctx.lineTo(bird.trail[i].x, bird.trail[i].y);
-        ctx.stroke();
-      }
-    }
-
-    drawGlow(bird.x, bird.y, BIRD_RADIUS * 3, skinGlow, 0.2);
-
-    ctx.save();
-    ctx.translate(bird.x, bird.y);
-
-    const r = BIRD_RADIUS;
-    const cornyImage = cornyImages[_equippedSkinId];
-    const isCorny = cornyImage && cornyImage._loaded;
-
-    if (isCorny) {
-      bird.rotation = Math.max(-10, Math.min(15, bird.vy * 1.5));
-    } else {
-      bird.rotation = Math.max(-30, Math.min(70, bird.vy * 4));
-    }
-    ctx.rotate(bird.rotation * Math.PI / 180);
-
-    if (isCorny) {
-      const imgH = r * 2;
-      const imgW = imgH * 3.4;
-      ctx.shadowColor = skinGlow;
-      ctx.shadowBlur = 15;
-      ctx.drawImage(cornyImage, -imgW / 2, -imgH / 2, imgW, imgH);
-      ctx.shadowBlur = 0;
-    } else {
-      // Body
-      ctx.shadowColor = skinGlow;
-      ctx.shadowBlur = 15;
-      ctx.fillStyle = skinPrimary;
-      ctx.beginPath();
-      ctx.arc(0, 0, r, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = hexToRgba(skinGlow, 0.5);
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Wing
-      bird.flapAnim *= 0.85;
-      const wingAngle = Math.sin(bird.flapAnim * Math.PI * 3) * 25;
-      ctx.save();
-      ctx.translate(-r * 0.3, -r * 0.2);
-      ctx.rotate((wingAngle - 15) * Math.PI / 180);
-      ctx.fillStyle = skinSecondary;
-      ctx.globalAlpha = 0.8;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.restore();
-
-      // Eye
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(r * 0.35, -r * 0.2, r * 0.25, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#111111';
-      ctx.beginPath();
-      ctx.arc(r * 0.45, -r * 0.2, r * 0.12, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Beak
-      ctx.fillStyle = NEON_ORANGE;
-      ctx.beginPath();
-      ctx.moveTo(r * 0.75, -r * 0.15);
-      ctx.lineTo(r * 1.3, 0);
-      ctx.lineTo(r * 0.75, r * 0.15);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    ctx.restore();
-  }
-
-  function drawMenuBird(x, y) {
-    ctx.save();
-    ctx.translate(x, y);
-
-    const r = BIRD_RADIUS * 1.5;
-    const t = Date.now() * 0.003;
-    const wingFlap = Math.sin(t * 3) * 20;
-
-    // Glow
-    drawGlow(0, 0, r * 3, skinGlow, 0.25);
-
-    const menuCornyImg = cornyImages[_equippedSkinId];
-    const isCornyMenu = menuCornyImg && menuCornyImg._loaded;
-
-    if (isCornyMenu) {
-      const imgH = r * 2;
-      const imgW = imgH * 3.4;
-      ctx.shadowColor = skinGlow;
-      ctx.shadowBlur = 20;
-      ctx.drawImage(menuCornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
-      ctx.shadowBlur = 0;
-    } else {
+  // Flat Flappy Bird body, wing, eye and beak. Shared by the game and the menu.
+  function drawFlappy BirdShape(r, wingDeg) {
     // Body
-    ctx.shadowColor = skinGlow;
-    ctx.shadowBlur = 20;
     ctx.fillStyle = skinPrimary;
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = hexToRgba(skinGlow, 0.5);
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.5;
     ctx.stroke();
-    ctx.shadowBlur = 0;
 
     // Wing
     ctx.save();
     ctx.translate(-r * 0.3, -r * 0.2);
-    ctx.rotate((wingFlap - 15) * Math.PI / 180);
+    ctx.rotate((wingDeg - 15) * Math.PI / 180);
     ctx.fillStyle = skinSecondary;
-    ctx.globalAlpha = 0.8;
     ctx.beginPath();
     ctx.ellipse(0, 0, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
     ctx.restore();
 
     // Eye
@@ -764,19 +551,83 @@
     ctx.beginPath();
     ctx.arc(r * 0.35, -r * 0.2, r * 0.25, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#111111';
+    ctx.fillStyle = INK;
     ctx.beginPath();
     ctx.arc(r * 0.45, -r * 0.2, r * 0.12, 0, Math.PI * 2);
     ctx.fill();
 
     // Beak
-    ctx.fillStyle = NEON_ORANGE;
+    ctx.fillStyle = ORANGE;
     ctx.beginPath();
     ctx.moveTo(r * 0.75, -r * 0.15);
     ctx.lineTo(r * 1.3, 0);
     ctx.lineTo(r * 0.75, r * 0.15);
     ctx.closePath();
     ctx.fill();
+  }
+
+  function drawFlappy Bird() {
+    if (!Flappy Bird.alive) return;
+    if (_equippedSkinId === 'rainbow') loadSkin();
+
+    // Trail (subtle, flat)
+    if (Flappy Bird.trail.length > 1) {
+      for (let i = 1; i < Flappy Bird.trail.length; i++) {
+        const pct = i / Flappy Bird.trail.length;
+        ctx.strokeStyle = hexToRgba(skinTrail, pct * 0.2);
+        ctx.lineWidth = pct * Flappy Bird_RADIUS * 0.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(Flappy Bird.trail[i - 1].x, Flappy Bird.trail[i - 1].y);
+        ctx.lineTo(Flappy Bird.trail[i].x, Flappy Bird.trail[i].y);
+        ctx.stroke();
+      }
+    }
+
+    ctx.save();
+    ctx.translate(Flappy Bird.x, Flappy Bird.y);
+
+    const r = Flappy Bird_RADIUS;
+    const cornyImage = cornyImages[_equippedSkinId];
+    const isCorny = cornyImage && cornyImage._loaded;
+
+    if (isCorny) {
+      Flappy Bird.rotation = Math.max(-10, Math.min(15, Flappy Bird.vy * 1.5));
+    } else {
+      Flappy Bird.rotation = Math.max(-30, Math.min(70, Flappy Bird.vy * 4));
+    }
+    ctx.rotate(Flappy Bird.rotation * Math.PI / 180);
+
+    if (isCorny) {
+      const imgH = r * 2;
+      const imgW = imgH * 3.4;
+      ctx.drawImage(cornyImage, -imgW / 2, -imgH / 2, imgW, imgH);
+    } else {
+      Flappy Bird.flapAnim *= 0.85;
+      const wingAngle = Math.sin(Flappy Bird.flapAnim * Math.PI * 3) * 25;
+      drawFlappy BirdShape(r, wingAngle);
+    }
+
+    ctx.restore();
+  }
+
+  function drawMenuFlappy Bird(x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    const r = Flappy Bird_RADIUS * 1.5;
+    const t = Date.now() * 0.003;
+    const wingFlap = Math.sin(t * 3) * 20;
+
+    const menuCornyImg = cornyImages[_equippedSkinId];
+    const isCornyMenu = menuCornyImg && menuCornyImg._loaded;
+
+    if (isCornyMenu) {
+      const imgH = r * 2;
+      const imgW = imgH * 3.4;
+      ctx.drawImage(menuCornyImg, -imgW / 2, -imgH / 2, imgW, imgH);
+    } else {
+      drawFlappy BirdShape(r, wingFlap);
     }
 
     ctx.restore();
@@ -793,18 +644,15 @@
 
   function drawUI() {
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 48px "Segoe UI", sans-serif';
-    ctx.shadowColor = NEON_BLUE;
-    ctx.shadowBlur = 10;
+    ctx.fillStyle = INK;
+    ctx.font = `700 48px ${FONT}`;
     ctx.fillText(score.toString(), W() / 2, 60);
-    ctx.shadowBlur = 0;
 
     // Zone name
     const zone = ZONES[currentZone];
     ctx.textAlign = 'right';
-    ctx.font = '12px "Segoe UI", sans-serif';
-    ctx.fillStyle = hexToRgba(zone.pipeColor, 0.5);
+    ctx.font = `600 12px ${FONT}`;
+    ctx.fillStyle = MUTED;
     ctx.fillText(zone.name, W() - 15, 25);
     ctx.textAlign = 'center';
   }
@@ -813,83 +661,81 @@
     menuPulse += 0.03;
     loadSkin();
 
-    const bobY = H() * 0.35 + Math.sin(menuPulse * 1.5) * 8;
-    drawMenuBird(W() / 2, bobY);
+    const baseY = H() * 0.35;
+    ctx.fillStyle = 'rgba(245,245,244,0.6)';
+    ctx.fillRect(0, 0, W(), H());
+    drawPanel(W() / 2, baseY - 70, baseY + (highScore > 0 ? 190 : 160), 360);
+
+    const bobY = baseY + Math.sin(menuPulse * 1.5) * 8;
+    drawMenuFlappy Bird(W() / 2, bobY);
 
     ctx.textAlign = 'center';
 
     // Title
-    ctx.shadowColor = NEON_BLUE;
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 52px "Segoe UI", sans-serif';
-    ctx.fillText('NEON BIRD', W() / 2, H() * 0.35 + 65);
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = INK;
+    ctx.font = `700 44px ${FONT}`;
+    ctx.fillText('Flappy Bird', W() / 2, baseY + 72);
 
     // Subtitle
-    ctx.font = '14px "Segoe UI", sans-serif';
-    ctx.fillStyle = hexToRgba(NEON_PURPLE, 0.6);
-    ctx.fillText('Rymden  \u00b7  Havet  \u00b7  Skogen', W() / 2, H() * 0.35 + 88);
+    ctx.font = `400 14px ${FONT}`;
+    ctx.fillStyle = MUTED;
+    ctx.fillText('Rymden  ·  Havet  ·  Skogen', W() / 2, baseY + 98);
 
     // Play prompt
-    const pulseAlpha = 0.5 + 0.5 * Math.sin(menuPulse * 2);
-    ctx.font = 'bold 20px "Segoe UI", sans-serif';
-    ctx.fillStyle = hexToRgba('#ffffff', pulseAlpha);
-    ctx.fillText('Tryck f\u00f6r att starta', W() / 2, H() * 0.35 + 130);
+    ctx.font = `600 18px ${FONT}`;
+    ctx.fillStyle = ACCENT;
+    ctx.fillText('Tryck för att starta', W() / 2, baseY + 135);
 
     // High score
     if (highScore > 0) {
-      ctx.font = 'bold 16px "Segoe UI", sans-serif';
-      ctx.fillStyle = hexToRgba(NEON_PURPLE, 0.9);
-      ctx.fillText(`B\u00e4sta: ${highScore}`, W() / 2, H() * 0.35 + 165);
+      ctx.font = `600 16px ${FONT}`;
+      ctx.fillStyle = MUTED;
+      ctx.fillText(`Bästa: ${highScore}`, W() / 2, baseY + 168);
     }
   }
 
   function drawDeathScreen() {
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillStyle = 'rgba(245,245,244,0.92)';
     ctx.fillRect(0, 0, W(), H());
+
+    drawPanel(W() / 2, H() / 2 - 95, H() / 2 + 130, 340);
 
     ctx.textAlign = 'center';
 
-    ctx.shadowColor = NEON_PINK;
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = NEON_PINK;
-    ctx.font = 'bold 44px "Segoe UI", sans-serif';
-    ctx.fillText('GAME OVER', W() / 2, H() / 2 - 40);
-    ctx.shadowBlur = 0;
+    ctx.fillStyle = RED;
+    ctx.font = `700 36px ${FONT}`;
+    ctx.fillText('Game over', W() / 2, H() / 2 - 40);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px "Segoe UI", sans-serif';
-    ctx.fillText(`Po\u00e4ng: ${score}`, W() / 2, H() / 2 + 10);
+    ctx.fillStyle = INK;
+    ctx.font = `700 28px ${FONT}`;
+    ctx.fillText(`Poäng: ${score}`, W() / 2, H() / 2 + 10);
 
-    ctx.fillStyle = hexToRgba(NEON_PURPLE, 0.9);
-    ctx.font = 'bold 16px "Segoe UI", sans-serif';
-    ctx.fillText(`B\u00e4sta: ${highScore}`, W() / 2, H() / 2 + 40);
+    ctx.fillStyle = MUTED;
+    ctx.font = `600 16px ${FONT}`;
+    ctx.fillText(`Bästa: ${highScore}`, W() / 2, H() / 2 + 40);
 
     if (newRecord && score > 0) {
-      const p = 0.7 + 0.3 * Math.sin(Date.now() * 0.005);
-      ctx.fillStyle = hexToRgba(NEON_GREEN, p);
-      ctx.font = 'bold 18px "Segoe UI", sans-serif';
-      ctx.fillText('NYTT REKORD!', W() / 2, H() / 2 + 68);
+      ctx.fillStyle = GREEN;
+      ctx.font = `700 18px ${FONT}`;
+      ctx.fillText('Nytt rekord!', W() / 2, H() / 2 + 68);
     }
 
     if (shakeTimer <= 0) {
-      const p = 0.5 + 0.5 * Math.sin(Date.now() * 0.004);
-      ctx.fillStyle = hexToRgba('#ffffff', p);
-      ctx.font = '16px "Segoe UI", sans-serif';
-      ctx.fillText('Tryck f\u00f6r att forts\u00e4tta', W() / 2, H() / 2 + 105);
+      ctx.fillStyle = ACCENT;
+      ctx.font = `600 16px ${FONT}`;
+      ctx.fillText('Tryck för att fortsätta', W() / 2, H() / 2 + 105);
     }
   }
 
   // === Update ===
   function update() {
     if (state === STATE.PLAYING) {
-      bird.vy += GRAVITY;
-      bird.vy = Math.min(bird.vy, MAX_FALL_SPEED);
-      bird.y += bird.vy;
+      Flappy Bird.vy += GRAVITY;
+      Flappy Bird.vy = Math.min(Flappy Bird.vy, MAX_FALL_SPEED);
+      Flappy Bird.y += Flappy Bird.vy;
 
-      bird.trail.push({ x: bird.x, y: bird.y });
-      if (bird.trail.length > 15) bird.trail.shift();
+      Flappy Bird.trail.push({ x: Flappy Bird.x, y: Flappy Bird.y });
+      if (Flappy Bird.trail.length > 15) Flappy Bird.trail.shift();
 
       for (const pipe of pipes) pipe.x -= PIPE_SPEED;
       for (const coin of coins) coin.x -= PIPE_SPEED;
@@ -939,7 +785,7 @@
     if (state === STATE.PLAYING) {
       for (const pipe of pipes) drawPipe(pipe);
       drawCoins();
-      drawBird();
+      drawFlappy Bird();
       drawUI();
     } else if (state === STATE.DEAD) {
       for (const pipe of pipes) drawPipe(pipe);
@@ -960,7 +806,6 @@
   }
 
   // === Bootstrap ===
-  initBackground();
   loadSkin();
   gameLoop();
 })();

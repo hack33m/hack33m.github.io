@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neon Draw</title>
+  <title>Rita</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0a0a1a;
+      background: #f5f5f4;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
     }
@@ -17,27 +17,28 @@
     #guess-input {
       position: absolute; display: none;
       left: 50%; transform: translateX(-50%);
-      background: #111128; border: 2px solid #a855f7; color: #fff;
-      font-size: 22px; padding: 12px 20px; border-radius: 12px;
+      background: #ffffff; border: 1px solid #d6d3d1; color: #1c1917;
+      font-size: 22px; padding: 12px 20px; border-radius: 10px;
       text-align: center; width: 280px; outline: none;
-      font-family: 'Segoe UI', sans-serif;
-      box-shadow: 0 0 20px rgba(168,85,247,0.3);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     }
-    #guess-input:focus { border-color: #00d4ff; box-shadow: 0 0 20px rgba(0,212,255,0.4); }
+    #guess-input::placeholder { color: #78716c; }
+    #guess-input:focus { border-color: #2563eb; }
     #guess-btn {
       position: absolute; display: none;
       left: 50%; transform: translateX(-50%);
-      background: linear-gradient(135deg, #39ff14, #00d4ff);
-      color: #0a0a1a; font-size: 18px; font-weight: bold;
-      padding: 12px 40px; border: none; border-radius: 12px;
-      cursor: pointer; font-family: 'Segoe UI', sans-serif;
+      background: #2563eb;
+      color: #ffffff; font-size: 18px; font-weight: 600;
+      padding: 12px 40px; border: none; border-radius: 10px;
+      cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
   </style>
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
 <input type="text" id="guess-input" placeholder="Skriv vad du ser..." autocomplete="off">
-<button id="guess-btn">GISSA!</button>
+<button id="guess-btn">Gissa!</button>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -69,8 +70,12 @@
   window.addEventListener('resize',resize);
   window.addEventListener('load',resize);
 
-  const CYAN='#00d4ff',PINK='#ff2d95',PURPLE='#a855f7',GREEN='#39ff14',ORANGE='#ff6a00',YELLOW='#ffe600',BG='#0a0a1a';
-  const NEON_COLORS=[CYAN,PINK,PURPLE,GREEN,ORANGE,YELLOW];
+  // Flat palette
+  const BG='#f5f5f4',SURFACE='#ffffff',SURFACE2='#e7e5e4',LINE='#d6d3d1',INK='#1c1917',MUTED='#78716c';
+  const ACCENT='#2563eb',RED='#dc2626',GREEN='#16a34a',YELLOW='#ca8a04',PURPLE='#7c3aed';
+  const FONT="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  // Brush colours (first one is the default)
+  const BRUSH_COLORS=[INK,ACCENT,RED,GREEN,YELLOW,PURPLE];
 
   const WORDS=['hund','katt','hus','sol','bil','träd','fisk','blomma','fjäril','pizza',
     'båt','cykel','moln','stjärna','hjärta','skog','berg','flod','bro','slott',
@@ -87,7 +92,7 @@
   let usedWords=[], guessResult='', guessCorrect=false, resultTimer=0;
 
   // Drawing
-  let drawColor=CYAN, brushSize=8, isEraser=false, isDrawing=false, lastX=0, lastY=0;
+  let drawColor=BRUSH_COLORS[0], brushSize=8, isEraser=false, isDrawing=false, lastX=0, lastY=0;
   const BRUSH_SIZES=[4,8,14];
   let brushIdx=1;
   // drawCanvas declared above resize()
@@ -96,7 +101,7 @@
     drawCanvas=document.createElement('canvas');
     drawCanvas.width=canvas.width;drawCanvas.height=canvas.height;
     drawCtx=drawCanvas.getContext('2d');drawCtx.setTransform(dpr,0,0,dpr,0,0);
-    drawCtx.fillStyle='#111128';drawCtx.fillRect(0,0,W,H);
+    drawCtx.fillStyle=SURFACE;drawCtx.fillRect(0,0,W,H);
   }
 
   function pickWord(){
@@ -109,7 +114,7 @@
 
   function nextRound(){
     round++;currentWord=pickWord();initDrawCanvas();
-    drawColor=CYAN;brushSize=BRUSH_SIZES[1];brushIdx=1;isEraser=false;
+    drawColor=BRUSH_COLORS[0];brushSize=BRUSH_SIZES[1];brushIdx=1;isEraser=false;
     state='word-reveal';resultTimer=0;
     hideGuessUI();
   }
@@ -159,24 +164,18 @@
     if(y1<canvasTop()||y2<canvasTop()||y1>canvasBot()||y2>canvasBot())return;
     drawCtx.lineCap='round';drawCtx.lineJoin='round';
     if(isEraser){
-      drawCtx.globalCompositeOperation='source-over';drawCtx.strokeStyle='#111128';
-      drawCtx.lineWidth=brushSize*3;drawCtx.shadowBlur=0;
+      drawCtx.globalCompositeOperation='source-over';drawCtx.strokeStyle=SURFACE;
+      drawCtx.lineWidth=brushSize*3;
       drawCtx.beginPath();drawCtx.moveTo(x1,y1);drawCtx.lineTo(x2,y2);drawCtx.stroke();
     }else{
-      drawCtx.globalCompositeOperation='lighter';
-      drawCtx.shadowColor=drawColor;drawCtx.shadowBlur=brushSize*2;
-      drawCtx.strokeStyle=drawColor+'66';drawCtx.lineWidth=brushSize*2;
-      drawCtx.beginPath();drawCtx.moveTo(x1,y1);drawCtx.lineTo(x2,y2);drawCtx.stroke();
-      drawCtx.shadowBlur=brushSize;drawCtx.strokeStyle=drawColor;drawCtx.lineWidth=brushSize;
-      drawCtx.beginPath();drawCtx.moveTo(x1,y1);drawCtx.lineTo(x2,y2);drawCtx.stroke();
-      drawCtx.shadowBlur=0;drawCtx.strokeStyle='#ffffff88';drawCtx.lineWidth=brushSize*0.4;
-      drawCtx.beginPath();drawCtx.moveTo(x1,y1);drawCtx.lineTo(x2,y2);drawCtx.stroke();
+      // Flat, solid stroke
       drawCtx.globalCompositeOperation='source-over';
+      drawCtx.strokeStyle=drawColor;drawCtx.lineWidth=brushSize;
+      drawCtx.beginPath();drawCtx.moveTo(x1,y1);drawCtx.lineTo(x2,y2);drawCtx.stroke();
     }
-    drawCtx.shadowBlur=0;
   }
 
-  function clearDrawing(){drawCtx.globalCompositeOperation='source-over';drawCtx.fillStyle='#111128';drawCtx.fillRect(0,0,W,H);}
+  function clearDrawing(){drawCtx.globalCompositeOperation='source-over';drawCtx.fillStyle=SURFACE;drawCtx.fillRect(0,0,W,H);}
 
   // Input
   function getPos(e){const r=canvas.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};}
@@ -206,9 +205,9 @@
   function handleToolbar(p){
     const y=65;
     // Colors
-    for(let i=0;i<NEON_COLORS.length;i++){
+    for(let i=0;i<BRUSH_COLORS.length;i++){
       const cx=15+i*36;
-      if(p.x>=cx&&p.x<=cx+28&&p.y>=y&&p.y<=y+28){drawColor=NEON_COLORS[i];isEraser=false;return;}
+      if(p.x>=cx&&p.x<=cx+28&&p.y>=y&&p.y<=y+28){drawColor=BRUSH_COLORS[i];isEraser=false;return;}
     }
     // Brush sizes
     const bx=W-200;
@@ -227,99 +226,103 @@
   }
 
   // Render helpers
-  function glow(text,x,y,color,size,align){
+  // Flat text
+  function label(text,x,y,color,size,align,weight){
     ctx.save();ctx.textAlign=align||'center';ctx.textBaseline='middle';
-    ctx.font=`bold ${size}px 'Segoe UI',sans-serif`;
-    ctx.shadowColor=color;ctx.shadowBlur=15;ctx.fillStyle=color;ctx.fillText(text,x,y);
-    ctx.shadowBlur=0;ctx.restore();
+    ctx.font=`${weight||600} ${size}px ${FONT}`;
+    ctx.fillStyle=color;ctx.fillText(text,x,y);
+    ctx.restore();
   }
-  function neonBtn(x,y,w,h,color,text,sz){
-    ctx.save();ctx.beginPath();ctx.roundRect(x,y,w,h,12);
-    ctx.fillStyle=color+'22';ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=2;
-    ctx.shadowColor=color;ctx.shadowBlur=10;ctx.stroke();ctx.shadowBlur=0;ctx.restore();
-    glow(text,x+w/2,y+h/2,color,sz||20);
+  // Flat button: primary = accent fill + white text, secondary = white fill + line border + ink text
+  function flatBtn(x,y,w,h,primary,text,sz){
+    ctx.save();ctx.beginPath();ctx.roundRect(x,y,w,h,10);
+    if(primary){ctx.fillStyle=ACCENT;ctx.fill();}
+    else{ctx.fillStyle=SURFACE;ctx.fill();ctx.strokeStyle=LINE;ctx.lineWidth=1;ctx.stroke();}
+    ctx.restore();
+    label(text,x+w/2,y+h/2,primary?'#ffffff':INK,sz||20);
   }
 
   function render(){
     ctx.fillStyle=BG;ctx.fillRect(0,0,W,H);
 
     if(state==='menu'){
-      glow('NEON DRAW',W/2,H*0.22,CYAN,Math.min(52,W*0.11));
-      glow('En ritar, en gissar!',W/2,H*0.33,PURPLE,18);
-      ctx.save();ctx.textAlign='center';ctx.font='15px Segoe UI';ctx.fillStyle='rgba(255,255,255,0.5)';
+      label('Rita',W/2,H*0.22,INK,Math.min(52,W*0.11),'center',700);
+      label('En ritar, en gissar!',W/2,H*0.33,MUTED,18);
+      ctx.save();ctx.textAlign='center';ctx.font=`400 15px ${FONT}`;ctx.fillStyle=MUTED;
       ctx.fillText('Spelare 1 ritar ett ord',W/2,H*0.42);
       ctx.fillText('Spelare 2 gissar vad det är',W/2,H*0.47);ctx.restore();
-      neonBtn(W/2-110,H*0.65,220,55,GREEN,'SPELA',26);
+      flatBtn(W/2-110,H*0.65,220,55,true,'Spela',22);
     }
 
     else if(state==='word-reveal'){
-      glow(`Runda ${round}/${ROUNDS}`,W/2,H*0.2,PURPLE,20);
-      glow('Ditt ord att rita:',W/2,H*0.35,CYAN,20);
-      glow(currentWord.toUpperCase(),W/2,H*0.48,PINK,Math.min(56,W*0.12));
-      ctx.save();ctx.textAlign='center';ctx.font='16px Segoe UI';ctx.fillStyle='rgba(255,255,255,0.4)';
+      label(`Runda ${round}/${ROUNDS}`,W/2,H*0.2,MUTED,20);
+      label('Ditt ord att rita:',W/2,H*0.35,INK,20);
+      label(currentWord.toUpperCase(),W/2,H*0.48,ACCENT,Math.min(56,W*0.12),'center',700);
+      ctx.save();ctx.textAlign='center';ctx.font=`400 16px ${FONT}`;ctx.fillStyle=MUTED;
       ctx.fillText('Visa INTE ordet för den som gissar!',W/2,H*0.60);
       ctx.fillText('Tryck var som helst för att börja rita',W/2,H*0.66);ctx.restore();
     }
 
     else if(state==='drawing'){
       // Top bar
-      ctx.fillStyle='#0d0d24';ctx.fillRect(0,0,W,55);
-      glow(`Runda ${round}/${ROUNDS}`,70,28,PURPLE,16);
-      glow(`${score} poäng`,W/2,28,CYAN,16);
-      const tc=timeLeft<=10?ORANGE:CYAN;
-      glow(`${timeLeft}s`,W-40,28,tc,18);
+      ctx.fillStyle=SURFACE;ctx.fillRect(0,0,W,55);
+      label(`Runda ${round}/${ROUNDS}`,70,28,MUTED,16);
+      label(`${score} poäng`,W/2,28,ACCENT,16);
+      const tc=timeLeft<=10?RED:INK;
+      label(`${timeLeft}s`,W-40,28,tc,18);
 
       // Toolbar
-      ctx.fillStyle='#0d0d24cc';ctx.fillRect(0,55,W,38);
+      ctx.fillStyle=SURFACE;ctx.fillRect(0,55,W,38);
+      ctx.fillStyle=LINE;ctx.fillRect(0,92,W,1);
       const ty=65;
-      for(let i=0;i<NEON_COLORS.length;i++){
-        const cx=15+i*36;const c=NEON_COLORS[i];const sel=!isEraser&&drawColor===c;
-        ctx.save();ctx.beginPath();ctx.roundRect(cx,ty,28,28,6);ctx.fillStyle=c;
-        ctx.shadowColor=c;ctx.shadowBlur=sel?15:4;ctx.fill();
-        if(sel){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}ctx.restore();
+      for(let i=0;i<BRUSH_COLORS.length;i++){
+        const cx=15+i*36;const c=BRUSH_COLORS[i];const sel=!isEraser&&drawColor===c;
+        ctx.save();ctx.beginPath();ctx.roundRect(cx,ty,28,28,6);ctx.fillStyle=c;ctx.fill();ctx.restore();
+        if(sel){ctx.save();ctx.beginPath();ctx.roundRect(cx-3,ty-3,34,34,8);ctx.strokeStyle=ACCENT;ctx.lineWidth=2;ctx.stroke();ctx.restore();}
       }
       const labels=['S','M','L'];const bsx=W-200;
       for(let i=0;i<3;i++){
         const x=bsx+i*38;const sel=!isEraser&&brushIdx===i;
         ctx.save();ctx.beginPath();ctx.roundRect(x,ty,32,28,6);
-        ctx.fillStyle=sel?CYAN+'44':'#222244';ctx.fill();
-        ctx.strokeStyle=sel?CYAN:'#444466';ctx.lineWidth=sel?2:1;ctx.stroke();ctx.restore();
+        ctx.fillStyle=sel?ACCENT:SURFACE;ctx.fill();
+        if(!sel){ctx.strokeStyle=LINE;ctx.lineWidth=1;ctx.stroke();}ctx.restore();
         ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.font='bold 13px Segoe UI';ctx.fillStyle=sel?CYAN:'#8888aa';
+        ctx.font=`600 13px ${FONT}`;ctx.fillStyle=sel?'#ffffff':MUTED;
         ctx.fillText(labels[i],x+16,ty+14);ctx.restore();
       }
       const ex=W-80;
       ctx.save();ctx.beginPath();ctx.roundRect(ex,ty,60,28,6);
-      ctx.fillStyle=isEraser?ORANGE+'44':'#222244';ctx.fill();
-      ctx.strokeStyle=isEraser?ORANGE:'#444466';ctx.lineWidth=isEraser?2:1;ctx.stroke();ctx.restore();
-      ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 12px Segoe UI';
-      ctx.fillStyle=isEraser?ORANGE:'#8888aa';ctx.fillText('SUDD',ex+30,ty+14);ctx.restore();
+      ctx.fillStyle=isEraser?ACCENT:SURFACE;ctx.fill();
+      if(!isEraser){ctx.strokeStyle=LINE;ctx.lineWidth=1;ctx.stroke();}ctx.restore();
+      ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`600 12px ${FONT}`;
+      ctx.fillStyle=isEraser?'#ffffff':MUTED;ctx.fillText('Sudd',ex+30,ty+14);ctx.restore();
 
       // Drawing area
       ctx.save();ctx.beginPath();ctx.rect(0,canvasTop(),W,canvasBot()-canvasTop());ctx.clip();
       ctx.drawImage(drawCanvas,0,0,drawCanvas.width,drawCanvas.height,0,0,W,H);ctx.restore();
-      ctx.strokeStyle=PURPLE+'33';ctx.lineWidth=1;ctx.strokeRect(0,canvasTop(),W,canvasBot()-canvasTop());
+      ctx.strokeStyle=LINE;ctx.lineWidth=1;ctx.strokeRect(0,canvasTop(),W,canvasBot()-canvasTop());
 
       // Bottom bar
-      ctx.fillStyle='#0d0d24cc';ctx.fillRect(0,canvasBot(),W,BOTTOM_H);
+      ctx.fillStyle=BG;ctx.fillRect(0,canvasBot(),W,BOTTOM_H);
       const by=canvasBot()+10;
-      neonBtn(15,by,80,38,ORANGE,'RENSA',14);
-      neonBtn(W-140,by,125,38,GREEN,'KLAR!',16);
-      ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='15px Segoe UI';
-      ctx.fillStyle=PURPLE;ctx.fillText(`Poäng: ${score}`,W/2,by+19);ctx.restore();
+      flatBtn(15,by,80,38,false,'Rensa',14);
+      flatBtn(W-140,by,125,38,true,'Klar!',16);
+      ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`400 15px ${FONT}`;
+      ctx.fillStyle=MUTED;ctx.fillText(`Poäng: ${score}`,W/2,by+19);ctx.restore();
     }
 
     else if(state==='guessing'){
-      ctx.fillStyle='#0d0d24';ctx.fillRect(0,0,W,50);
-      glow(`Runda ${round}/${ROUNDS}`,W/2,26,PURPLE,18);
+      ctx.fillStyle=SURFACE;ctx.fillRect(0,0,W,50);
+      ctx.fillStyle=LINE;ctx.fillRect(0,49,W,1);
+      label(`Runda ${round}/${ROUNDS}`,W/2,26,MUTED,18);
 
       // Show drawing
       const top=60,bot=H*0.65;
       ctx.save();ctx.beginPath();ctx.rect(0,top,W,bot-top);ctx.clip();
       ctx.drawImage(drawCanvas,0,0,drawCanvas.width,drawCanvas.height,0,0,W,H);ctx.restore();
-      ctx.strokeStyle=CYAN+'33';ctx.lineWidth=1;ctx.strokeRect(0,top,W,bot-top);
+      ctx.strokeStyle=LINE;ctx.lineWidth=1;ctx.strokeRect(0,top,W,bot-top);
 
-      glow('Vad föreställer ritningen?',W/2,H*0.68,CYAN,20);
+      label('Vad föreställer ritningen?',W/2,H*0.68,INK,20);
       // Input and button are HTML elements positioned via CSS
     }
 
@@ -327,18 +330,18 @@
       // Show drawing small
       const dw=Math.min(W-40,350),dh=Math.min(H*0.35,250);
       const dx=W/2-dw/2,dy=30;
-      ctx.save();ctx.beginPath();ctx.roundRect(dx,dy,dw,dh,12);ctx.clip();
+      ctx.save();ctx.beginPath();ctx.roundRect(dx,dy,dw,dh,10);ctx.clip();
       ctx.drawImage(drawCanvas,0,0,drawCanvas.width,drawCanvas.height,dx,dy,dw,dh);ctx.restore();
-      ctx.save();ctx.beginPath();ctx.roundRect(dx,dy,dw,dh,12);ctx.strokeStyle=CYAN;ctx.lineWidth=2;ctx.stroke();ctx.restore();
+      ctx.save();ctx.beginPath();ctx.roundRect(dx,dy,dw,dh,10);ctx.strokeStyle=LINE;ctx.lineWidth=1;ctx.stroke();ctx.restore();
 
       const cy=dy+dh+30;
       if(guessCorrect){
-        glow('RÄTT!',W/2,cy,GREEN,36);
-        glow(`"${guessResult}" var korrekt!`,W/2,cy+40,CYAN,18);
+        label('Rätt!',W/2,cy,GREEN,36,'center',700);
+        label(`"${guessResult}" var korrekt!`,W/2,cy+40,INK,18);
       }else{
-        glow('FEL!',W/2,cy,PINK,36);
-        glow(`Gissning: "${guessResult}"`,W/2,cy+35,ORANGE,16);
-        glow(`Rätt svar: ${currentWord.toUpperCase()}`,W/2,cy+65,GREEN,20);
+        label('Fel!',W/2,cy,RED,36,'center',700);
+        label(`Gissning: "${guessResult}"`,W/2,cy+35,MUTED,16);
+        label(`Rätt svar: ${currentWord.toUpperCase()}`,W/2,cy+65,INK,20);
       }
 
       resultTimer--;
@@ -349,22 +352,22 @@
 
       // Progress bar
       const pb=resultTimer/150;
-      ctx.fillStyle='#222244';ctx.fillRect(W*0.2,H-30,W*0.6,6);
-      ctx.fillStyle=CYAN;ctx.fillRect(W*0.2,H-30,W*0.6*pb,6);
+      ctx.fillStyle=SURFACE2;ctx.fillRect(W*0.2,H-30,W*0.6,6);
+      ctx.fillStyle=ACCENT;ctx.fillRect(W*0.2,H-30,W*0.6*pb,6);
     }
 
     else if(state==='gameover'){
-      glow('SPELET SLUT!',W/2,H*0.2,CYAN,40);
-      glow(`${score} / ${ROUNDS}`,W/2,H*0.35,PINK,48);
-      glow('rätt gissningar',W/2,H*0.42,PURPLE,16);
+      label('Spelet slut!',W/2,H*0.2,INK,40,'center',700);
+      label(`${score} / ${ROUNDS}`,W/2,H*0.35,ACCENT,48,'center',700);
+      label('rätt gissningar',W/2,H*0.42,MUTED,16,'center',400);
       let msg='';
       if(score===ROUNDS)msg='Perfekt! Ni är ett dreamteam!';
       else if(score>=4)msg='Fantastiskt samarbete!';
       else if(score>=3)msg='Bra jobbat!';
       else if(score>=1)msg='Fortsätt öva!';
       else msg='Nästa gång blir bättre!';
-      glow(msg,W/2,H*0.55,GREEN,20);
-      neonBtn(W/2-110,H*0.72,220,55,GREEN,'SPELA IGEN',22);
+      label(msg,W/2,H*0.55,INK,20);
+      flatBtn(W/2-110,H*0.72,220,55,true,'Spela igen',22);
     }
 
     requestAnimationFrame(render);
