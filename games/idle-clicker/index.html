@@ -264,7 +264,7 @@
 
   // DANILO is a prank: buying it opens a Rick Roll in a new tab.
   // It runs inside the click/keypress that made the purchase, so the browser allows the new tab.
-  const RICK_ROLL_URL = 'https://www.pornhub.com/';
+  const RICK_ROLL_URL = 'https://www.kugooescooters.com/collections/electric-scooters?utm_campaign=Branded-Search-EU&utm_source=CPC&utm_medium=search&gad_source=1&gad_campaignid=13867864546&gbraid=0AAAAADAFR_VCgmyhskinjLYo3a4OnYO9G&gclid=Cj0KCQiAh9vXBhDKARIsAMooYhcqgs1gZQpTH6SV61L8AliJUNLX949A2hgMni8KhFEBh7QFgu5M2JkaAhkdEALw_wcB';
   function onUpgradeBought(u) {
     if (u.id === 'danilo') window.open(RICK_ROLL_URL, '_blank', 'noopener');
   }
